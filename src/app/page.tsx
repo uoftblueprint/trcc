@@ -1,8 +1,7 @@
-import { createClient } from "@/utils/supabase/server";
+import { getExample } from "@/lib/api/index";
 
 export default async function Home() {
-  const supabase = await createClient();
-  const { data: example } = await supabase.from("example").select();
+  const example = await getExample("test");
 
   return <pre>{JSON.stringify(example, null, 2)}</pre>;
 }
