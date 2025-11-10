@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TRCC Volunteer Management System
 
-## Getting Started
+## Development Workflow & PR Submission Guide
 
-First, run the development server:
+Welcome to the TRCC Volunteer Management System codebase! This guide outlines how to get started, work on issues/tickets, and submit your code through pull requests (PRs).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Initial Setup (One-Time)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **Clone the repository**  
+- `git clone https://github.com/uoftblueprint/trcc.git`
+- `cd trcc`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. **Set up environment variables**  
+Copy the shared `.env.local` configuration file provided by the PLs into the root directory (it should be found in `trcc/.env.local`). This file contains all necessary keys/URLs for Supabase and local development.
 
-## Learn More
+3. **Install dependencies**
+- `npm install`
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Running the App Locally
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **Start development server**  
+- Run the app at [http://localhost:3000](http://localhost:3000)
+- use `npm run dev`
 
-## Deploy on Vercel
+2. **Format your code**  
+- Automatically format all files according to project rules
+- use `npm run format`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+3. **Run lint checks**  
+- Check code style and look for any lint issues  
+- use `npm run lint`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+4. **Run automated tests**  
+- Run all available tests. Test cases will be developed throughout the sprints.
+- use `npm run test`
+
+---
+
+## Working on a Ticket
+
+0. **Select a ticket from the Kanban board**
+To find the kanban board: go to the Github repo click on Projects > TRCC Project.
+- Choose a ticket from the "Ready" column
+- Move the ticket to the "In progress" column and assign yourself to the ticket
+
+1. **Update your local main branch**  
+Make sure your local main branch is up to date before branching from main:
+- git checkout main
+- git pull origin main
+
+2. **Create a new branch**  
+Name your branch concisely and descriptively related to the issue/ticket:  
+Examples: `backend/filter-by-role-api`, `frontend/login-page`, `test/filter-general`
+- `git checkout -b branch-name-here`
+
+3. **Implement your changes**  
+- Follow the project structure (e.g. write API functions inside the `src/lib/api/` folder)
+- Ensure tests pass using `npm run test` (if there are tests created that are related to your function/feature)
+
+4. **Format and lint your code before committing**  
+Run the following:  
+- `npm run format`
+- `npm run lint`
+
+5. **Commit your changes**  
+Use a meaningful commit message that briefly summarizes the work done:  
+- git add <files_changed>
+- git commit -m "Add create volunteer API function"
+
+6. **Push your branch to remote**  
+`git push origin branch-name-here`
+
+7. **Create a Pull Request (PR)**  
+- Go to the GitHub repo and open a PR from your branch into main
+- Use a clear title and description that references the ticket
+- Include screenshots of passed tests (if any test cases) or of the feature working (e.g. working page or logs)
+- In the kanban board: move your ticket from "In progress" to "In review". Also, click on the ticket, and in the right column, click on Development and connect your branch/PR to the ticket.
+
+---
+
+## Useful Commands Summary
+
+| Command                  | Description                               |
+|--------------------------|-------------------------------------------|
+| `npm install`            | Install project dependencies              |
+| `npm run dev`            | Run development server (localhost:3000)  |
+| `npm run format`         | Format code automatically                 |
+| `npm run lint`           | Check for linting errors                   |
+| `npm run test`           | Run unit and integration tests            |
+| `git checkout main`      | Switch to main branch                      |
+| `git pull origin main`   | Pull latest main branch changes            |
+| `git checkout -b <name>`| Create and switch to new branch           |
+| `git add .`              | Stage all changed files                    |
+| `git commit -m "msg"`    | Commit staged changes with a message      |
+| `git push origin <name>` | Push branch to remote repository           |
