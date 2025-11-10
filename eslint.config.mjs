@@ -15,7 +15,7 @@ const eslintConfig = [
     rules: {
       semi: ["error"],
       quotes: ["error", "double"],
-    }
+    },
   }),
   {
     ignores: [
