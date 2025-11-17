@@ -11,3 +11,13 @@ export async function getExample(word: string) {
   console.log("data ", result);
   return result;
 }
+
+function returnsNumber(): number {
+  return 67;
+}
+
+function takesString(s: string): void {
+  console.log(s);
+}
+
+takesString(returnsNumber());
