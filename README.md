@@ -20,6 +20,8 @@ Welcome to the TRCC Volunteer Management System codebase! This guide outlines ho
 
 - `npm install`
 
+This will also automatically set up pre-commit hooks that run linting and formatting checks on your staged files before each commit.
+
 ---
 
 ### Running the App Locally
@@ -29,14 +31,14 @@ Welcome to the TRCC Volunteer Management System codebase! This guide outlines ho
 - Run the app at [http://localhost:3000](http://localhost:3000)
 - use `npm run dev`
 
-2. **Format your code**
+2. **Format your code** (optional - pre-commit hooks will do this automatically)
 
-- Automatically format all files according to project rules
+- Manually format all files according to project rules
 - use `npm run format`
 
-3. **Run lint checks**
+3. **Run lint checks** (optional - pre-commit hooks will do this automatically)
 
-- Check code style and look for any lint issues
+- Manually check code style and look for any lint issues
 - use `npm run lint`
 
 4. **Run automated tests**
@@ -71,22 +73,18 @@ Welcome to the TRCC Volunteer Management System codebase! This guide outlines ho
 - Follow the project structure (e.g. write API functions inside the `src/lib/api/` folder)
 - Ensure tests pass using `npm run test` (if there are tests created that are related to your function/feature)
 
-4. **Format and lint your code before committing**  
-   Run the following:
-
-- `npm run format`
-- `npm run lint`
-
-5. **Commit your changes**  
+4. **Commit your changes**
    Use a meaningful commit message that briefly summarizes the work done:
 
 - git add <files_changed>
 - git commit -m "Add create volunteer API function"
 
-6. **Push your branch to remote**  
+**Note:** Pre-commit hooks will automatically run linting and formatting on your staged files. If there are any issues, the commit will be blocked and you'll need to fix them before committing again. You can also manually run `npm run format` and `npm run lint` to check your code before staging.
+
+5. **Push your branch to remote**
    `git push origin branch-name-here`
 
-7. **Create a Pull Request (PR)**
+6. **Create a Pull Request (PR)**
 
 - Go to the GitHub repo and open a PR from your branch into main
 - Use a clear title and description that references the ticket
