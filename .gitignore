@@ -46,3 +46,6 @@ next-env.d.ts
 !.vscode/extensions.json
 !.vscode/tasks.json
 !.vscode/launch.json
+
+# Exclude IntelliJ project files
+/.idea
