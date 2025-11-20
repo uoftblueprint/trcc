@@ -129,7 +129,7 @@ function isValidEmail(email: string): boolean {
  * @returns A response object indicating success or failure
  */
 export async function addVolunteer(
-  volunteerData: unknown,
+  volunteerData: unknown
 ): Promise<AddVolunteerResponse> {
   try {
     // Validate input

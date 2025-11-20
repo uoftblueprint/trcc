@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
           success: false,
           error: "Invalid JSON in request body",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
         message: "Volunteer added successfully",
         data: result.data,
       },
-      { status: 201 },
+      { status: 201 }
     );
   } catch (error) {
     console.error("Unexpected error in POST /api/volunteers:", error);
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: "An unexpected error occurred",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
