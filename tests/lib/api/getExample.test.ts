@@ -12,13 +12,15 @@ vi.mock("@/lib/client/supabase/server", () => ({
 }));
 
 describe("getExample", () => {
+  type SupabaseClientType = Awaited<ReturnType<typeof createClient>>;
+  const mockedCreateClient = vi.mocked(createClient);
   const mockSelect = vi.fn();
   const mockFrom = vi.fn(() => ({ select: mockSelect }));
-  const mockClient = { from: mockFrom };
+  const mockClient = { from: mockFrom } as unknown as SupabaseClientType;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (createClient as any).mockResolvedValue(mockClient);
+    mockedCreateClient.mockResolvedValue(mockClient);
     mockSelect.mockResolvedValue({ data: [{ id: 1, name: "Test Volunteer" }] });
   });
 
