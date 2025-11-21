@@ -2,3 +2,5 @@
 
 export { getExample } from "./getExample";
 export { getVolunteersByCohorts } from "./getVolunteersByCohorts";
+export { filterMultipleColumns, validateFilter } from "./filterMultipleColumns";
+
