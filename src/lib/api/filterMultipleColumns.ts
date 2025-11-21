@@ -97,45 +97,83 @@ export async function filterMultipleColumns(
 
     if (filterField === "roles") {
       // Role-specific filtering
-      let query = client
-        .from("VolunteerRoles")
-        .select("volunteer_id, Roles!inner(name)");
-
       if (mini_op === "OR") {
+        let query = client
+          .from("VolunteerRoles")
+          .select("volunteer_id, Roles!inner(name)");
+
         query = query.in("Roles.name", values);
+
+        const { data: roleRows, error } = await query;
+        if (error) return { error: error.message };
+
+        volunteerIds = roleRows.map((r) => r.volunteer_id);
       } else {
-        values.forEach((v) => {
-          query = query.eq("Roles.name", v);
-        });
+        const roleVolunteerIds: Set<number>[] = [];
+
+        for (const v of values) {
+          const query = client
+            .from("VolunteerRoles")
+            .select("volunteer_id, Roles!inner(name)");
+
+          const { data: cohortRows, error } = await query.eq("Roles.name", v);
+
+          if (error) return { error: error.message };
+
+          roleVolunteerIds.push(new Set(cohortRows.map((r) => r.volunteer_id)));
+        }
+
+        if (roleVolunteerIds.length > 0) {
+          volunteerIds = [
+            ...roleVolunteerIds.reduce((acc, cur) => {
+              return acc.intersection(cur);
+            }),
+          ];
+        }
       }
-
-      const { data: roleRows, error } = await query;
-      if (error) return { error: error.message };
-
-      volunteerIds = roleRows.map((r) => r.volunteer_id);
     } else if (filterField === "cohorts") {
       // Cohort-specific filtering
-      let query = client
-        .from("VolunteerCohorts")
-        .select("volunteer_id, Cohorts!inner(term, year)");
-
       if (mini_op === "OR") {
+        let query = client
+          .from("VolunteerCohorts")
+          .select("volunteer_id, Cohorts!inner(term, year)");
+
         const orStatement = values
           .map((v) => `and(term.eq.${v[0]},year.eq.${v[1]})`)
           .join(",");
         query = query.or(orStatement, { referencedTable: "Cohorts" });
+
+        const { data: cohortRows, error } = await query;
+        if (error) return { error: error.message };
+
+        volunteerIds = cohortRows.map((r) => r.volunteer_id);
       } else {
-        values.forEach((v) => {
-          query = query
+        const cohortVolunteerIds: Set<number>[] = [];
+
+        for (const v of values) {
+          const query = client
+            .from("VolunteerCohorts")
+            .select("volunteer_id, Cohorts!inner(term, year)");
+
+          const { data: cohortRows, error } = await query
             .eq("Cohorts.term", v[0])
             .eq("Cohorts.year", parseInt(v[1]));
-        });
+
+          if (error) return { error: error.message };
+
+          cohortVolunteerIds.push(
+            new Set(cohortRows.map((r) => r.volunteer_id))
+          );
+        }
+
+        if (cohortVolunteerIds.length > 0) {
+          volunteerIds = [
+            ...cohortVolunteerIds.reduce((acc, cur) => {
+              return acc.intersection(cur);
+            }),
+          ];
+        }
       }
-
-      const { data: cohortRows, error } = await query;
-      if (error) return { error: error.message };
-
-      volunteerIds = cohortRows.map((r) => r.volunteer_id);
     } else {
       // General filtering
       let query = client.from("Volunteers").select("id");
