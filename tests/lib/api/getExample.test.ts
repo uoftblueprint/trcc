@@ -18,7 +18,8 @@ describe("getExample", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (createClient as any).mockResolvedValue(mockClient);
+    // @ts-expect-error - Partial mock of SupabaseClient for testing
+    vi.mocked(createClient).mockResolvedValue(mockClient);
     mockSelect.mockResolvedValue({ data: [{ id: 1, name: "Test Volunteer" }] });
   });
 
