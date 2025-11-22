@@ -4,3 +4,4 @@ export { getExample } from "./getExample";
 export { getVolunteersByRoles } from "./getVolunteersByRoles";
 export { getVolunteersByCohorts } from "./getVolunteersByCohorts";
 export { getVolunteersByMultipleColumns } from "./getVolunteersByMultipleColumns";
+export { getVolunteersByRoles } from "./getVolunteersByRoles";
