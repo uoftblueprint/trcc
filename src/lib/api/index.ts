@@ -3,4 +3,8 @@
 export { getExample } from "./getExample";
 export { getVolunteersByCohorts } from "./getVolunteersByCohorts";
 export { getVolunteersByMultipleColumns } from "./getVolunteersByMultipleColumns";
-export { getRolesByFilter } from "./getRolesByFilter";
+export {
+  getVolunteersByRoles,
+  isValidOperator,
+  isAllStrings,
+} from "./getVolunteersByRoles";

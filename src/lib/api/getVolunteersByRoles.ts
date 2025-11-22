@@ -1,7 +1,5 @@
 import { createClient } from "../client/supabase/server";
 
-const ALLOWED_OPERATORS = ["OR", "AND"];
-
 type Volunteer = {
   id: number;
   created_at: string;
@@ -16,22 +14,28 @@ type Volunteer = {
   pseudonym: string | null;
 };
 
-function areAllStrings(arr: unknown[]): arr is string[] {
+type Operator = "OR" | "AND";
+
+export function isAllStrings(arr: unknown[]): arr is string[] {
   return arr.every((item) => typeof item === "string");
 }
 
-export async function getRolesByFilter(
-  operator: string,
+export function isValidOperator(operator: string) {
+  return (
+    typeof operator === "string" &&
+    ["OR", "AND"].includes(operator.toUpperCase())
+  );
+}
+
+export async function getVolunteersByRoles(
+  operator: Operator,
   filters: string[]
 ) {
-  if (
-    typeof operator !== "string" ||
-    !ALLOWED_OPERATORS.includes(operator.toUpperCase())
-  ) {
+  if (!isValidOperator(operator)) {
     return { status: 400, error: "Operator is not AND or OR" };
   }
 
-  if (!areAllStrings(filters)) {
+  if (!isAllStrings(filters)) {
     return {
       status: 400,
       error: "Roles to filter by are not all strings",
@@ -53,7 +57,7 @@ export async function getRolesByFilter(
     console.error("Supabase error:", error.message);
     console.error("Details:", error.details);
     console.error("Hint:", error.hint);
-    
+
     return {
       status: 500,
       error: `Failed to query Supabase database: ${error.message}`,
@@ -82,9 +86,8 @@ export async function getRolesByFilter(
   }
 
   const filteredVolunteers = [];
-  if (operator == "OR") {
+  if (operator.toUpperCase() == "OR") {
     for (const volunteer of volunteerRoleMap.values()) {
-
       filteredVolunteers.push({
         ...volunteer.row,
         role_names: Array.from(volunteer.roleNames),
@@ -92,7 +95,6 @@ export async function getRolesByFilter(
     }
   } else {
     for (const volunteer of volunteerRoleMap.values()) {
-
       if (volunteer.roleNames.size == filters.length) {
         filteredVolunteers.push({
           ...volunteer.row,
