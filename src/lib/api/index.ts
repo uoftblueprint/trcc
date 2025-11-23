@@ -1,4 +1,8 @@
 // Add any exports from your API files here
 
 export { getExample } from "./getExample";
-export { getRolesByFilter } from "./getRolesByFilter";
+export {
+  getVolunteersByRoles,
+  isAllStrings,
+  isValidOperator,
+} from "./getVolunteersByRoles";

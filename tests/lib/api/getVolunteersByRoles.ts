@@ -7,7 +7,7 @@ import {
   getVolunteersByRoles,
   isAllStrings,
   isValidOperator,
-} from "@/lib/api/index";
+} from "@/lib/client/supabase/index";
 import { createClient } from "@/lib/client/supabase/server";
 
 const volunteerTestData = [
