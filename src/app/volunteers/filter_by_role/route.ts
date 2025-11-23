@@ -1,31 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getVolunteersByRoles, isAllStrings, isValidOperator } from "@/lib/api/index";
+import { NextRequest } from "next/server";
+import { getRolesByFilter } from "@/lib/api/index";
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const operator = searchParams.get("operator");
-  const rolesParam = searchParams.get("roles");
+  
 
-  if (!operator || !rolesParam) {
-    return NextResponse.json(
-      { error: "Missing operator or filters" },
-      { status: 400 }
-    );
-  }
+  const response = await getRolesByFilter("OR", ["Role 1"]);
 
-  console.log(operator);
-  const rolesArray = rolesParam.split(","); 
-  console.log(rolesArray);
-  if (!isAllStrings(rolesArray) || !isValidOperator(operator)) {
-    return NextResponse.json(
-      { error: "Malformed operator or filters" },
-      { status: 400 }
-    );
-  }
-
-  const response = await getVolunteersByRoles(operator as "OR" | "AND", rolesArray);
-
-  return NextResponse.json(response, {
-    status: response.status,
+  if (response.status == 200) {
+    return new Response(JSON.stringify(response), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
   });
+  } else {
+    return new Response(JSON.stringify(response), {
+    status: response.status,
+    headers: { "Content-Type": "application/json" },
+  });
+  }
 }
