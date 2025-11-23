@@ -3,7 +3,7 @@ import {
   getVolunteersByRoles,
   isAllStrings,
   isValidOperator,
-} from "@/lib/client/supabase";
+} from "@/lib/api/getVolunteersByRoles";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
