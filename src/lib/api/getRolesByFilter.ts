@@ -41,7 +41,7 @@ export async function getVolunteersByRoles(
     return { error: "Operator is not AND or OR", data: null };
   }
 
-  if (!isAllStrings(filters)) {
+  if (!areAllStrings(filters)) {
     return {
       error: "Roles to filter by are not all strings",
       data: null,
@@ -108,6 +108,7 @@ export async function getVolunteersByRoles(
   const filteredVolunteers = [];
   if (operator.toUpperCase() === "OR") {
     for (const volunteer of volunteerRoleMap.values()) {
+
       filteredVolunteers.push({
         ...volunteer.row,
         filtered_roles: Array.from(volunteer.roleNames),
