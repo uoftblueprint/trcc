@@ -54,9 +54,9 @@ export async function getVolunteersByRoles(
     .in("Roles.name", filters);
 
   if (error) {
-    console.error("Supabase error:", error.message);
-    console.error("Details:", error.details);
-    console.error("Hint:", error.hint);
+    // console.error("Supabase error:", error.message);
+    // console.error("Details:", error.details);
+    // console.error("Hint:", error.hint);
 
     return {
       status: 500,

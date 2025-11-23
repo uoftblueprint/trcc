@@ -20,10 +20,7 @@ function areAllStrings(arr: unknown[]): arr is string[] {
   return arr.every((item) => typeof item === "string");
 }
 
-export async function getRolesByFilter(
-  operator: string,
-  filters: string[]
-) {
+export async function getRolesByFilter(operator: string, filters: string[]) {
   if (
     typeof operator !== "string" ||
     !ALLOWED_OPERATORS.includes(operator.toUpperCase())
@@ -53,7 +50,7 @@ export async function getRolesByFilter(
     console.error("Supabase error:", error.message);
     console.error("Details:", error.details);
     console.error("Hint:", error.hint);
-    
+
     return {
       status: 500,
       error: `Failed to query Supabase database: ${error.message}`,
@@ -84,7 +81,6 @@ export async function getRolesByFilter(
   const filteredVolunteers = [];
   if (operator == "OR") {
     for (const volunteer of volunteerRoleMap.values()) {
-
       filteredVolunteers.push({
         ...volunteer.row,
         role_names: Array.from(volunteer.roleNames),
@@ -92,7 +88,6 @@ export async function getRolesByFilter(
     }
   } else {
     for (const volunteer of volunteerRoleMap.values()) {
-
       if (volunteer.roleNames.size == filters.length) {
         filteredVolunteers.push({
           ...volunteer.row,
