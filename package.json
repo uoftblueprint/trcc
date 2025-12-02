@@ -15,7 +15,8 @@
     "prepare": "husky",
     "typecheck": "tsc --noEmit",
     "check": "npm run format:check && npm run lint && npm run typecheck",
-    "fix": "npm run format && npm run lint:fix"
+    "fix": "npm run format && npm run lint:fix",
+    "supabase:setup": "bash scripts/supabase-setup.sh"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
