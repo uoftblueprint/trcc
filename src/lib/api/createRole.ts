@@ -10,34 +10,34 @@ export async function createRole(
   type: type,
   is_active: boolean = true
 ): Promise<RoleRow> {
-    // Check inputs
-    if (!name || !type) {
-      throw new Error("Name and type are required to create a role.");
-    }
-    // Other checks already handled by Supabase constraints and TypeScript types
+  // Check inputs
+  if (!name || !type) {
+    throw new Error("Name and type are required to create a role.");
+  }
+  // Other checks already handled by Supabase constraints and TypeScript types
 
-    // Initialize Supabase client
-    const client = await createClient();
-    console.log("Created Supabase client for createRole.");
+  // Initialize Supabase client
+  const client = await createClient();
+  console.log("Created Supabase client for createRole.");
 
-    // Insert a new role into the "Roles" table
-    const { data, error, status } = await client
-      .from("Roles")
-      .insert([{ name, type, is_active }])
-      .select()
-      .single();
-    
-    // Check for Supabase errors
-    if (error) {
-        console.error("Error creating role: ", error, "Status: ", status);
-        throw new Error(error.message || JSON.stringify(error));
-    }
+  // Insert a new role into the "Roles" table
+  const { data, error, status } = await client
+    .from("Roles")
+    .insert([{ name, type, is_active }])
+    .select()
+    .single();
 
-    // Ensure data is returned
-    if (!data) {
-        throw new Error("No data returned after creating role. Status: " + status);
-    }
+  // Check for Supabase errors
+  if (error) {
+    console.error("Error creating role: ", error, "Status: ", status);
+    throw new Error(error.message || JSON.stringify(error));
+  }
 
-    console.log("Role created successfully: ", data);
-    return data as RoleRow;
+  // Ensure data is returned
+  if (!data) {
+    throw new Error("No data returned after creating role. Status: " + status);
+  }
+
+  console.log("Role created successfully: ", data);
+  return data as RoleRow;
 }
