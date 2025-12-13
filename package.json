@@ -10,12 +10,18 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run lint && npm run format:check",
-    "test": "vitest"
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "prepare": "husky",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run format:check && npm run lint && npm run typecheck",
+    "fix": "npm run format && npm run lint:fix"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.80.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "next": "15.5.6",
     "react": "19.1.0",
     "react-dom": "19.1.0"
