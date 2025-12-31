@@ -11,12 +11,14 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "test:db": "vitest run tests/db",
     "test:watch": "vitest watch",
     "prepare": "husky",
     "typecheck": "tsc --noEmit",
     "check": "npm run format:check && npm run lint && npm run typecheck",
     "fix": "npm run format && npm run lint:fix",
-    "supabase:setup": "bash scripts/supabase-setup.sh"
+    "supabase:setup": "bash scripts/supabase-setup.sh",
+    "supabase:status": "npx supabase status"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
