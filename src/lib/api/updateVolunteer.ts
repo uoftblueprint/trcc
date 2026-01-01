@@ -23,6 +23,13 @@ type UpdateVolunteerResult =
   | { status: 200; body: { volunteer: Tables<"Volunteers"> } }
   | { status: 400 | 404 | 500; body: { error: string } };
 
+type VolunteerValidationResult = {
+  updates?: Partial<VolunteerUpdatePayload>;
+  role?: RoleInput;
+  cohort?: CohortInput;
+  error?: string;
+};
+
 // keep this in sync with allowed patch fields on the volunteers table
 const ALLOWED_VOLUNTEER_FIELDS = new Set<keyof VolunteerUpdatePayload>([
   "name_org",
@@ -40,12 +47,7 @@ const ALLOWED_TOP_LEVEL_FIELDS = new Set<string>([
   "cohort",
 ]);
 
-function validateVolunteerUpdateBody(body: unknown): {
-  updates?: VolunteerUpdatePayload;
-  role?: RoleInput;
-  cohort?: CohortInput;
-  error?: string;
-} {
+function validateVolunteerUpdateBody(body: unknown): VolunteerValidationResult {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return { error: "Request body must be a JSON object" };
   }
@@ -128,7 +130,10 @@ function validateVolunteerUpdateBody(body: unknown): {
     if (typeof name !== "string" || name.trim().length === 0) {
       return { error: "Field role.name must be a non-empty string" };
     }
-    if (typeof type !== "string" || !ROLE_TYPES.includes(type as any)) {
+    if (
+      typeof type !== "string" ||
+      !ROLE_TYPES.includes(type as (typeof ROLE_TYPES)[number])
+    ) {
       return { error: `Field role.type must be one of ${ROLE_TYPES.join(", ")}` };
     }
     role = { name, type: type as RoleInput["type"] };
@@ -143,7 +148,10 @@ function validateVolunteerUpdateBody(body: unknown): {
     if (!Number.isInteger(year)) {
       return { error: "Field cohort.year must be an integer" };
     }
-    if (typeof term !== "string" || !COHORT_TERMS.includes(term as any)) {
+    if (
+      typeof term !== "string" ||
+      !COHORT_TERMS.includes(term as (typeof COHORT_TERMS)[number])
+    ) {
       return { error: `Field cohort.term must be one of ${COHORT_TERMS.join(", ")}` };
     }
     cohort = { year: year as number, term: term as CohortInput["term"] };
@@ -156,7 +164,15 @@ function validateVolunteerUpdateBody(body: unknown): {
     };
   }
 
-  return { updates: updates as VolunteerUpdatePayload, role, cohort };
+  const result: VolunteerValidationResult = { updates };
+  if (role) {
+    result.role = role;
+  }
+  if (cohort) {
+    result.cohort = cohort;
+  }
+
+  return result;
 }
 
 export async function updateVolunteer(

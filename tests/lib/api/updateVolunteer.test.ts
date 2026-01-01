@@ -1,6 +1,7 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { updateVolunteer } from "@/lib/api/updateVolunteer";
 import { createClient } from "@/lib/client/supabase/server";
+import type { Tables } from "@/lib/client/supabase/types";
 
 vi.mock("@/lib/client/supabase/server", () => ({
   createClient: vi.fn(),
@@ -8,7 +9,7 @@ vi.mock("@/lib/client/supabase/server", () => ({
 
 const FIXED_TIME = new Date("2024-01-02T03:04:05.000Z");
 
-const baseVolunteerRow = {
+const baseVolunteerRow: Tables<"Volunteers"> = {
   created_at: "2024-01-01T00:00:00.000Z",
   email: null,
   id: 1,
@@ -23,19 +24,51 @@ const baseVolunteerRow = {
 };
 
 type MockOptions = {
-  volunteerMaybeSingleData?: any;
-  volunteerMaybeSingleError?: any;
-  roleMaybeSingleData?: any;
-  roleMaybeSingleError?: any;
-  cohortMaybeSingleData?: any;
-  cohortMaybeSingleError?: any;
-  roleDeleteError?: any;
-  roleInsertError?: any;
-  cohortDeleteError?: any;
-  cohortInsertError?: any;
+  volunteerMaybeSingleData?: Tables<"Volunteers"> | null;
+  volunteerMaybeSingleError?: unknown;
+  roleMaybeSingleData?: { id: number } | null;
+  roleMaybeSingleError?: unknown;
+  cohortMaybeSingleData?: { id: number } | null;
+  cohortMaybeSingleError?: unknown;
+  roleDeleteError?: unknown;
+  roleInsertError?: unknown;
+  cohortDeleteError?: unknown;
+  cohortInsertError?: unknown;
 };
 
-function buildMockClient(opts: MockOptions = {}) {
+type MockFn = ReturnType<typeof vi.fn>;
+
+type ClientMocks = {
+  client: { from: MockFn };
+  spies: {
+    volunteerUpdate: MockFn;
+    volunteerEq: MockFn;
+    volunteerSelect: MockFn;
+    volunteerMaybeSingle: MockFn;
+    roleSelect: MockFn;
+    roleEqFirst: MockFn;
+    roleEqSecond: MockFn;
+    roleMaybeSingle: MockFn;
+    roleDelete: MockFn;
+    roleDeleteEq: MockFn;
+    roleInsert: MockFn;
+    cohortSelect: MockFn;
+    cohortEqFirst: MockFn;
+    cohortEqSecond: MockFn;
+    cohortMaybeSingle: MockFn;
+    cohortDelete: MockFn;
+    cohortDeleteEq: MockFn;
+    cohortInsert: MockFn;
+  };
+  captured: {
+    volunteerUpdatePayload: unknown;
+    volunteerEqArgs: unknown;
+    roleInsertPayload: unknown;
+    cohortInsertPayload: unknown;
+  };
+};
+
+function buildMockClient(opts: MockOptions = {}): ClientMocks {
   const {
     volunteerMaybeSingleData = baseVolunteerRow,
     volunteerMaybeSingleError = null,
@@ -123,16 +156,16 @@ function buildMockClient(opts: MockOptions = {}) {
       cohortInsert,
     },
     captured: {
-      get volunteerUpdatePayload() {
+      get volunteerUpdatePayload(): unknown {
         return volunteerUpdate.mock.calls.at(-1)?.[0];
       },
-      get volunteerEqArgs() {
+      get volunteerEqArgs(): unknown {
         return volunteerEq.mock.calls.at(-1);
       },
-      get roleInsertPayload() {
+      get roleInsertPayload(): unknown {
         return roleInsert.mock.calls.at(-1)?.[0];
       },
-      get cohortInsertPayload() {
+      get cohortInsertPayload(): unknown {
         return cohortInsert.mock.calls.at(-1)?.[0];
       },
     },
@@ -174,7 +207,9 @@ describe("updateVolunteer", () => {
       updated_at: FIXED_TIME.toISOString(),
     };
     const mock = buildMockClient({ volunteerMaybeSingleData: updatedVolunteer });
-    vi.mocked(createClient).mockResolvedValue(mock.client as any);
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>
+    );
 
     const result = await updateVolunteer(1, { name_org: "Updated Name", phone: "123" });
 
@@ -190,7 +225,9 @@ describe("updateVolunteer", () => {
 
   it("returns 400 when role does not exist", async () => {
     const mock = buildMockClient({ roleMaybeSingleData: null });
-    vi.mocked(createClient).mockResolvedValue(mock.client as any);
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>
+    );
 
     const result = await updateVolunteer(1, {
       role: { name: "Advocate", type: "prior" },
@@ -210,7 +247,9 @@ describe("updateVolunteer", () => {
       roleMaybeSingleData: { id: 5 },
       cohortMaybeSingleData: { id: 7 },
     });
-    vi.mocked(createClient).mockResolvedValue(mock.client as any);
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>
+    );
 
     const result = await updateVolunteer(1, {
       name_org: "Keep Name",
