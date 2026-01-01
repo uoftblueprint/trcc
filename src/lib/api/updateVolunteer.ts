@@ -1,8 +1,10 @@
-import type { PostgrestError } from "@supabase/supabase-js";
 import { createClient } from "../client/supabase/server";
 import type { Tables, TablesUpdate } from "../client/supabase/types";
 
-export type VolunteerUpdatePayload = Pick<
+const ROLE_TYPES = ["prior", "current", "future_interest"] as const;
+const COHORT_TERMS = ["fall", "summer", "winter", "spring"] as const;
+
+type VolunteerUpdatePayload = Pick<
   TablesUpdate<"Volunteers">,
   | "name_org"
   | "email"
@@ -14,13 +16,15 @@ export type VolunteerUpdatePayload = Pick<
   | "opt_in_communication"
 >;
 
-type VolunteerUpdateResponse = {
-  volunteer: Tables<"Volunteers"> | null;
-  error: PostgrestError | null;
-};
+type RoleInput = { name: string; type: (typeof ROLE_TYPES)[number] };
+type CohortInput = { year: number; term: (typeof COHORT_TERMS)[number] };
+
+type UpdateVolunteerResult =
+  | { status: 200; body: { volunteer: Tables<"Volunteers"> } }
+  | { status: 400 | 404 | 500; body: { error: string } };
 
 // keep this in sync with allowed patch fields on the volunteers table
-const ALLOWED_FIELDS = new Set<keyof VolunteerUpdatePayload>([
+const ALLOWED_VOLUNTEER_FIELDS = new Set<keyof VolunteerUpdatePayload>([
   "name_org",
   "email",
   "phone",
@@ -30,9 +34,16 @@ const ALLOWED_FIELDS = new Set<keyof VolunteerUpdatePayload>([
   "notes",
   "opt_in_communication",
 ]);
+const ALLOWED_TOP_LEVEL_FIELDS = new Set<string>([
+  ...ALLOWED_VOLUNTEER_FIELDS,
+  "role",
+  "cohort",
+]);
 
-export function validateVolunteerUpdateBody(body: unknown): {
+function validateVolunteerUpdateBody(body: unknown): {
   updates?: VolunteerUpdatePayload;
+  role?: RoleInput;
+  cohort?: CohortInput;
   error?: string;
 } {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
@@ -41,7 +52,7 @@ export function validateVolunteerUpdateBody(body: unknown): {
 
   const payload = body as Record<string, unknown>;
   const unknownKeys = Object.keys(payload).filter(
-    (key) => !ALLOWED_FIELDS.has(key as keyof VolunteerUpdatePayload)
+    (key) => !ALLOWED_TOP_LEVEL_FIELDS.has(key)
   );
 
   if (unknownKeys.length > 0) {
@@ -53,7 +64,7 @@ export function validateVolunteerUpdateBody(body: unknown): {
   // name_org is the only required patchable field; validate it eagerly
   const updates: Partial<VolunteerUpdatePayload> = {};
   if ("name_org" in payload) {
-    const value = payload.name_org;
+    const value = payload["name_org"];
     if (value === null || value === undefined) {
       return { error: "Field name_org must be provided as a non-empty string" };
     }
@@ -75,55 +86,188 @@ export function validateVolunteerUpdateBody(body: unknown): {
     "position",
     "notes",
   ] as const;
-  type StringFieldKey = (typeof stringFields)[number];
 
   for (const key of stringFields) {
     if (key in payload) {
       const value = payload[key];
 
-      if (value !== null && value !== undefined && typeof value !== "string") {
+      if (value === undefined || value === null) {
+        updates[key] = null;
+      } else if (typeof value === "string") {
+        updates[key] = value;
+      } else {
         return { error: `Field ${key} must be a string or null` };
       }
-
-      updates[key] = value as VolunteerUpdatePayload[StringFieldKey];
     }
   }
 
   if ("opt_in_communication" in payload) {
-    const value = payload.opt_in_communication;
-    if (value !== null && value !== undefined && typeof value !== "boolean") {
+    const value = payload["opt_in_communication"];
+    if (value === undefined || value === null) {
+      updates.opt_in_communication = null;
+    } else if (typeof value === "boolean") {
+      updates.opt_in_communication = value;
+    } else {
       return {
         error: "Field opt_in_communication must be a boolean or null",
       };
     }
-    updates.opt_in_communication =
-      value as VolunteerUpdatePayload["opt_in_communication"];
   }
 
   const hasFields = Object.keys(updates).length > 0;
-  if (!hasFields) {
-    return { error: "At least one updatable field is required" };
+  let role: RoleInput | undefined;
+  let cohort: CohortInput | undefined;
+
+  if ("role" in payload) {
+    const r = payload["role"];
+    if (!r || typeof r !== "object" || Array.isArray(r)) {
+      return { error: "Field role must be an object" };
+    }
+    const { name, type } = r as Record<string, unknown>;
+
+    if (typeof name !== "string" || name.trim().length === 0) {
+      return { error: "Field role.name must be a non-empty string" };
+    }
+    if (typeof type !== "string" || !ROLE_TYPES.includes(type as any)) {
+      return { error: `Field role.type must be one of ${ROLE_TYPES.join(", ")}` };
+    }
+    role = { name, type: type as RoleInput["type"] };
   }
 
-  return { updates: updates as VolunteerUpdatePayload };
+  if ("cohort" in payload) {
+    const c = payload["cohort"];
+    if (!c || typeof c !== "object" || Array.isArray(c)) {
+      return { error: "Field cohort must be an object" };
+    }
+    const { year, term } = c as Record<string, unknown>;
+    if (!Number.isInteger(year)) {
+      return { error: "Field cohort.year must be an integer" };
+    }
+    if (typeof term !== "string" || !COHORT_TERMS.includes(term as any)) {
+      return { error: `Field cohort.term must be one of ${COHORT_TERMS.join(", ")}` };
+    }
+    cohort = { year: year as number, term: term as CohortInput["term"] };
+  }
+
+  if (!hasFields && !role && !cohort) {
+    return {
+      error:
+        "At least one updatable field is required (volunteer fields, role, or cohort)",
+    };
+  }
+
+  return { updates: updates as VolunteerUpdatePayload, role, cohort };
 }
 
 export async function updateVolunteer(
-  volunteerId: number,
-  updates: VolunteerUpdatePayload
-): Promise<VolunteerUpdateResponse> {
-  const client = await createClient();
-
-  const { data, error } = await client
-    .from("Volunteers")
-    .update({ ...updates })
-    .eq("id", volunteerId)
-    .select()
-    .single();
-
-  if (error) {
-    return { volunteer: null, error };
+  volunteerId: unknown,
+  body: unknown
+): Promise<UpdateVolunteerResult> {
+  if (!Number.isInteger(volunteerId) || (volunteerId as number) <= 0) {
+    return { status: 400, body: { error: "Invalid volunteer id" } };
   }
 
-  return { volunteer: data, error: null };
+  const validation = validateVolunteerUpdateBody(body);
+  if (!validation.updates) {
+    return {
+      status: 400,
+      body: { error: validation.error ?? "Invalid volunteer update payload" },
+    };
+  }
+
+  const client = await createClient();
+  const timestamp = new Date().toISOString();
+
+  const { data: volunteer, error: volunteerError } = await client
+    .from("Volunteers")
+    .update({ ...validation.updates, updated_at: timestamp })
+    .eq("id", volunteerId as number)
+    .select()
+    .maybeSingle();
+
+  if (volunteerError) {
+    return { status: 500, body: { error: volunteerError.message } };
+  }
+
+  if (!volunteer) {
+    return { status: 404, body: { error: "Volunteer not found" } };
+  }
+
+  if (validation.role) {
+    const { name, type } = validation.role;
+    const { data: roleRow, error: roleLookupError } = await client
+      .from("Roles")
+      .select("id")
+      .eq("name", name)
+      .eq("type", type)
+      .maybeSingle();
+
+    if (roleLookupError) {
+      return { status: 500, body: { error: roleLookupError.message } };
+    }
+
+    if (!roleRow) {
+      return { status: 400, body: { error: "Role not found" } };
+    }
+
+    const { error: roleDeleteError } = await client
+      .from("VolunteerRoles")
+      .delete()
+      .eq("volunteer_id", volunteerId as number);
+
+    if (roleDeleteError) {
+      return { status: 500, body: { error: roleDeleteError.message } };
+    }
+
+    const { error: roleInsertError } = await client
+      .from("VolunteerRoles")
+      .insert({
+        volunteer_id: volunteerId as number,
+        role_id: roleRow.id,
+        created_at: timestamp,
+      });
+
+    if (roleInsertError) {
+      return { status: 500, body: { error: roleInsertError.message } };
+    }
+  }
+
+  if (validation.cohort) {
+    const { year, term } = validation.cohort;
+    const { data: cohortRow, error: cohortLookupError } = await client
+      .from("Cohorts")
+      .select("id")
+      .eq("year", year)
+      .eq("term", term)
+      .maybeSingle();
+
+    if (cohortLookupError) {
+      return { status: 500, body: { error: cohortLookupError.message } };
+    }
+
+    if (!cohortRow) {
+      return { status: 400, body: { error: "Cohort not found" } };
+    }
+
+    const { error: cohortDeleteError } = await client
+      .from("VolunteerCohorts")
+      .delete()
+      .eq("volunteer_id", volunteerId as number);
+
+    if (cohortDeleteError) {
+      return { status: 500, body: { error: cohortDeleteError.message } };
+    }
+
+    const { error: cohortInsertError } = await client.from("VolunteerCohorts").insert({
+      volunteer_id: volunteerId as number,
+      cohort_id: cohortRow.id,
+      assigned_at: timestamp,
+    });
+
+    if (cohortInsertError) {
+      return { status: 500, body: { error: cohortInsertError.message } };
+    }
+  }
+
+  return { status: 200, body: { volunteer } };
 }
