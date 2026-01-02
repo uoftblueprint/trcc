@@ -86,7 +86,9 @@ function buildMockClient(opts: MockOptions = {}): ClientMocks {
     data: volunteerMaybeSingleData,
     error: volunteerMaybeSingleError,
   });
-  const volunteerSelect = vi.fn().mockReturnValue({ maybeSingle: volunteerMaybeSingle });
+  const volunteerSelect = vi
+    .fn()
+    .mockReturnValue({ maybeSingle: volunteerMaybeSingle });
   const volunteerEq = vi.fn().mockReturnValue({ select: volunteerSelect });
   const volunteerUpdate = vi.fn((payload) => ({ eq: volunteerEq, payload }));
 
@@ -94,7 +96,9 @@ function buildMockClient(opts: MockOptions = {}): ClientMocks {
     data: roleMaybeSingleData,
     error: roleMaybeSingleError,
   });
-  const roleEqSecond = vi.fn().mockReturnValue({ maybeSingle: roleMaybeSingle });
+  const roleEqSecond = vi
+    .fn()
+    .mockReturnValue({ maybeSingle: roleMaybeSingle });
   const roleEqFirst = vi.fn().mockReturnValue({ eq: roleEqSecond });
   const roleSelect = vi.fn().mockReturnValue({ eq: roleEqFirst });
 
@@ -106,11 +110,15 @@ function buildMockClient(opts: MockOptions = {}): ClientMocks {
     data: cohortMaybeSingleData,
     error: cohortMaybeSingleError,
   });
-  const cohortEqSecond = vi.fn().mockReturnValue({ maybeSingle: cohortMaybeSingle });
+  const cohortEqSecond = vi
+    .fn()
+    .mockReturnValue({ maybeSingle: cohortMaybeSingle });
   const cohortEqFirst = vi.fn().mockReturnValue({ eq: cohortEqSecond });
   const cohortSelect = vi.fn().mockReturnValue({ eq: cohortEqFirst });
 
-  const cohortDeleteEq = vi.fn().mockResolvedValue({ error: cohortDeleteError });
+  const cohortDeleteEq = vi
+    .fn()
+    .mockResolvedValue({ error: cohortDeleteError });
   const cohortDelete = vi.fn().mockReturnValue({ eq: cohortDeleteEq });
   const cohortInsert = vi.fn().mockResolvedValue({ error: cohortInsertError });
 
@@ -183,11 +191,33 @@ describe("updateVolunteer", () => {
     vi.useRealTimers();
   });
 
+  function resolveClient(mock: ClientMocks): void {
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>
+    );
+  }
+
+  type UpdateResult = Awaited<ReturnType<typeof updateVolunteer>>;
+
+  function getError(result: UpdateResult): string {
+    if ("error" in result.body) {
+      return result.body.error;
+    }
+    throw new Error("Expected error result but received success");
+  }
+
+  function getVolunteer(result: UpdateResult): Tables<"Volunteers"> {
+    if ("volunteer" in result.body) {
+      return result.body.volunteer;
+    }
+    throw new Error("Expected success result but received error");
+  }
+
   it("returns 400 for invalid volunteer id without touching Supabase", async () => {
     const result = await updateVolunteer("bad-id", {});
 
     expect(result.status).toBe(400);
-    expect(result.body.error).toContain("Invalid volunteer id");
+    expect(getError(result)).toContain("Invalid volunteer id");
     expect(createClient).not.toHaveBeenCalled();
   });
 
@@ -195,7 +225,7 @@ describe("updateVolunteer", () => {
     const result = await updateVolunteer(1, { foo: "bar" });
 
     expect(result.status).toBe(400);
-    expect(result.body.error).toContain("Unknown field");
+    expect(getError(result)).toContain("Unknown field");
     expect(createClient).not.toHaveBeenCalled();
   });
 
@@ -206,15 +236,21 @@ describe("updateVolunteer", () => {
       phone: "123",
       updated_at: FIXED_TIME.toISOString(),
     };
-    const mock = buildMockClient({ volunteerMaybeSingleData: updatedVolunteer });
-    vi.mocked(createClient).mockResolvedValue(
-      mock.client as unknown as Awaited<ReturnType<typeof createClient>>
-    );
+    const mock = buildMockClient({
+      volunteerMaybeSingleData: updatedVolunteer,
+    });
+    resolveClient(mock);
 
-    const result = await updateVolunteer(1, { name_org: "Updated Name", phone: "123" });
+    const result = await updateVolunteer(1, {
+      name_org: "Updated Name",
+      phone: "123",
+    });
 
     expect(createClient).toHaveBeenCalled();
-    expect(result).toEqual({ status: 200, body: { volunteer: updatedVolunteer } });
+    expect(result).toEqual({
+      status: 200,
+      body: { volunteer: updatedVolunteer },
+    });
     expect(mock.spies.volunteerUpdate).toHaveBeenCalledTimes(1);
     expect(mock.captured.volunteerUpdatePayload).toMatchObject({
       name_org: "Updated Name",
@@ -225,9 +261,7 @@ describe("updateVolunteer", () => {
 
   it("returns 400 when role does not exist", async () => {
     const mock = buildMockClient({ roleMaybeSingleData: null });
-    vi.mocked(createClient).mockResolvedValue(
-      mock.client as unknown as Awaited<ReturnType<typeof createClient>>
-    );
+    resolveClient(mock);
 
     const result = await updateVolunteer(1, {
       role: { name: "Advocate", type: "prior" },
@@ -235,21 +269,22 @@ describe("updateVolunteer", () => {
     });
 
     expect(result.status).toBe(400);
-    expect(result.body.error).toBe("Role not found");
+    expect(getError(result)).toBe("Role not found");
     expect(mock.spies.roleDelete).not.toHaveBeenCalled();
     expect(mock.spies.roleInsert).not.toHaveBeenCalled();
   });
 
   it("updates role and cohort when both provided", async () => {
-    const updatedVolunteer = { ...baseVolunteerRow, updated_at: FIXED_TIME.toISOString() };
+    const updatedVolunteer = {
+      ...baseVolunteerRow,
+      updated_at: FIXED_TIME.toISOString(),
+    };
     const mock = buildMockClient({
       volunteerMaybeSingleData: updatedVolunteer,
       roleMaybeSingleData: { id: 5 },
       cohortMaybeSingleData: { id: 7 },
     });
-    vi.mocked(createClient).mockResolvedValue(
-      mock.client as unknown as Awaited<ReturnType<typeof createClient>>
-    );
+    resolveClient(mock);
 
     const result = await updateVolunteer(1, {
       name_org: "Keep Name",
@@ -273,6 +308,117 @@ describe("updateVolunteer", () => {
       cohort_id: 7,
       assigned_at: FIXED_TIME.toISOString(),
     });
-    expect(result.body.volunteer).toEqual(updatedVolunteer);
+    expect(getVolunteer(result)).toEqual(updatedVolunteer);
+  });
+
+  it("returns 400 when no updatable fields, role, or cohort provided", async () => {
+    const result = await updateVolunteer(1, {});
+
+    expect(result.status).toBe(400);
+    expect(getError(result)).toContain("At least one updatable field");
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for invalid role type", async () => {
+    const result = await updateVolunteer(1, {
+      name_org: "Name",
+      role: { name: "Advocate", type: "past" },
+    });
+
+    expect(result.status).toBe(400);
+    expect(getError(result)).toContain("role.type");
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for invalid cohort term", async () => {
+    const result = await updateVolunteer(1, {
+      cohort: { year: 2024, term: "autumn" },
+    });
+
+    expect(result.status).toBe(400);
+    expect(getError(result)).toContain("cohort.term");
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when volunteer is not found", async () => {
+    const mock = buildMockClient({ volunteerMaybeSingleData: null });
+    resolveClient(mock);
+
+    const result = await updateVolunteer(1, { name_org: "Name" });
+
+    expect(result.status).toBe(404);
+    expect(getError(result)).toBe("Volunteer not found");
+  });
+
+  it("returns 500 when volunteer update fails", async () => {
+    const mock = buildMockClient({
+      volunteerMaybeSingleError: { message: "db error" },
+    });
+    resolveClient(mock);
+
+    const result = await updateVolunteer(1, { name_org: "Name" });
+
+    expect(result.status).toBe(500);
+    expect(getError(result)).toBe("db error");
+  });
+
+  it("returns 500 when role delete fails", async () => {
+    const mock = buildMockClient({
+      roleDeleteError: { message: "cannot delete role link" },
+    });
+    resolveClient(mock);
+
+    const result = await updateVolunteer(1, {
+      name_org: "Name",
+      role: { name: "Advocate", type: "current" },
+    });
+
+    expect(result.status).toBe(500);
+    expect(getError(result)).toBe("cannot delete role link");
+  });
+
+  it("returns 500 when role insert fails", async () => {
+    const mock = buildMockClient({
+      roleInsertError: { message: "cannot insert role link" },
+    });
+    resolveClient(mock);
+
+    const result = await updateVolunteer(1, {
+      name_org: "Name",
+      role: { name: "Advocate", type: "current" },
+    });
+
+    expect(result.status).toBe(500);
+    expect(getError(result)).toBe("cannot insert role link");
+  });
+
+  it("returns 500 when cohort delete fails", async () => {
+    const mock = buildMockClient({
+      cohortDeleteError: { message: "cannot delete cohort link" },
+    });
+    resolveClient(mock);
+
+    const result = await updateVolunteer(1, {
+      name_org: "Name",
+      cohort: { year: 2024, term: "fall" },
+    });
+
+    expect(result.status).toBe(500);
+    expect(getError(result)).toBe("cannot delete cohort link");
+  });
+
+  it("returns 500 when cohort insert fails", async () => {
+    const mock = buildMockClient({
+      cohortInsertError: { message: "cannot insert cohort link" },
+    });
+    resolveClient(mock);
+
+    const result = await updateVolunteer(1, {
+      name_org: "Name",
+      cohort: { year: 2024, term: "fall" },
+    });
+
+    expect(result.status).toBe(500);
+    expect(getError(result)).toBe("cannot insert cohort link");
   });
 });

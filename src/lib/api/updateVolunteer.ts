@@ -134,7 +134,9 @@ function validateVolunteerUpdateBody(body: unknown): VolunteerValidationResult {
       typeof type !== "string" ||
       !ROLE_TYPES.includes(type as (typeof ROLE_TYPES)[number])
     ) {
-      return { error: `Field role.type must be one of ${ROLE_TYPES.join(", ")}` };
+      return {
+        error: `Field role.type must be one of ${ROLE_TYPES.join(", ")}`,
+      };
     }
     role = { name, type: type as RoleInput["type"] };
   }
@@ -152,7 +154,9 @@ function validateVolunteerUpdateBody(body: unknown): VolunteerValidationResult {
       typeof term !== "string" ||
       !COHORT_TERMS.includes(term as (typeof COHORT_TERMS)[number])
     ) {
-      return { error: `Field cohort.term must be one of ${COHORT_TERMS.join(", ")}` };
+      return {
+        error: `Field cohort.term must be one of ${COHORT_TERMS.join(", ")}`,
+      };
     }
     cohort = { year: year as number, term: term as CohortInput["term"] };
   }
@@ -274,11 +278,13 @@ export async function updateVolunteer(
       return { status: 500, body: { error: cohortDeleteError.message } };
     }
 
-    const { error: cohortInsertError } = await client.from("VolunteerCohorts").insert({
-      volunteer_id: volunteerId as number,
-      cohort_id: cohortRow.id,
-      assigned_at: timestamp,
-    });
+    const { error: cohortInsertError } = await client
+      .from("VolunteerCohorts")
+      .insert({
+        volunteer_id: volunteerId as number,
+        cohort_id: cohortRow.id,
+        assigned_at: timestamp,
+      });
 
     if (cohortInsertError) {
       return { status: 500, body: { error: cohortInsertError.message } };
