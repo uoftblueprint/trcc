@@ -73,7 +73,7 @@ export function createServiceTestClient(): DbClient {
 }
 
 /**
- * Delete rows matching a filter and ignore "no rows" cases.
+ * Delete rows matching a LIKE pattern. Use for string columns with TEST_ prefix.
  *
  * This intentionally avoids TRUNCATE because FK relationships often make truncation tricky.
  */
@@ -87,6 +87,25 @@ export async function deleteWhere<
   pattern: string
 ): Promise<void> {
   const { error } = await client.from(table).delete().like(column, pattern);
+  if (error) {
+    throw new Error(`Cleanup failed for ${String(table)}: ${error.message}`);
+  }
+}
+
+/**
+ * Delete rows where a numeric column is >= a threshold.
+ * Useful for cleaning up test cohorts by year (e.g., year >= 2099).
+ */
+export async function deleteWhereGte<
+  TTable extends keyof Database["public"]["Tables"],
+  TColumn extends keyof Database["public"]["Tables"][TTable]["Row"] & string,
+>(
+  client: DbClient,
+  table: TTable,
+  column: TColumn,
+  value: number
+): Promise<void> {
+  const { error } = await client.from(table).delete().gte(column, value);
   if (error) {
     throw new Error(`Cleanup failed for ${String(table)}: ${error.message}`);
   }
