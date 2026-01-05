@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   createServiceTestClient,
-  deleteWhere,
+  deleteWhereGte,
   hasServiceRoleKey,
-} from "./helpers";
-import { makeTestCohortInsert } from "./factories";
+} from "../helpers";
+import { makeTestCohortInsert, TEST_YEAR } from "../factories";
 
 // If the service role key isn't configured, we skip these integration tests.
 // This makes `npm test` still useful for contributors who haven't set up local DB testing yet.
@@ -13,13 +13,13 @@ const describeDb = hasServiceRoleKey() ? describe : describe.skip;
 describeDb("db: Cohorts CRUD (integration)", () => {
   const client = createServiceTestClient();
 
-  // Keep tests isolated by cleaning up test rows each time, deleting any rows with a "TEST_" prefix
+  // Keep tests isolated by cleaning up test cohorts by year (>= 2099)
   beforeEach(async () => {
-    await deleteWhere(client, "Cohorts", "term", "TEST_%");
+    await deleteWhereGte(client, "Cohorts", "year", TEST_YEAR);
   });
 
   afterEach(async () => {
-    await deleteWhere(client, "Cohorts", "term", "TEST_%");
+    await deleteWhereGte(client, "Cohorts", "year", TEST_YEAR);
   });
 
   it("creates, reads, updates, and deletes a Cohort row", async () => {
