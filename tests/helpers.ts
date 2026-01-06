@@ -15,19 +15,15 @@ function requireEnv(name: string): string {
 }
 
 export function getTestSupabaseUrl(): string {
-  return requireEnv("NEXT_PUBLIC_SUPABASE_URL");
+  return requireEnv("API_URL");
 }
 
 export function getTestAnonKey(): string {
-  return requireEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
-}
-
-export function hasServiceRoleKey(): boolean {
-  return Boolean(process.env["SUPABASE_SERVICE_ROLE_KEY"]);
+  return requireEnv("PUBLISHABLE_KEY");
 }
 
 export function getTestServiceRoleKey(): string {
-  return requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+  return requireEnv("SERVICE_ROLE_KEY");
 }
 
 export function createAnonTestClient(): DbClient {
