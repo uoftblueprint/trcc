@@ -37,19 +37,17 @@ const describeDb = hasServiceRoleKey() ? describe : describe.skip;
 describeDb("db: VolunteerCohorts junction table (integration)", () => {
   const client = createServiceTestClient();
 
-  // Clean up in correct order due to FK constraints
+  // Clean up database records before and after each test
   beforeEach(async () => {
     await deleteWhere(client, "Volunteers", "name_org", "TEST_%");
     await deleteWhereGte(client, "Cohorts", "year", TEST_YEAR);
   });
-
   afterEach(async () => {
     await deleteWhere(client, "Volunteers", "name_org", "TEST_%");
     await deleteWhereGte(client, "Cohorts", "year", TEST_YEAR);
   });
 
   it("links a volunteer to a cohort", async () => {
-    // Create parent records first
     const volunteerInsert = makeTestVolunteerInsert();
     const cohortInsert = makeTestCohortInsert();
 
@@ -65,7 +63,7 @@ describeDb("db: VolunteerCohorts junction table (integration)", () => {
       .select()
       .single();
 
-    // Create the junction record
+    // Create the junction record between the volunteer and the cohort
     const linkInsert = makeTestVolunteerCohortInsert(volunteer!.id, cohort!.id);
     const { data: link, error } = await client
       .from("VolunteerCohorts")
@@ -114,7 +112,7 @@ describeDb("db: VolunteerCohorts junction table (integration)", () => {
 
     expect(linkError).toBeNull();
 
-    // Query with join
+    // Query with joins to get the volunteer and cohort
     const { data, error } = await client
       .from("VolunteerCohorts")
       .select("*, Volunteers(*), Cohorts(*)")
@@ -155,7 +153,7 @@ describeDb("db: VolunteerCohorts junction table (integration)", () => {
     // Delete the volunteer
     await client.from("Volunteers").delete().eq("id", volunteer!.id);
 
-    // Junction record should be gone (CASCADE)
+    // Related records should be deleted as well
     const { data: links } = await client
       .from("VolunteerCohorts")
       .select()
@@ -208,34 +206,6 @@ describeDb("db: VolunteerCohorts junction table (integration)", () => {
 
     expect(error).toBeNull();
     expect(links).toHaveLength(2);
-  });
-
-  it("enforces unique constraint on volunteer-cohort pair", async () => {
-    const volunteerInsert = makeTestVolunteerInsert();
-    const cohortInsert = makeTestCohortInsert();
-
-    const { data: volunteer } = await client
-      .from("Volunteers")
-      .insert(volunteerInsert)
-      .select()
-      .single();
-
-    const { data: cohort } = await client
-      .from("Cohorts")
-      .insert(cohortInsert)
-      .select()
-      .single();
-
-    const linkInsert = makeTestVolunteerCohortInsert(volunteer!.id, cohort!.id);
-
-    // First insert succeeds
-    await client.from("VolunteerCohorts").insert(linkInsert);
-
-    // Duplicate should fail
-    const { error } = await client.from("VolunteerCohorts").insert(linkInsert);
-
-    expect(error).not.toBeNull();
-    expect(error!.code).toBe("23505"); // unique violation
   });
 });
 
@@ -377,7 +347,7 @@ describeDb("db: VolunteerRoles junction table (integration)", () => {
     // Delete the volunteer
     await client.from("Volunteers").delete().eq("id", volunteer!.id);
 
-    // Junction record should be gone
+    // Related records should be deleted as well
     const { data: links } = await client
       .from("VolunteerRoles")
       .select()

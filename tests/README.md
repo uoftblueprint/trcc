@@ -1,7 +1,5 @@
 # Database Testing Standard (Supabase + Vitest)
 
-This folder contains **integration tests** that talk to a **real local Supabase** instance.
-
 ## Quick Start
 
 ```bash
@@ -120,16 +118,15 @@ export function makeTestXxxInsert(
   return {
     id: overrides.id ?? uniqueTestId(),
     name: overrides.name ?? `TEST_${token}`, // TEST_ prefix for cleanup
-    // ... other fields
+    // ... other fields needed
     ...overrides,
   };
 }
 ```
 
-**Key rules:**
+**Rules:**
 
 - Always prefix test data with `TEST_` for easy cleanup
-- Provide sensible defaults for all required fields
 - Allow overrides for test-specific scenarios
 
 ### 4. Test Clients
@@ -295,17 +292,6 @@ Get keys after starting Supabase:
 ```bash
 npx supabase status
 ```
-
----
-
-## Troubleshooting
-
-| Issue                | Solution                                            |
-| -------------------- | --------------------------------------------------- |
-| Tests skipped        | Check `SUPABASE_SERVICE_ROLE_KEY` is set            |
-| FK constraint errors | Clean up in correct order (children before parents) |
-| Unique violation     | Ensure `beforeEach` cleanup runs                    |
-| Connection refused   | Run `npm run supabase:setup`                        |
 
 ---
 
