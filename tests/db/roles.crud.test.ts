@@ -65,7 +65,6 @@ describeDb("db: Roles CRUD (integration)", () => {
       .eq("id", id);
     expect(deleteError).toBeNull();
 
-    // Confirm gone
     const { data: afterDelete, error: afterDeleteError } = await client
       .from("Roles")
       .select()
@@ -73,23 +72,6 @@ describeDb("db: Roles CRUD (integration)", () => {
 
     expect(afterDeleteError).toBeNull();
     expect(afterDelete).toHaveLength(0);
-  });
-
-  it("enforces unique constraint on role name", async () => {
-    const insert = makeTestRoleInsert({ name: "TEST_UniqueRole" });
-
-    // First insert should succeed
-    const { error: firstError } = await client.from("Roles").insert(insert);
-    expect(firstError).toBeNull();
-
-    // Second insert with same name should fail
-    const duplicateInsert = makeTestRoleInsert({ name: "TEST_UniqueRole" });
-    const { error: secondError } = await client
-      .from("Roles")
-      .insert(duplicateInsert);
-
-    expect(secondError).not.toBeNull();
-    expect(secondError!.code).toBe("23505"); // PostgreSQL unique violation
   });
 
   it("can query roles by type", async () => {

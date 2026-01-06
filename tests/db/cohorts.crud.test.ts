@@ -6,8 +6,6 @@ import {
 } from "../helpers";
 import { makeTestCohortInsert, TEST_YEAR } from "../factories";
 
-// If the service role key isn't configured, we skip these integration tests.
-// This makes `npm test` still useful for contributors who haven't set up local DB testing yet.
 const describeDb = hasServiceRoleKey() ? describe : describe.skip;
 
 describeDb("db: Cohorts CRUD (integration)", () => {
@@ -67,7 +65,6 @@ describeDb("db: Cohorts CRUD (integration)", () => {
       .eq("id", id);
     expect(deleteError).toBeNull();
 
-    // Confirm gone
     const { data: afterDelete, error: afterDeleteError } = await client
       .from("Cohorts")
       .select()

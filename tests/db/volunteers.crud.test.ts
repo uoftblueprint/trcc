@@ -48,7 +48,7 @@ describeDb("db: Volunteers CRUD (integration)", () => {
     expect(fetched!.name_org).toBe(insert.name_org);
 
     // UPDATE
-    const newPosition = "staff"; // Must be: 'member', 'volunteer', or 'staff'
+    const newPosition = "staff";
     const { data: updated, error: updateError } = await client
       .from("Volunteers")
       .update({ position: newPosition, opt_in_communication: false })
@@ -68,7 +68,7 @@ describeDb("db: Volunteers CRUD (integration)", () => {
       .eq("id", id);
     expect(deleteError).toBeNull();
 
-    // Confirm gone
+    // Confirm data is deleted
     const { data: afterDelete, error: afterDeleteError } = await client
       .from("Volunteers")
       .select()
@@ -117,7 +117,7 @@ describeDb("db: Volunteers CRUD (integration)", () => {
   });
 
   it("can filter volunteers by opt_in_communication", async () => {
-    // Use unique prefix to avoid cleanup race conditions with parallel tests
+    // Use unique prefix to avoid cleanup conflicts
     const uniquePrefix = `TEST_optin_${Date.now()}`;
 
     const optIn = makeTestVolunteerInsert({

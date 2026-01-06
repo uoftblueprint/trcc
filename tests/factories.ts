@@ -1,7 +1,6 @@
 import type { Database } from "@/lib/client/supabase/types";
 
 // Type Aliases
-// ─────────────────────────────────────────────────────────────────────────────
 export type CohortInsert = Database["public"]["Tables"]["Cohorts"]["Insert"];
 export type RoleInsert = Database["public"]["Tables"]["Roles"]["Insert"];
 export type VolunteerInsert =
@@ -12,8 +11,6 @@ export type VolunteerRoleInsert =
   Database["public"]["Tables"]["VolunteerRoles"]["Insert"];
 
 // Valid Values (from CHECK constraints)
-// ─────────────────────────────────────────────────────────────────────────────
-// From: roles_type_check
 export const VALID_ROLE_TYPES = [
   "prior",
   "current",
@@ -42,7 +39,6 @@ export type CohortTerm = (typeof VALID_COHORT_TERMS)[number];
 export const TEST_YEAR = 2099; // Use this year for all test cohorts (easy cleanup)
 
 // Utility Functions
-// ─────────────────────────────────────────────────────────────────────────────
 function randomToken(): string {
   return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
@@ -52,15 +48,13 @@ function uniqueTestId(): number {
 }
 
 // Cohorts Factory
-// ─────────────────────────────────────────────────────────────────────────────
 export function makeTestCohortInsert(
   overrides: Partial<CohortInsert> = {}
 ): CohortInsert {
   return {
     id: overrides.id ?? uniqueTestId(),
-    // Must be one of: 'Fall', 'Spring', 'Summer', 'Winter'
+    // 'Fall', 'Spring', 'Summer', 'Winter'
     term: overrides.term ?? "Fall",
-    // Use 2099 as test year for easy cleanup
     year: overrides.year ?? TEST_YEAR,
     is_active: overrides.is_active ?? false,
     ...overrides,
@@ -84,7 +78,6 @@ export function makeTestRoleInsert(
 }
 
 // Volunteers Factory
-// ─────────────────────────────────────────────────────────────────────────────
 export function makeTestVolunteerInsert(
   overrides: Partial<VolunteerInsert> = {}
 ): VolunteerInsert {
@@ -96,7 +89,7 @@ export function makeTestVolunteerInsert(
     pronouns: overrides.pronouns ?? "they/them",
     email: overrides.email ?? `test_${token}@example.com`,
     phone: overrides.phone ?? "555-0100",
-    // Must be one of: 'member', 'volunteer', 'staff'
+    // 'member', 'volunteer', 'staff'
     position: overrides.position ?? "volunteer",
     opt_in_communication: overrides.opt_in_communication ?? true,
     notes: overrides.notes ?? "Test notes",
@@ -105,7 +98,6 @@ export function makeTestVolunteerInsert(
 }
 
 // Junction Table Factories
-// ─────────────────────────────────────────────────────────────────────────────
 export function makeTestVolunteerCohortInsert(
   volunteerId: number,
   cohortId: number
@@ -127,11 +119,7 @@ export function makeTestVolunteerRoleInsert(
 }
 
 // Composite Factories (for complex test scenarios)
-// ─────────────────────────────────────────────────────────────────────────────
-/**
- * Creates a complete volunteer test scenario with cohorts and roles.
- * Returns the insert objects - you still need to insert them in the correct order.
- */
+// Creates a complete volunteer test scenario with cohorts and roles
 export type VolunteerWithRelationsFactory = {
   volunteer: VolunteerInsert;
   cohort: CohortInsert;
