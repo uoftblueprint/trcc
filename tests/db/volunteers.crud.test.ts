@@ -1,14 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  createServiceTestClient,
-  deleteWhere,
-  hasServiceRoleKey,
-} from "../helpers";
+import { createServiceTestClient, deleteWhere } from "../helpers";
 import { makeTestVolunteerInsert } from "../factories";
 
-const describeDb = hasServiceRoleKey() ? describe : describe.skip;
-
-describeDb("db: Volunteers CRUD (integration)", () => {
+describe("db: Volunteers CRUD (integration)", () => {
   const client = createServiceTestClient();
 
   beforeEach(async () => {

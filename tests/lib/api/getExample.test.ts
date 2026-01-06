@@ -9,7 +9,6 @@ import type { Database } from "@/lib/client/supabase/types";
 type VolunteerRow = Database["public"]["Tables"]["Volunteers"]["Row"];
 
 describe("getExample", () => {
-
   // Test case to verify fetching volunteers
   it("should fetch volunteers data successfully", async () => {
     // Call the getExample function with a test word

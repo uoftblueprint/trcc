@@ -35,16 +35,10 @@ Use this template for new table CRUD tests:
 
 ```typescript
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  createServiceTestClient,
-  deleteWhere,
-  hasServiceRoleKey,
-} from "../helpers";
+import { createServiceTestClient, deleteWhere } from "../helpers";
 import { makeTestXxxInsert } from "../factories"; // Your factory
 
-const describeDb = hasServiceRoleKey() ? describe : describe.skip;
-
-describeDb("db: TableName CRUD (integration)", () => {
+describe("db: TableName CRUD (integration)", () => {
   const client = createServiceTestClient();
 
   beforeEach(async () => {
@@ -195,6 +189,8 @@ For complex functions, separate unit tests from integration tests:
 
 ```typescript
 // Unit tests - no DB needed
+import { describe } from "vitest";
+
 describe("validateFilter (unit)", () => {
   it("accepts valid filter", () => {
     const result = validateFilter([...], "AND");
@@ -203,7 +199,7 @@ describe("validateFilter (unit)", () => {
 });
 
 // Integration tests - needs DB
-describeDb("filterMultipleColumns (integration)", () => {
+describe("filterMultipleColumns (integration)", () => {
   // ... setup test data, then test function
 });
 ```
