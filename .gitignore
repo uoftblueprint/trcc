@@ -56,4 +56,3 @@ next-env.d.ts
 # mocking supabase
 supabase/.branches/
 supabase/.temp/
-supabase/migrations/*_remote_schema.sql

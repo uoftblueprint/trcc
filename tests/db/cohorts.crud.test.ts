@@ -1,14 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  createServiceTestClient,
-  deleteWhereGte,
-  hasServiceRoleKey,
-} from "../helpers";
+import { createServiceTestClient, deleteWhereGte } from "../helpers";
 import { makeTestCohortInsert, TEST_YEAR } from "../factories";
 
-const describeDb = hasServiceRoleKey() ? describe : describe.skip;
-
-describeDb("db: Cohorts CRUD (integration)", () => {
+describe("db: Cohorts CRUD (integration)", () => {
   const client = createServiceTestClient();
 
   // Keep tests isolated by cleaning up test cohorts by year (>= 2099)

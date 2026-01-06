@@ -3,7 +3,6 @@ import {
   createServiceTestClient,
   deleteWhere,
   deleteWhereGte,
-  hasServiceRoleKey,
 } from "../helpers";
 import {
   makeTestVolunteerInsert,
@@ -32,9 +31,7 @@ type VolunteerRolesWithJoins = VolunteerRolesRow & {
   Roles: RoleRow | null;
 };
 
-const describeDb = hasServiceRoleKey() ? describe : describe.skip;
-
-describeDb("db: VolunteerCohorts junction table (integration)", () => {
+describe("db: VolunteerCohorts junction table (integration)", () => {
   const client = createServiceTestClient();
 
   // Clean up database records before and after each test
@@ -209,7 +206,7 @@ describeDb("db: VolunteerCohorts junction table (integration)", () => {
   });
 });
 
-describeDb("db: VolunteerRoles junction table (integration)", () => {
+describe("db: VolunteerRoles junction table (integration)", () => {
   const client = createServiceTestClient();
 
   beforeEach(async () => {

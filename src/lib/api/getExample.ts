@@ -12,9 +12,7 @@ export async function getExample(word: string): Promise<VolunteerRow[]> {
   console.log("word ", word);
 
   // Example query to select all data from "Volunteers" table
-  const { data, error, status } = await client
-    .from("Volunteers")
-    .select();
+  const { data, error, status } = await client.from("Volunteers").select();
 
   // Log the response for debugging
   console.log("Supabase client response:", { error, data, status });
