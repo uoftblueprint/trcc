@@ -11,7 +11,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:db": "vitest run tests/db",
+    "test:db": "vitest run tests/lib/database",
     "test:watch": "vitest watch",
     "prepare": "husky",
     "typecheck": "tsc --noEmit",

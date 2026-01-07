@@ -17,26 +17,26 @@ npm run test:db
 
 ## Writing Tests: Team Guide
 
-### 1. File Naming Convention
+### 1. Test location convention
 
-```
-tests/db/<table-or-feature>.<test-type>.test.ts
-```
+Examples:
 
-| Pattern        | Example                     |
-| -------------- | --------------------------- |
-| CRUD tests     | `volunteers.crud.test.ts`   |
-| Feature tests  | `volunteer-filter.test.ts`  |
-| Scenario tests | `volunteers.search.test.ts` |
+- For the file `src/lib/api/getExample.ts`, the test should be located at `tests/lib/api/getExample.test.ts`
 
-### 2. Test Template
+### 2. Database integration test locations
+
+Some tests are not tied to a single `src/` file (e.g., **table-level CRUD tests**). Those are in the form:
+
+- `tests/lib/database/<table-or-feature>.<test-type>.test.ts`
+
+### 3. DB test template (CRUD)
 
 Use this template for new table CRUD tests:
 
 ```typescript
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { createServiceTestClient, deleteWhere } from "../helpers";
-import { makeTestXxxInsert } from "../factories"; // Your factory
+import { createServiceTestClient, deleteWhere } from "../support/helpers";
+import { makeTestXxxInsert } from "../support/factories"; // Your factory
 
 describe("db: TableName CRUD (integration)", () => {
   const client = createServiceTestClient();
@@ -100,9 +100,9 @@ describe("db: TableName CRUD (integration)", () => {
 });
 ```
 
-### 3. Factory Pattern
+### 4. Factory pattern
 
-Add factories to `tests/factories.ts`:
+Add factories to `tests/lib/support/factories.ts`:
 
 ```typescript
 export function makeTestXxxInsert(
@@ -123,14 +123,14 @@ export function makeTestXxxInsert(
 - Always prefix test data with `TEST_` for easy cleanup
 - Allow overrides for test-specific scenarios
 
-### 4. Test Clients
+### 5. Test clients (DB)
 
 | Client                      | Use Case                           |
 | --------------------------- | ---------------------------------- |
 | `createServiceTestClient()` | Setup/teardown, bypasses RLS       |
 | `createAnonTestClient()`    | Testing real app behavior with RLS |
 
-### 5. Cleanup Strategy
+### 6. Cleanup strategy
 
 **DO:** Use marker-based cleanup
 

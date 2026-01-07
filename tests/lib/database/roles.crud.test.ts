@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { createServiceTestClient, deleteWhere } from "../helpers";
-import { makeTestRoleInsert } from "../factories";
+import { createServiceTestClient, deleteWhere } from "../support/helpers";
+import { makeTestRoleInsert } from "../support/factories";
 
 describe("db: Roles CRUD (integration)", () => {
   const client = createServiceTestClient();
