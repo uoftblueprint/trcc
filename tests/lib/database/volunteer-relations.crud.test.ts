@@ -3,7 +3,7 @@ import {
   createServiceTestClient,
   deleteWhere,
   deleteWhereGte,
-} from "../helpers";
+} from "../support/helpers";
 import {
   makeTestVolunteerInsert,
   makeTestCohortInsert,
@@ -11,7 +11,7 @@ import {
   makeTestVolunteerCohortInsert,
   makeTestVolunteerRoleInsert,
   TEST_YEAR,
-} from "../factories";
+} from "../support/factories";
 
 import { Database } from "@/lib/client/supabase/types";
 type VolunteerRow = Database["public"]["Tables"]["Volunteers"]["Row"];

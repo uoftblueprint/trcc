@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { createServiceTestClient, deleteWhereGte } from "../helpers";
-import { makeTestCohortInsert, TEST_YEAR } from "../factories";
+import { createServiceTestClient, deleteWhereGte } from "../support/helpers";
+import { makeTestCohortInsert, TEST_YEAR } from "../support/factories";
 
 describe("db: Cohorts CRUD (integration)", () => {
   const client = createServiceTestClient();
