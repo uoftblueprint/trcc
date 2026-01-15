@@ -86,7 +86,7 @@ export async function getVolunteersByRoles(
   }
 
   const filteredVolunteers = [];
-  if (operator.toUpperCase() == "OR") {
+  if (operator.toUpperCase() === "OR") {
     for (const volunteer of volunteerRoleMap.values()) {
       filteredVolunteers.push({
         ...volunteer.row,
