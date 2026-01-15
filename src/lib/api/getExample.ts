@@ -2,9 +2,11 @@
 // You can follow a similar format
 // Just remember to check for errors and edge cases in your functions
 
-import { createClient } from "../client/supabase/server";
+import { createClient } from "@/lib/client/supabase";
 
-export async function getExample(word: string) {
+export async function getExample(
+  word: string
+): Promise<{ data: unknown; error: unknown }> {
   const client = await createClient();
   console.log("word ", word);
   const result = await client.from("Volunteers").select();

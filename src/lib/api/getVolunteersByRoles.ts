@@ -1,19 +1,7 @@
 import { createClient } from "../client/supabase/server";
+import type { Tables } from "@/lib/client/supabase/types";
 
-type Volunteer = {
-  id: number;
-  created_at: string;
-  updated_at: string;
-  email: string | null;
-  phone: string | null;
-  name_org: string;
-  notes: string | null;
-  opt_in_communication: boolean | null;
-  position: string | null;
-  pronouns: string | null;
-  pseudonym: string | null;
-};
-
+type Volunteer = Tables<"Volunteers">;
 type Operator = "OR" | "AND";
 
 export function isAllStrings(arr: unknown[]): arr is string[] {
@@ -52,6 +40,90 @@ export async function getVolunteersByRoles(
     `
     )
     .in("Roles.name", filters);
+
+  // // console.log(allRows);
+  // const allRows = [
+  //   {
+  //     Roles: { name: "Role 1" },
+  //     Volunteers: {
+  //       id: 1,
+  //       email: "v1@mail.com",
+  //       notes: "Notes for volunteer 1",
+  //       phone: "123 456 7890",
+  //       name_org: "Volunteer1",
+  //       position: "member",
+  //       pronouns: "He/him",
+  //       pseudonym: "V1",
+  //       created_at: "2025-11-10T01:26:20.619465+00:00",
+  //       updated_at: "2025-11-10T01:26:20.619465+00:00",
+  //       opt_in_communication: true,
+  //     },
+  //   },
+  //   {
+  //     Roles: { name: "Role 1" },
+  //     Volunteers: {
+  //       id: 1,
+  //       email: "v1@mail.com",
+  //       notes: "Notes for volunteer 1",
+  //       phone: "123 456 7890",
+  //       name_org: "Volunteer1",
+  //       position: "member",
+  //       pronouns: "He/him",
+  //       pseudonym: "V1",
+  //       created_at: "2025-11-10T01:26:20.619465+00:00",
+  //       updated_at: "2025-11-10T01:26:20.619465+00:00",
+  //       opt_in_communication: true,
+  //     },
+  //   },
+  //   {
+  //     Roles: { name: "Role 1" },
+  //     Volunteers: {
+  //       id: 3,
+  //       email: null,
+  //       notes: null,
+  //       phone: "123 456 7890",
+  //       name_org: "Volunteer3",
+  //       position: null,
+  //       pronouns: null,
+  //       pseudonym: "V3",
+  //       created_at: "2025-11-10T01:26:20.619465+00:00",
+  //       updated_at: "2025-11-10T01:26:20.619465+00:00",
+  //       opt_in_communication: true,
+  //     },
+  //   },
+  //   {
+  //     Roles: { name: "Role 2" },
+  //     Volunteers: {
+  //       id: 2,
+  //       email: "v2@mail.com",
+  //       notes: "Notes for volunteer 2",
+  //       phone: "098 765 4321",
+  //       name_org: "Volunteer2",
+  //       position: "member",
+  //       pronouns: "She/her",
+  //       pseudonym: "V2",
+  //       created_at: "2025-11-10T01:26:20.619465+00:00",
+  //       updated_at: "2025-11-10T01:26:20.619465+00:00",
+  //       opt_in_communication: false,
+  //     },
+  //   },
+  //   {
+  //     Roles: { name: "Role 2" },
+  //     Volunteers: {
+  //       id: 3,
+  //       email: null,
+  //       notes: null,
+  //       phone: "123 456 7890",
+  //       name_org: "Volunteer3",
+  //       position: null,
+  //       pronouns: null,
+  //       pseudonym: "V3",
+  //       created_at: "2025-11-10T01:26:20.619465+00:00",
+  //       updated_at: "2025-11-10T01:26:20.619465+00:00",
+  //       opt_in_communication: true,
+  //     },
+  //   },
+  // ];
 
   if (error) {
     // console.error("Supabase error:", error.message);
@@ -95,7 +167,7 @@ export async function getVolunteersByRoles(
     }
   } else {
     for (const volunteer of volunteerRoleMap.values()) {
-      if (volunteer.roleNames.size == filters.length) {
+      if (volunteer.roleNames.size === filters.length) {
         filteredVolunteers.push({
           ...volunteer.row,
           filtered_roles: Array.from(volunteer.roleNames),
