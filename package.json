@@ -11,18 +11,22 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "test:db": "vitest run tests/lib/database",
     "test:watch": "vitest watch",
     "prepare": "husky",
     "typecheck": "tsc --noEmit",
     "check": "npm run format:check && npm run lint && npm run typecheck",
-    "fix": "npm run format && npm run lint:fix"
+    "fix": "npm run format && npm run lint:fix",
+    "supabase:setup": "bash scripts/supabase-setup.sh",
+    "supabase:status": "npx supabase status"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.80.0",
+    "dotenv": "^17.2.3",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
-    "next": "15.5.6",
+    "next": "^15.5.9",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
@@ -38,7 +42,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
     "prettier": "^3.6.2",
-    "supabase": "^2.54.11",
+    "supabase": "^2.70.5",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5",

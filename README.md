@@ -44,6 +44,14 @@ Welcome to the TRCC Volunteer Management System codebase! This guide outlines ho
 - Run all available tests. Test cases will be developed throughout the sprints.
 - use `npm run test`
 
+### Database integration tests (Supabase)
+
+This repo supports **database integration tests** that run against a **local Supabase** instance.
+
+- **Start/reset local Supabase**: `npm run supabase:setup`
+- **Run DB tests only**: `npm run test:db`
+- **Notes**: see `tests/db/README.md` for the team testing standard and required env vars.
+
 ---
 
 ## Working on a Ticket

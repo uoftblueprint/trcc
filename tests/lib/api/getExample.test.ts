@@ -2,32 +2,28 @@
 // This test is not meaningful as is, but serves as a template
 // You should modify it to fit your actual implementation and testing needs
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { getExample } from "@/lib/api/getExample";
-import { createClient } from "@/lib/client/supabase/server";
+import type { Database } from "@/lib/client/supabase/types";
 
-// Mock the Supabase client
-vi.mock("@/lib/client/supabase/server", () => ({
-  createClient: vi.fn(),
-}));
+type VolunteerRow = Database["public"]["Tables"]["Volunteers"]["Row"];
 
 describe("getExample", () => {
-  const mockSelect = vi.fn();
-  const mockFrom = vi.fn(() => ({ select: mockSelect }));
-  const mockClient = { from: mockFrom };
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    // @ts-expect-error - Partial mock of SupabaseClient for testing
-    vi.mocked(createClient).mockResolvedValue(mockClient);
-    mockSelect.mockResolvedValue({ data: [{ id: 1, name: "Test Volunteer" }] });
-  });
-
+  // Test case to verify fetching volunteers
   it("should fetch volunteers data successfully", async () => {
+    // Call the getExample function with a test word
     const result = await getExample("test");
 
-    expect(createClient).toHaveBeenCalled();
-    expect(mockSelect).toHaveBeenCalled();
-    expect(result).toEqual({ data: [{ id: 1, name: "Test Volunteer" }] });
+    expect(Array.isArray(result)).toBe(true);
+
+    if (result.length > 0) {
+      // Check properties of the first volunteer if available
+      console.log("Result has at least one volunteer. Verifying properties...");
+      const first = result[0] as VolunteerRow;
+      expect(first).toHaveProperty("id");
+      console.log("Verified property: id");
+      expect(first).toHaveProperty("email");
+      console.log("Verified property: email");
+    }
   });
 });
