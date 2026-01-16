@@ -15,12 +15,18 @@ type Volunteer = {
 };
 
 type Operator = "OR" | "AND";
+type VolunteerWithRoles = Volunteer & {
+  filtered_roles: string[];
+};
+type GetVolunteersByRolesResult =
+  | { data: VolunteerWithRoles[]; status: 200 }
+  | { error: string; status: 400 | 500 };
 
 export function isAllStrings(arr: unknown[]): arr is string[] {
   return arr.every((item) => typeof item === "string");
 }
 
-export function isValidOperator(operator: string) {
+export function isValidOperator(operator: string): operator is Operator {
   return (
     typeof operator === "string" &&
     ["OR", "AND"].includes(operator.toUpperCase())
@@ -30,7 +36,7 @@ export function isValidOperator(operator: string) {
 export async function getVolunteersByRoles(
   operator: Operator,
   filters: string[]
-) {
+): Promise<GetVolunteersByRolesResult> {
   if (!isValidOperator(operator)) {
     return { status: 400, error: "Operator is not AND or OR" };
   }
@@ -43,6 +49,8 @@ export async function getVolunteersByRoles(
   }
 
   const client = await createClient();
+
+  // Returns empty array if filters is empty
   const { data: allRows, error } = await client
     .from("VolunteerRoles")
     .select(
@@ -54,9 +62,12 @@ export async function getVolunteersByRoles(
     .in("Roles.name", filters);
 
   if (error) {
-    // console.error("Supabase error:", error.message);
-    // console.error("Details:", error.details);
-    // console.error("Hint:", error.hint);
+    console.error("Supabase query failed", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    });
 
     return {
       status: 500,
