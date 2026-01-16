@@ -3,12 +3,18 @@ import type { Tables } from "@/lib/client/supabase/types";
 
 type Volunteer = Tables<"Volunteers">;
 type Operator = "OR" | "AND";
+type VolunteerWithRoles = Volunteer & {
+  filtered_roles: string[];
+};
+type GetVolunteersByRolesResult =
+  | { data: VolunteerWithRoles[]; status: 200 }
+  | { error: string; status: 400 | 500 };
 
 export function isAllStrings(arr: unknown[]): arr is string[] {
   return arr.every((item) => typeof item === "string");
 }
 
-export function isValidOperator(operator: string) {
+export function isValidOperator(operator: string): operator is Operator {
   return (
     typeof operator === "string" &&
     ["OR", "AND"].includes(operator.toUpperCase())
@@ -18,7 +24,7 @@ export function isValidOperator(operator: string) {
 export async function getVolunteersByRoles(
   operator: Operator,
   filters: string[]
-) {
+): Promise<GetVolunteersByRolesResult> {
   if (!isValidOperator(operator)) {
     return { status: 400, error: "Operator is not AND or OR" };
   }
@@ -31,6 +37,8 @@ export async function getVolunteersByRoles(
   }
 
   const client = await createClient();
+
+  // Returns empty array if filters is empty
   const { data: allRows, error } = await client
     .from("VolunteerRoles")
     .select(
@@ -41,94 +49,13 @@ export async function getVolunteersByRoles(
     )
     .in("Roles.name", filters);
 
-  // // console.log(allRows);
-  // const allRows = [
-  //   {
-  //     Roles: { name: "Role 1" },
-  //     Volunteers: {
-  //       id: 1,
-  //       email: "v1@mail.com",
-  //       notes: "Notes for volunteer 1",
-  //       phone: "123 456 7890",
-  //       name_org: "Volunteer1",
-  //       position: "member",
-  //       pronouns: "He/him",
-  //       pseudonym: "V1",
-  //       created_at: "2025-11-10T01:26:20.619465+00:00",
-  //       updated_at: "2025-11-10T01:26:20.619465+00:00",
-  //       opt_in_communication: true,
-  //     },
-  //   },
-  //   {
-  //     Roles: { name: "Role 1" },
-  //     Volunteers: {
-  //       id: 1,
-  //       email: "v1@mail.com",
-  //       notes: "Notes for volunteer 1",
-  //       phone: "123 456 7890",
-  //       name_org: "Volunteer1",
-  //       position: "member",
-  //       pronouns: "He/him",
-  //       pseudonym: "V1",
-  //       created_at: "2025-11-10T01:26:20.619465+00:00",
-  //       updated_at: "2025-11-10T01:26:20.619465+00:00",
-  //       opt_in_communication: true,
-  //     },
-  //   },
-  //   {
-  //     Roles: { name: "Role 1" },
-  //     Volunteers: {
-  //       id: 3,
-  //       email: null,
-  //       notes: null,
-  //       phone: "123 456 7890",
-  //       name_org: "Volunteer3",
-  //       position: null,
-  //       pronouns: null,
-  //       pseudonym: "V3",
-  //       created_at: "2025-11-10T01:26:20.619465+00:00",
-  //       updated_at: "2025-11-10T01:26:20.619465+00:00",
-  //       opt_in_communication: true,
-  //     },
-  //   },
-  //   {
-  //     Roles: { name: "Role 2" },
-  //     Volunteers: {
-  //       id: 2,
-  //       email: "v2@mail.com",
-  //       notes: "Notes for volunteer 2",
-  //       phone: "098 765 4321",
-  //       name_org: "Volunteer2",
-  //       position: "member",
-  //       pronouns: "She/her",
-  //       pseudonym: "V2",
-  //       created_at: "2025-11-10T01:26:20.619465+00:00",
-  //       updated_at: "2025-11-10T01:26:20.619465+00:00",
-  //       opt_in_communication: false,
-  //     },
-  //   },
-  //   {
-  //     Roles: { name: "Role 2" },
-  //     Volunteers: {
-  //       id: 3,
-  //       email: null,
-  //       notes: null,
-  //       phone: "123 456 7890",
-  //       name_org: "Volunteer3",
-  //       position: null,
-  //       pronouns: null,
-  //       pseudonym: "V3",
-  //       created_at: "2025-11-10T01:26:20.619465+00:00",
-  //       updated_at: "2025-11-10T01:26:20.619465+00:00",
-  //       opt_in_communication: true,
-  //     },
-  //   },
-  // ];
-
   if (error) {
-    // console.error("Supabase error:", error.message);
-    // console.error("Details:", error.details);
-    // console.error("Hint:", error.hint);
+    console.error("Supabase query failed", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    });
 
     return {
       status: 500,
