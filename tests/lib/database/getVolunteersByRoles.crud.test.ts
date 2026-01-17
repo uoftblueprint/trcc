@@ -98,13 +98,13 @@ describe("db: VolunteerRoles CRUD with getVolunteersByRoles (integration)", () =
       volunteer_role_pairs,
     }); // db assertion errors should ogate from this function
 
-    const { data, status } = await getVolunteersByRoles("OR", [
+    const { data, error } = await getVolunteersByRoles("OR", [
       "TEST_Role_1",
       "TEST_Role_2",
     ]);
 
     expect(data).toBeTruthy();
-    expect(status).toBe(200);
+    expect(error).toBeNull();
 
     const rolesByVolunteerId = new Map(
       data!.map((volunteer) => [volunteer.id, volunteer.filtered_roles])
@@ -144,13 +144,13 @@ describe("db: VolunteerRoles CRUD with getVolunteersByRoles (integration)", () =
       volunteer_role_pairs,
     }); // db assertion errors should propogate from this function
 
-    const { data, status } = await getVolunteersByRoles("AND", [
+    const { data, error } = await getVolunteersByRoles("AND", [
       "TEST_Role_1",
       "TEST_Role_2",
     ]);
 
     expect(data).toBeTruthy();
-    expect(status).toBe(200);
+    expect(error).toBeNull();
 
     const rolesByVolunteerId = new Map(
       data!.map((volunteer) => [volunteer.id, volunteer.filtered_roles])
@@ -184,10 +184,10 @@ describe("db: VolunteerRoles CRUD with getVolunteersByRoles (integration)", () =
       volunteer_role_pairs,
     }); // db insertion errors should propogate from this function
 
-    const { data, status } = await getVolunteersByRoles("AND", ["TEST_Role_1"]);
+    const { data, error } = await getVolunteersByRoles("AND", ["TEST_Role_1"]);
 
     expect(data).toBeTruthy();
-    expect(status).toBe(200);
+    expect(error).toBeNull();
 
     const rolesByVolunteerId = new Map(
       data!.map((volunteer) => [volunteer.id, volunteer.filtered_roles])
@@ -224,21 +224,21 @@ describe("db: VolunteerRoles CRUD with getVolunteersByRoles (integration)", () =
       volunteer_role_pairs,
     }); // db insertion errors should propogate from this function
 
-    const { data, status } = await getVolunteersByRoles("AND", ["TEST_Role_1"]);
+    const { data, error } = await getVolunteersByRoles("AND", ["TEST_Role_1"]);
 
     expect(data).toHaveLength(0);
-    expect(status).toBe(200);
+    expect(error).toBeNull();
   });
 
   it("returns empty data array when filters are empty and operator is OR", async () => {
-    const { data, status } = await getVolunteersByRoles("OR", []);
+    const { data, error } = await getVolunteersByRoles("OR", []);
     expect(data).toHaveLength(0);
-    expect(status).toBe(200);
+    expect(error).toBeNull();
   });
 
   it("returns empty data array when filters are empty and operator is AND", async () => {
-    const { data, status } = await getVolunteersByRoles("AND", []);
+    const { data, error } = await getVolunteersByRoles("AND", []);
     expect(data).toHaveLength(0);
-    expect(status).toBe(200);
+    expect(error).toBeNull();
   });
 });
