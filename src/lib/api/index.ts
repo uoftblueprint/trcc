@@ -1,4 +1,4 @@
 // Add any exports from your API files here
 
 export { getExample } from "./getExample";
-export { filterMultipleColumns, validateFilter } from "./filterMultipleColumns";
+export { getVolunteersByMultipleColumns } from "./getVolunteersByMultipleColumns";
