@@ -49,3 +49,10 @@ next-env.d.ts
 
 # Exclude IntelliJ project files
 /.idea
+
+# Exclude Claude settings files
+/.claude
+
+# mocking supabase
+supabase/.branches/
+supabase/.temp/
