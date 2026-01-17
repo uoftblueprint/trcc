@@ -73,8 +73,24 @@ describe("db: VolunteerRoles CRUD with getVolunteersByRoles (integration)", () =
   const client = createServiceTestClient();
 
   beforeEach(async () => {
+    // Clean up by name pattern first
     await deleteWhere(client, "Volunteers", "name_org", "TEST_%");
     await deleteWhere(client, "Roles", "name", "TEST_%");
+
+    // Also delete by specific IDs used in tests to prevent unique constraint violations
+    // These IDs are hardcoded in the test cases
+    const testRoleIds = [1, 2, 3];
+    const testVolunteerIds = [10, 20, 30];
+
+    // Delete roles by ID
+    for (const id of testRoleIds) {
+      await client.from("Roles").delete().eq("id", id);
+    }
+
+    // Delete volunteers by ID
+    for (const id of testVolunteerIds) {
+      await client.from("Volunteers").delete().eq("id", id);
+    }
   });
 
   afterEach(async () => {
