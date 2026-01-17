@@ -18,10 +18,7 @@ export default function LoginPage() {
     setLoading(true);
     setMessage(null);
     setResponseData(null);
-    const { data, error } = await signInWithEmail(
-      signInEmail,
-      signInPassword
-    );
+    const { data, error } = await signInWithEmail(signInEmail, signInPassword);
     setMessage(error ? error.message : "Signed in successfully.");
     setResponseData(data);
     setLoading(false);
@@ -93,9 +90,7 @@ export default function LoginPage() {
       </form>
 
       {message ? <p>{message}</p> : null}
-      {responseData ? (
-        <pre>{JSON.stringify(responseData, null, 2)}</pre>
-      ) : null}
+      {responseData ? <pre>{JSON.stringify(responseData, null, 2)}</pre> : null}
     </main>
   );
 }
