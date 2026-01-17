@@ -15,34 +15,29 @@ export async function deleteVolunteer(id: number) {
   try {
     const client = await createClient();
 
-    // Check if volunteer exists before deleting
-    const { data: existingVolunteer, error: fetchError } = await client
-      .from("Volunteers")
-      .select("id")
-      .eq("id", id)
-      .single();
-
-    if (fetchError || !existingVolunteer) {
-      return {
-        error: {
-          message: "Volunteer not found.",
-          status: 404,
-        },
-        data: null,
-      };
-    }
-
-    // Delete the volunteer
-    const { error: deleteError } = await client
+    // Attempt to delete the volunteer and return the deleted id
+    const { data: deletedVolunteer, error: deleteError } = await client
       .from("Volunteers")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .select("id");
 
     if (deleteError) {
       return {
         error: {
           message: deleteError.message || "Failed to delete volunteer.",
           status: 500,
+        },
+        data: null,
+      };
+    }
+
+    // If no volunteer was deleted, it did not exist
+    if (!deletedVolunteer || deletedVolunteer.length === 0) {
+      return {
+        error: {
+          message: "Volunteer not found.",
+          status: 404,
         },
         data: null,
       };
