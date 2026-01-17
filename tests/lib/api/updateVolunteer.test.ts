@@ -113,7 +113,7 @@ function buildMockClient(opts: MockOptions = {}): ClientMocks {
   const cohortEqSecond = vi
     .fn()
     .mockReturnValue({ maybeSingle: cohortMaybeSingle });
-  const cohortEqFirst = vi.fn().mockReturnValue({ eq: cohortEqSecond });
+  const cohortEqFirst = vi.fn().mockReturnValue({ ilike: cohortEqSecond });
   const cohortSelect = vi.fn().mockReturnValue({ eq: cohortEqFirst });
 
   const cohortDeleteEq = vi

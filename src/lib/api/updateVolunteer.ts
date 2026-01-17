@@ -3,6 +3,16 @@ import type { Tables, TablesUpdate } from "../client/supabase/types";
 
 const ROLE_TYPES = ["prior", "current", "future_interest"] as const;
 const COHORT_TERMS = ["fall", "summer", "winter", "spring"] as const;
+const POSITION_VALUES = ["member", "volunteer", "staff"] as const;
+const COHORT_TERM_CANONICAL: Record<
+  (typeof COHORT_TERMS)[number],
+  string
+> = {
+  fall: "Fall",
+  summer: "Summer",
+  winter: "Winter",
+  spring: "Spring",
+};
 
 type VolunteerUpdatePayload = Pick<
   TablesUpdate<"Volunteers">,
@@ -17,7 +27,7 @@ type VolunteerUpdatePayload = Pick<
 >;
 
 type RoleInput = { name: string; type: (typeof ROLE_TYPES)[number] };
-type CohortInput = { year: number; term: (typeof COHORT_TERMS)[number] };
+type CohortInput = { year: number; term: string };
 
 type UpdateVolunteerResult =
   | { status: 200; body: { volunteer: Tables<"Volunteers"> } }
@@ -96,6 +106,14 @@ function validateVolunteerUpdateBody(body: unknown): VolunteerValidationResult {
       if (value === undefined || value === null) {
         updates[key] = null;
       } else if (typeof value === "string") {
+        if (
+          key === "position" &&
+          !POSITION_VALUES.includes(value as (typeof POSITION_VALUES)[number])
+        ) {
+          return {
+            error: `Field position must be one of ${POSITION_VALUES.join(", ")}`,
+          };
+        }
         updates[key] = value;
       } else {
         return { error: `Field ${key} must be a string or null` };
@@ -150,15 +168,23 @@ function validateVolunteerUpdateBody(body: unknown): VolunteerValidationResult {
     if (!Number.isInteger(year)) {
       return { error: "Field cohort.year must be an integer" };
     }
-    if (
-      typeof term !== "string" ||
-      !COHORT_TERMS.includes(term as (typeof COHORT_TERMS)[number])
-    ) {
+    if (typeof term !== "string") {
       return {
         error: `Field cohort.term must be one of ${COHORT_TERMS.join(", ")}`,
       };
     }
-    cohort = { year: year as number, term: term as CohortInput["term"] };
+    const normalizedTerm = term.trim().toLowerCase();
+    if (!COHORT_TERMS.includes(normalizedTerm as (typeof COHORT_TERMS)[number])) {
+      return {
+        error: `Field cohort.term must be one of ${COHORT_TERMS.join(", ")}`,
+      };
+    }
+    cohort = {
+      year: year as number,
+      term: COHORT_TERM_CANONICAL[
+        normalizedTerm as (typeof COHORT_TERMS)[number]
+      ],
+    };
   }
 
   if (!hasFields && !role && !cohort) {
@@ -198,6 +224,48 @@ export async function updateVolunteer(
   const client = await createClient();
   const timestamp = new Date().toISOString();
 
+  let roleRow: { id: number } | null = null;
+  if (validation.role) {
+    const { name, type } = validation.role;
+    const { data, error } = await client
+      .from("Roles")
+      .select("id")
+      .eq("name", name)
+      .eq("type", type)
+      .maybeSingle();
+
+    if (error) {
+      return { status: 500, body: { error: error.message } };
+    }
+
+    if (!data) {
+      return { status: 400, body: { error: "Role not found" } };
+    }
+
+    roleRow = data;
+  }
+
+  let cohortRow: { id: number } | null = null;
+  if (validation.cohort) {
+    const { year, term } = validation.cohort;
+    const { data, error } = await client
+      .from("Cohorts")
+      .select("id")
+      .eq("year", year)
+      .ilike("term", term)
+      .maybeSingle();
+
+    if (error) {
+      return { status: 500, body: { error: error.message } };
+    }
+
+    if (!data) {
+      return { status: 400, body: { error: "Cohort not found" } };
+    }
+
+    cohortRow = data;
+  }
+
   const { data: volunteer, error: volunteerError } = await client
     .from("Volunteers")
     .update({ ...validation.updates, updated_at: timestamp })
@@ -213,23 +281,7 @@ export async function updateVolunteer(
     return { status: 404, body: { error: "Volunteer not found" } };
   }
 
-  if (validation.role) {
-    const { name, type } = validation.role;
-    const { data: roleRow, error: roleLookupError } = await client
-      .from("Roles")
-      .select("id")
-      .eq("name", name)
-      .eq("type", type)
-      .maybeSingle();
-
-    if (roleLookupError) {
-      return { status: 500, body: { error: roleLookupError.message } };
-    }
-
-    if (!roleRow) {
-      return { status: 400, body: { error: "Role not found" } };
-    }
-
+  if (validation.role && roleRow) {
     const { error: roleDeleteError } = await client
       .from("VolunteerRoles")
       .delete()
@@ -252,23 +304,7 @@ export async function updateVolunteer(
     }
   }
 
-  if (validation.cohort) {
-    const { year, term } = validation.cohort;
-    const { data: cohortRow, error: cohortLookupError } = await client
-      .from("Cohorts")
-      .select("id")
-      .eq("year", year)
-      .eq("term", term)
-      .maybeSingle();
-
-    if (cohortLookupError) {
-      return { status: 500, body: { error: cohortLookupError.message } };
-    }
-
-    if (!cohortRow) {
-      return { status: 400, body: { error: "Cohort not found" } };
-    }
-
+  if (validation.cohort && cohortRow) {
     const { error: cohortDeleteError } = await client
       .from("VolunteerCohorts")
       .delete()
