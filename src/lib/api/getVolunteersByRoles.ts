@@ -75,6 +75,15 @@ export async function getVolunteersByRoles(
     };
   }
 
+  // Handle null data (can occur even when error is null)
+  if (!allRows) {
+    console.log("No data returned from Supabase query");
+    return {
+      error: `No data returned from Supabase query: ${error?.message}`,
+      data: null,
+    };
+  }
+
   const volunteerRoleMap = new Map<
     number,
     {
