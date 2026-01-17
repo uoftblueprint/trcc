@@ -4,10 +4,7 @@ import type { Tables, TablesUpdate } from "../client/supabase/types";
 const ROLE_TYPES = ["prior", "current", "future_interest"] as const;
 const COHORT_TERMS = ["fall", "summer", "winter", "spring"] as const;
 const POSITION_VALUES = ["member", "volunteer", "staff"] as const;
-const COHORT_TERM_CANONICAL: Record<
-  (typeof COHORT_TERMS)[number],
-  string
-> = {
+const COHORT_TERM_CANONICAL: Record<(typeof COHORT_TERMS)[number], string> = {
   fall: "Fall",
   summer: "Summer",
   winter: "Winter",
@@ -174,7 +171,9 @@ function validateVolunteerUpdateBody(body: unknown): VolunteerValidationResult {
       };
     }
     const normalizedTerm = term.trim().toLowerCase();
-    if (!COHORT_TERMS.includes(normalizedTerm as (typeof COHORT_TERMS)[number])) {
+    if (
+      !COHORT_TERMS.includes(normalizedTerm as (typeof COHORT_TERMS)[number])
+    ) {
       return {
         error: `Field cohort.term must be one of ${COHORT_TERMS.join(", ")}`,
       };
@@ -282,48 +281,56 @@ export async function updateVolunteer(
   }
 
   if (validation.role && roleRow) {
-    const { error: roleDeleteError } = await client
+    const { data: roleLink, error: roleLinkError } = await client
       .from("VolunteerRoles")
-      .delete()
-      .eq("volunteer_id", volunteerId as number);
+      .select("role_id")
+      .eq("volunteer_id", volunteerId as number)
+      .eq("role_id", roleRow.id)
+      .maybeSingle();
 
-    if (roleDeleteError) {
-      return { status: 500, body: { error: roleDeleteError.message } };
+    if (roleLinkError) {
+      return { status: 500, body: { error: roleLinkError.message } };
     }
 
-    const { error: roleInsertError } = await client
-      .from("VolunteerRoles")
-      .insert({
-        volunteer_id: volunteerId as number,
-        role_id: roleRow.id,
-        created_at: timestamp,
-      });
+    if (!roleLink) {
+      const { error: roleInsertError } = await client
+        .from("VolunteerRoles")
+        .insert({
+          volunteer_id: volunteerId as number,
+          role_id: roleRow.id,
+          created_at: timestamp,
+        });
 
-    if (roleInsertError) {
-      return { status: 500, body: { error: roleInsertError.message } };
+      if (roleInsertError) {
+        return { status: 500, body: { error: roleInsertError.message } };
+      }
     }
   }
 
   if (validation.cohort && cohortRow) {
-    const { error: cohortDeleteError } = await client
+    const { data: cohortLink, error: cohortLinkError } = await client
       .from("VolunteerCohorts")
-      .delete()
-      .eq("volunteer_id", volunteerId as number);
+      .select("cohort_id")
+      .eq("volunteer_id", volunteerId as number)
+      .eq("cohort_id", cohortRow.id)
+      .maybeSingle();
 
-    if (cohortDeleteError) {
-      return { status: 500, body: { error: cohortDeleteError.message } };
+    if (cohortLinkError) {
+      return { status: 500, body: { error: cohortLinkError.message } };
     }
 
-    const { error: cohortInsertError } = await client
-      .from("VolunteerCohorts")
-      .insert({
-        volunteer_id: volunteerId as number,
-        cohort_id: cohortRow.id,
-        assigned_at: timestamp,
-      });
+    if (!cohortLink) {
+      const { error: cohortInsertError } = await client
+        .from("VolunteerCohorts")
+        .insert({
+          volunteer_id: volunteerId as number,
+          cohort_id: cohortRow.id,
+          created_at: timestamp,
+        });
 
-    if (cohortInsertError) {
-      return { status: 500, body: { error: cohortInsertError.message } };
+      if (cohortInsertError) {
+        return { status: 500, body: { error: cohortInsertError.message } };
+      }
     }
   }
 
