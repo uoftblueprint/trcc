@@ -82,7 +82,7 @@ describe("db: VolunteerRoles CRUD with getVolunteersByRoles route handler (integ
     await deleteWhere(client, "Roles", "name", "TEST_%");
   });
 
-  it("Test filter w/OR operator on Role ids 1 and 2, where there are ids 1, 2 and 3", async () => {
+  it("returns all volunteers with TEST_Role_1 OR TEST_Role_2", async () => {
     const role_ids = [1, 2, 3]; // Role names should be "TEST_Role_1", "TEST_Role_2" and "TEST_Role_3"
     const volunteer_ids = [10, 20, 30];
     const volunteer_role_pairs: [number, number][] = [
@@ -126,7 +126,7 @@ describe("db: VolunteerRoles CRUD with getVolunteersByRoles route handler (integ
     );
   });
 
-  it("Test filter w/AND operator on Role ids 1 and 2, where there are ids 1, 2 and 3", async () => {
+  it("returns all volunteers with TEST_Role_1 AND TEST_Role_2", async () => {
     const role_ids = [1, 2, 3]; // Role names should be "TEST_Role_1", "TEST_Role_2" and "TEST_Role_3"
     const volunteer_ids = [10, 20, 30];
     const volunteer_role_pairs: [number, number][] = [
@@ -162,6 +162,48 @@ describe("db: VolunteerRoles CRUD with getVolunteersByRoles route handler (integ
     expect(rolesByVolunteerId.get(10)).toHaveLength(2);
     expect(rolesByVolunteerId.get(10)).toEqual(
       expect.arrayContaining(["TEST_Role_1", "TEST_Role_2"])
+    );
+  });
+
+  it("returns all volunteers with role TEST_Role_1", async () => {
+    const role_ids = [1, 2, 3]; // Role names should be "TEST_Role_1", "TEST_Role_2" and "TEST_Role_3"
+    const volunteer_ids = [10, 20, 30];
+    const volunteer_role_pairs: [number, number][] = [
+      [10, 1],
+      [10, 2],
+      [20, 2],
+      [30, 1],
+      [30, 3],
+    ];
+
+    await volunteerRoleSetup(client, {
+      role_ids,
+      volunteer_ids,
+      volunteer_role_pairs,
+    }); // db assertion errors should propagate from this function
+
+    const { data, status } = await getVolunteersByRoles("AND", ["TEST_Role_1"]);
+
+    expect(data).toBeTruthy();
+    expect(status).toBe(200);
+
+    const rolesByVolunteerId = new Map(
+      data!.map((volunteer) => [volunteer.id, volunteer.filtered_roles])
+    );
+
+    expect([...rolesByVolunteerId.keys()]).toHaveLength(2);
+    expect([...rolesByVolunteerId.keys()]).toEqual(
+      expect.arrayContaining([10, 30])
+    );
+
+    expect(rolesByVolunteerId.get(10)).toHaveLength(1);
+    expect(rolesByVolunteerId.get(10)).toEqual(
+      expect.arrayContaining(["TEST_Role_1"])
+    );
+
+    expect(rolesByVolunteerId.get(30)).toHaveLength(1);
+    expect(rolesByVolunteerId.get(30)).toEqual(
+      expect.arrayContaining(["TEST_Role_1"])
     );
   });
 
