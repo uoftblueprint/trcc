@@ -2,10 +2,10 @@ import { createClient } from "../client/supabase/server";
 
 export async function deleteVolunteer(id: number) {
   // Validate input
-  if (!id || typeof id !== "number" || id <= 0) {
+  if (typeof id !== "number" || id <= 0 || !Number.isInteger(id)) {
     return {
       error: {
-        message: "Invalid volunteer ID. ID must be a positive number.",
+        message: "Invalid volunteer ID. ID must be a positive integer.",
         status: 400,
       },
       data: null,
