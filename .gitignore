@@ -52,3 +52,7 @@ next-env.d.ts
 
 # Exclude Claude settings files
 /.claude
+
+# mocking supabase
+supabase/.branches/
+supabase/.temp/
