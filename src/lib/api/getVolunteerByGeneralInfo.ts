@@ -1,5 +1,5 @@
 import { createClient } from "../client/supabase/server";
-import type { VolunteerGeneralInfoColumn } from "../api/volunteer-general-info";
+import type { VolunteerGeneralInfoColumn } from "./volunteer-general-info";
 
 type LogicalOp = "AND" | "OR";
 type FilterByGeneralInfoResult = {

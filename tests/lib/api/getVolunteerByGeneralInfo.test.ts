@@ -59,3 +59,5 @@ describe("validateFilter (unit)", () => {
 
 
 });
+
+describe ("filter_by_general")
