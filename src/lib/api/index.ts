@@ -2,8 +2,3 @@
 
 export { getExample } from "./getExample";
 export { createVolunteer } from "./createVolunteer";
-export type {
-  VolunteerInput,
-  ValidationError,
-  CreateVolunteerResponse,
-} from "./createVolunteer";
