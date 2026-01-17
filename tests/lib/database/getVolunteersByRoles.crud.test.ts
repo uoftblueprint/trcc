@@ -69,7 +69,7 @@ async function volunteerRoleSetup(
   expect(volunteer_roles_error).toBeNull();
 }
 
-describe("db: VolunteerRoles CRUD with getVolunteersByRoles route handler (integration)", () => {
+describe("db: VolunteerRoles CRUD with getVolunteersByRoles (integration)", () => {
   const client = createServiceTestClient();
 
   beforeEach(async () => {
@@ -96,7 +96,7 @@ describe("db: VolunteerRoles CRUD with getVolunteersByRoles route handler (integ
       role_ids,
       volunteer_ids,
       volunteer_role_pairs,
-    }); // db assertion errors should propagate from this function
+    }); // db assertion errors should ogate from this function
 
     const { data, status } = await getVolunteersByRoles("OR", [
       "TEST_Role_1",
@@ -131,16 +131,18 @@ describe("db: VolunteerRoles CRUD with getVolunteersByRoles route handler (integ
     const volunteer_ids = [10, 20, 30];
     const volunteer_role_pairs: [number, number][] = [
       [10, 1],
-      [20, 2],
-      [30, 3],
       [10, 2],
-    ];
+      [10, 3],
+      [20, 2],
+      [30, 2],
+      [30, 3],
+    ]; // [volunteer_id, role_id]
 
     await volunteerRoleSetup(client, {
       role_ids,
       volunteer_ids,
       volunteer_role_pairs,
-    }); // db assertion errors should propagate from this function
+    }); // db assertion errors should propogate from this function
 
     const { data, status } = await getVolunteersByRoles("AND", [
       "TEST_Role_1",
@@ -180,7 +182,7 @@ describe("db: VolunteerRoles CRUD with getVolunteersByRoles route handler (integ
       role_ids,
       volunteer_ids,
       volunteer_role_pairs,
-    }); // db assertion errors should propagate from this function
+    }); // db insertion errors should propogate from this function
 
     const { data, status } = await getVolunteersByRoles("AND", ["TEST_Role_1"]);
 
@@ -207,13 +209,34 @@ describe("db: VolunteerRoles CRUD with getVolunteersByRoles route handler (integ
     );
   });
 
-  it("Test with empty filter array for OR operator", async () => {
+  it("returns empty data array when no volunteers match filters", async () => {
+    const role_ids = [1, 2, 3];
+    const volunteer_ids = [10, 20, 30];
+    const volunteer_role_pairs: [number, number][] = [
+      [10, 2],
+      [20, 2],
+      [30, 3],
+    ];
+
+    await volunteerRoleSetup(client, {
+      role_ids,
+      volunteer_ids,
+      volunteer_role_pairs,
+    }); // db insertion errors should propogate from this function
+
+    const { data, status } = await getVolunteersByRoles("AND", ["TEST_Role_1"]);
+
+    expect(data).toHaveLength(0);
+    expect(status).toBe(200);
+  });
+
+  it("returns empty data array when filters are empty and operator is OR", async () => {
     const { data, status } = await getVolunteersByRoles("OR", []);
     expect(data).toHaveLength(0);
     expect(status).toBe(200);
   });
 
-  it("Test with empty filter array for AND operator", async () => {
+  it("returns empty data array when filters are empty and operator is AND", async () => {
     const { data, status } = await getVolunteersByRoles("AND", []);
     expect(data).toHaveLength(0);
     expect(status).toBe(200);
