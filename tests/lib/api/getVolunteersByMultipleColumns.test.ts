@@ -6,12 +6,13 @@ import {
   makeTestVolunteerRoleInsert,
   makeTestCohortInsert,
   makeTestVolunteerCohortInsert,
+  TEST_YEAR,
 } from "../support/factories";
 import {
   getVolunteersByMultipleColumns,
   validateMultipleColumnFilter,
   type FilterTuple,
-} from "../../../src/lib/api/getVolunteersByMultipleColumns";
+} from "@/lib/api/getVolunteersByMultipleColumns";
 
 // Unit tests
 describe("validateMultipleColumnFilter (unit)", () => {
@@ -185,7 +186,7 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
   afterAll(async () => {
     await deleteWhere(client, "Volunteers", "name_org", "TEST_%");
     await deleteWhere(client, "Roles", "name", "TEST_%");
-    await client.from("Cohorts").delete().eq("year", 2099);
+    await client.from("Cohorts").delete().eq("year", TEST_YEAR);
   });
 
   it("returns nothing when filters are empty", async () => {
@@ -220,7 +221,7 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
 
   it("cohorts by cohort with OR", async () => {
     const filters: FilterTuple[] = [
-      { field: "cohorts", miniOp: "OR", values: [["Fall", "2099"]] },
+      { field: "cohorts", miniOp: "OR", values: [["Fall", String(TEST_YEAR)]] },
     ];
     const { data } = await getVolunteersByMultipleColumns(filters, "AND");
     const ids = data?.map((v) => v.id);
@@ -236,8 +237,8 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
         field: "cohorts",
         miniOp: "AND",
         values: [
-          ["Fall", "2099"],
-          ["Winter", "2099"],
+          ["Fall", String(TEST_YEAR)],
+          ["Winter", String(TEST_YEAR)],
         ],
       },
     ];
@@ -280,8 +281,8 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
         field: "cohorts",
         miniOp: "OR",
         values: [
-          ["Fall", "2099"],
-          ["Winter", "2099"],
+          ["Fall", String(TEST_YEAR)],
+          ["Winter", String(TEST_YEAR)],
         ],
       },
       {
@@ -301,7 +302,11 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
   it("filters by global OR", async () => {
     const filters: FilterTuple[] = [
       { field: "position", miniOp: "OR", values: ["member"] },
-      { field: "cohorts", miniOp: "OR", values: [["Winter", "2099"]] },
+      {
+        field: "cohorts",
+        miniOp: "OR",
+        values: [["Winter", String(TEST_YEAR)]],
+      },
     ];
     const { data } = await getVolunteersByMultipleColumns(filters, "OR");
     const ids = data?.map((v) => v.id);
