@@ -17,7 +17,12 @@ export type ValidationError = {
 // Response type for the API function
 export type CreateVolunteerResponse =
   | { success: true; data: { id: number } }
-  | { success: false; error: string; validationErrors?: ValidationError[] };
+  | {
+      success: false;
+      error: string;
+      validationErrors?: ValidationError[];
+      dbError?: unknown;
+    };
 
 /**
  * Validates volunteer input data
@@ -162,12 +167,14 @@ export async function createVolunteer(
         return {
           success: false,
           error: "A volunteer with this information already exists",
+          dbError: error,
         };
       }
 
       return {
         success: false,
         error: "Failed to create volunteer in database",
+        dbError: error,
       };
     }
 
