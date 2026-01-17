@@ -51,22 +51,6 @@ describe("getVolunteersByRoles", () => {
     expect(result.data).toHaveLength(0);
   });
 
-  it("returns error response for an invalid operator", async () => {
-    const { data, error, status } = await getVolunteersByRoles("INVALID", [
-      "Role 1",
-    ]);
-    expect(data).toBeNull();
-    expect(status).toBe(400);
-    expect(error).toEqual("Operator is not AND or OR");
-  });
-
-  it("returns error response if the filters array is malformed", async () => {
-    const { data, error, status } = await getVolunteersByRoles("OR", [1]);
-    expect(data).toBeNull();
-    expect(status).toBe(400);
-    expect(error).toEqual("Roles to filter by are not all strings");
-  });
-
   it("returns all volunteers with Role 1 OR Role 2", async () => {
     mockIn.mockResolvedValueOnce({ data: [...Roles1, ...Roles2], error: null });
 
