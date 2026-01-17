@@ -129,7 +129,7 @@ function isValidEmail(email: string): boolean {
  * @returns A response object indicating success or failure
  */
 export async function createVolunteer(
-  volunteerData: unknown
+  volunteerData: VolunteerInput
 ): Promise<CreateVolunteerResponse> {
   try {
     // Validate input
@@ -148,7 +148,7 @@ export async function createVolunteer(
     // Insert volunteer into database
     const { data, error } = await client
       .from("Volunteers")
-      .insert(volunteerData as VolunteerInput)
+      .insert(volunteerData)
       .select("id")
       .single();
 
