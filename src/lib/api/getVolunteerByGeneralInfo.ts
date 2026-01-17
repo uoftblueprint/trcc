@@ -27,7 +27,6 @@ export async function filter_by_general_info(
     const value = uniqueValues[0];
 
     return client.from("Volunteers").select().eq(column, value);
-
   }
   if (op === "OR") {
     const result = await client.from("Volunteers").select().in(column, values);
