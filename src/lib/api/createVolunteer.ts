@@ -1,4 +1,4 @@
-// API function to add a new volunteer to the database
+// API function to create a new volunteer in the database
 import { createClient } from "../client/supabase/server";
 import type { TablesInsert } from "../client/supabase/types";
 
@@ -15,7 +15,7 @@ export type ValidationError = {
 };
 
 // Response type for the API function
-export type AddVolunteerResponse =
+export type CreateVolunteerResponse =
   | { success: true; data: { id: number } }
   | { success: false; error: string; validationErrors?: ValidationError[] };
 
@@ -124,13 +124,13 @@ function isValidEmail(email: string): boolean {
 }
 
 /**
- * Adds a new volunteer to the database
+ * Creates a new volunteer in the database
  * @param volunteerData - The volunteer data to insert
  * @returns A response object indicating success or failure
  */
-export async function addVolunteer(
+export async function createVolunteer(
   volunteerData: unknown
-): Promise<AddVolunteerResponse> {
+): Promise<CreateVolunteerResponse> {
   try {
     // Validate input
     const validationErrors = validateVolunteerInput(volunteerData);
@@ -154,7 +154,7 @@ export async function addVolunteer(
 
     // Handle database errors
     if (error) {
-      console.error("Database error while adding volunteer:", error);
+      console.error("Database error while creating volunteer:", error);
 
       // Check for common database errors
       if (error.code === "23505") {
@@ -167,7 +167,7 @@ export async function addVolunteer(
 
       return {
         success: false,
-        error: "Failed to add volunteer to database",
+        error: "Failed to create volunteer in database",
       };
     }
 
@@ -185,7 +185,7 @@ export async function addVolunteer(
       data: { id: data.id },
     };
   } catch (error) {
-    console.error("Unexpected error while adding volunteer:", error);
+    console.error("Unexpected error while creating volunteer:", error);
     return {
       success: false,
       error: "An unexpected error occurred",
