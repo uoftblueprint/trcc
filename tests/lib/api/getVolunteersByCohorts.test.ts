@@ -1,4 +1,3 @@
-// Integration tests for getVolunteersByCohorts function
 // Tests the API function that filters volunteers by their cohort assignments
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -20,7 +19,7 @@ describe("getVolunteersByCohorts (integration)", () => {
 
   // Cleanup before and after each test
   beforeEach(async () => {
-    // Clean junction tables first (handled by CASCADE), then parent tables
+    // Clean junction tables first, then parent tables
     await deleteWhere(client, "Volunteers", "name_org", "TEST_%");
     await deleteWhereGte(client, "Cohorts", "year", TEST_YEAR);
   });
@@ -136,7 +135,7 @@ describe("getVolunteersByCohorts (integration)", () => {
 
       // Should return the volunteer only once
       expect(result).toHaveLength(1);
-      expect(result[0].name_org).toBe("TEST_Vol_Both");
+      expect(result[0]!.name_org).toBe("TEST_Vol_Both");
     });
   });
 
@@ -188,7 +187,7 @@ describe("getVolunteersByCohorts (integration)", () => {
       ]);
 
       expect(result).toHaveLength(1);
-      expect(result[0].name_org).toBe("TEST_Vol_Both");
+      expect(result[0]!.name_org).toBe("TEST_Vol_Both");
     });
 
     it("returns empty array if a specified cohort does not exist", async () => {
