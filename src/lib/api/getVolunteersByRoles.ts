@@ -19,8 +19,8 @@ type VolunteerWithRoles = Volunteer & {
   filtered_roles: string[];
 };
 type GetVolunteersByRolesResult =
-  | { data: VolunteerWithRoles[]; status: 200 }
-  | { error: string; status: 400 | 500 };
+  | { data: VolunteerWithRoles[]; status: 200; error: null }
+  | { data: null; status: 400 | 500; error: string };
 
 export function isAllStrings(arr: unknown[]): arr is string[] {
   return arr.every((item) => typeof item === "string");
@@ -38,13 +38,14 @@ export async function getVolunteersByRoles(
   filters: string[]
 ): Promise<GetVolunteersByRolesResult> {
   if (!isValidOperator(operator)) {
-    return { status: 400, error: "Operator is not AND or OR" };
+    return { status: 400, error: "Operator is not AND or OR", data: null };
   }
 
   if (!isAllStrings(filters)) {
     return {
       status: 400,
       error: "Roles to filter by are not all strings",
+      data: null,
     };
   }
 
@@ -72,6 +73,7 @@ export async function getVolunteersByRoles(
     return {
       status: 500,
       error: `Failed to query Supabase database: ${error.message}`,
+      data: null,
     };
   }
 
@@ -115,6 +117,9 @@ export async function getVolunteersByRoles(
     }
   }
 
-  return { 
-    data: filteredVolunteers, status: 200 };
+  return {
+    data: filteredVolunteers,
+    status: 200,
+    error: null,
+  };
 }
