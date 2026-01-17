@@ -38,8 +38,90 @@ type ValidationResult =
 type VolunteerRow = Database["public"]["Tables"]["Volunteers"]["Row"];
 
 type VolunteerFilterResponse =
-  | { status: 200; data: VolunteerRow[]; error?: never }
-  | { status: 400 | 500; data?: never; error: string };
+  | { data: VolunteerRow[]; error?: never }
+  | { data?: never; error: string };
+
+/**
+ * Returns a filtered list of volunteer ids based on a list filters.
+ *
+ * The function allows filtering by roles, cohorts, or by a general attribute
+ * of a volunteer, with AND/OR logic for each filter.
+ *
+ * @param filtersList - An array of filter tuples. Each tuple contains:
+ * - field: The general attribute, 'roles', or 'cohorts'.
+ * - miniOp: The operation to apply ('AND'/'OR').
+ * - values: The array of values to filter by.
+ * @param op - The global operation on the filters ('AND'/'OR').
+ *
+ * @returns A Promise resolving to an object containing:
+ * - data: Volunteer rows.
+ * - error: Error message.
+ */
+export async function getVolunteersByMultipleColumns(
+  filtersList: FilterTuple[],
+  op: string
+): Promise<VolunteerFilterResponse> {
+  const validation = validateMultipleColumnFilter(filtersList, op);
+  if (!validation.valid) {
+    return { error: validation.error };
+  }
+
+  const cleanFiltersList = validation.cleanedFiltersList;
+
+  const client = await createClient();
+
+  if (cleanFiltersList.length === 0) {
+    return { data: [] };
+  }
+
+  try {
+    const promises = cleanFiltersList.map(async (f) => {
+      if (f.field === "roles") {
+        return filterIdsByRoles(client, f.miniOp, f.values as string[]);
+      } else if (f.field === "cohorts") {
+        return filterIdsByCohorts(
+          client,
+          f.miniOp,
+          f.values as [string, string][]
+        );
+      } else {
+        return filterIdsByGeneral(
+          client,
+          f.field,
+          f.miniOp,
+          f.values as string[]
+        );
+      }
+    });
+
+    const querySets: Set<number>[] = await Promise.all(promises);
+
+    let finalIds: Set<number>;
+    if (op === OP.AND) {
+      finalIds = querySets.reduce((acc, cur) => {
+        return acc.intersection(cur);
+      });
+    } else {
+      finalIds = querySets.reduce((acc, cur) => {
+        return acc.union(cur);
+      });
+    }
+
+    if (finalIds.size === 0) return { data: [] };
+
+    const { data, error } = await client
+      .from("Volunteers")
+      .select("*")
+      .in("id", Array.from(finalIds));
+
+    if (error) throw error;
+
+    return { data };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unexpected error";
+    return { error: message };
+  }
+}
 
 export function validateMultipleColumnFilter(
   filtersList: FilterTuple[],
@@ -190,87 +272,4 @@ async function filterIdsByGeneral(
   if (error) throw error;
 
   return new Set(data.map((r) => r.id));
-}
-
-/**
- * Returns a filtered list of volunteer ids based on a list filters.
- *
- * The function allows filtering by roles, cohorts, or by a general attribute
- * of a volunteer, with AND/OR logic for each filter.
- *
- * @param filtersList - An array of filter tuples. Each tuple contains:
- * - field: The general attribute, 'roles', or 'cohorts'.
- * - miniOp: The operation to apply ('AND'/'OR').
- * - values: The array of values to filter by.
- * @param op - The global operation on the filters ('AND'/'OR').
- *
- * @returns A Promise resolving to an object containing:
- * - status: HTTP status code.
- * - data: Volunteer rows.
- * - error: Error message.
- */
-export async function getVolunteersByMultipleColumns(
-  filtersList: FilterTuple[],
-  op: string
-): Promise<VolunteerFilterResponse> {
-  const validation = validateMultipleColumnFilter(filtersList, op);
-  if (!validation.valid) {
-    return { status: 400, error: validation.error };
-  }
-
-  const cleanFiltersList = validation.cleanedFiltersList;
-
-  const client = await createClient();
-
-  if (cleanFiltersList.length === 0) {
-    return { status: 200, data: [] };
-  }
-
-  try {
-    const promises = cleanFiltersList.map(async (f) => {
-      if (f.field === "roles") {
-        return filterIdsByRoles(client, f.miniOp, f.values as string[]);
-      } else if (f.field === "cohorts") {
-        return filterIdsByCohorts(
-          client,
-          f.miniOp,
-          f.values as [string, string][]
-        );
-      } else {
-        return filterIdsByGeneral(
-          client,
-          f.field,
-          f.miniOp,
-          f.values as string[]
-        );
-      }
-    });
-
-    const querySets: Set<number>[] = await Promise.all(promises);
-
-    let finalIds: Set<number>;
-    if (op === OP.AND) {
-      finalIds = querySets.reduce((acc, cur) => {
-        return acc.intersection(cur);
-      });
-    } else {
-      finalIds = querySets.reduce((acc, cur) => {
-        return acc.union(cur);
-      });
-    }
-
-    if (finalIds.size === 0) return { status: 200, data: [] };
-
-    const { data, error } = await client
-      .from("Volunteers")
-      .select("*")
-      .in("id", Array.from(finalIds));
-
-    if (error) throw error;
-
-    return { status: 200, data };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unexpected error";
-    return { status: 500, error: message };
-  }
 }
