@@ -2,19 +2,21 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { filter_by_general_info } from "../../../src/lib/api/getVolunteerByGeneralInfo";
 import { createClient } from "@/lib/client/supabase/server";
 
-vi.mock("@/lib/client/supabase/server");
+vi.mock("@/lib/client/supabase/server", () => ({
+  createClient: vi.fn(),
+}));
 
 describe("filter_by_general_info (unit)", () => {
   let mockClient: any;
 
   beforeEach(() => {
-    // Single object with mockReturnThis() for chainable interface
     mockClient = {
       from: vi.fn().mockReturnThis(),
       select: vi.fn().mockReturnThis(),
       eq: vi.fn(),
       in: vi.fn(),
     };
+
     vi.mocked(createClient).mockResolvedValue(mockClient);
   });
 
@@ -70,4 +72,3 @@ describe("filter_by_general_info (unit)", () => {
     expect(result).toEqual({ data: mockData, error: null });
   });
 });
-k;
