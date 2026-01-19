@@ -1,0 +1,51 @@
+import { createClient } from "../client/supabase/server";
+import type { VolunteerGeneralInfoColumn } from "./volunteer-general-info-columns";
+
+type LogicalOp = "AND" | "OR";
+type FilterByGeneralInfoResult = {
+  data: unknown[] | null;
+  error: string | null;
+};
+
+export async function filter_by_general_info(
+  op: LogicalOp,
+  column: VolunteerGeneralInfoColumn,
+  values: string[]
+): Promise<FilterByGeneralInfoResult> {
+  if (values.length === 0) {
+    return { data: null, error: "No values provided." };
+  }
+
+  const client = await createClient();
+
+  if (op === "AND") {
+    const uniqueValues = [...new Set(values)];
+
+    if (uniqueValues.length > 1) {
+      return { data: [], error: null }; // Return empty result if there are multiple unique values
+    }
+    const value = uniqueValues[0]!;
+
+    const { data, error } = await client
+      .from("Volunteers")
+      .select()
+      .eq(column, value);
+
+    return {
+      data,
+      error: error ? error.message : null,
+    };
+  }
+  if (op === "OR") {
+    const { data, error } = await client
+      .from("Volunteers")
+      .select()
+      .in(column, values);
+
+    return {
+      data,
+      error: error ? error.message : null,
+    };
+  }
+  return { data: null, error: `Unsupported operator: ${op}` };
+}
