@@ -47,4 +47,5 @@ export async function filter_by_general_info(
       error: error ? error.message : null,
     };
   }
+  return { data: null, error: `Unsupported operator: ${op}` };
 }

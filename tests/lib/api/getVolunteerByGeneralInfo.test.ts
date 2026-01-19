@@ -2,11 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { filter_by_general_info } from "../../../src/lib/api/getVolunteerByGeneralInfo";
 import { createClient } from "@/lib/client/supabase/server";
 
+// Mock client type for Supabase
 type MockSupabaseClient = {
-  from: vi.Mock;
-  select: vi.Mock;
-  eq: vi.Mock;
-  in: vi.Mock;
+  from: ReturnType<typeof vi.fn>;
+  select: ReturnType<typeof vi.fn>;
+  eq: ReturnType<typeof vi.fn>;
+  in: ReturnType<typeof vi.fn>;
 };
 
 vi.mock("@/lib/client/supabase/server", () => ({
@@ -24,7 +25,8 @@ describe("filter_by_general_info (unit)", () => {
       in: vi.fn(),
     };
 
-    vi.mocked(createClient).mockResolvedValue(mockClient);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(createClient).mockResolvedValue(mockClient as any);
   });
 
   afterEach(() => {
@@ -48,7 +50,7 @@ describe("filter_by_general_info (unit)", () => {
 
   it("accepts valid AND operation", async () => {
     const mockData = [{ id: 1, email: "v1@mail.com" }];
-    mockClient.eq.mockResolvedValue({ data: mockData, error: null });
+    mockClient.eq!.mockResolvedValue({ data: mockData, error: null });
 
     const result = await filter_by_general_info("AND", "email", [
       "v1@mail.com",
@@ -64,7 +66,7 @@ describe("filter_by_general_info (unit)", () => {
       { id: 1, pronouns: "He/him" },
       { id: 2, pronouns: "She/her" },
     ];
-    mockClient.in.mockResolvedValue({ data: mockData, error: null });
+    mockClient.in!.mockResolvedValue({ data: mockData, error: null });
 
     const result = await filter_by_general_info("OR", "pronouns", [
       "He/him",
