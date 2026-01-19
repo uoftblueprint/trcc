@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { signInWithEmail, signUpWithEmail } from "@/lib/client/supabase/auth";
 
-export default function LoginPage() {
+export default function LoginPage(): JSX.Element {
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
   const [signUpEmail, setSignUpEmail] = useState("");
@@ -13,7 +13,9 @@ export default function LoginPage() {
   const [responseData, setResponseData] = useState<unknown>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSignIn = async (
+    event: React.FormEvent<HTMLFormElement>
+  ): Promise<void> => {
     event.preventDefault();
     setLoading(true);
     setMessage(null);
@@ -24,7 +26,9 @@ export default function LoginPage() {
     setLoading(false);
   };
 
-  const handleSignUp = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSignUp = async (
+    event: React.FormEvent<HTMLFormElement>
+  ): Promise<void> => {
     event.preventDefault();
     setLoading(true);
     setMessage(null);
