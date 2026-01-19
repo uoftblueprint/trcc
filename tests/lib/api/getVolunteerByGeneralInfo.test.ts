@@ -2,12 +2,19 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { filter_by_general_info } from "../../../src/lib/api/getVolunteerByGeneralInfo";
 import { createClient } from "@/lib/client/supabase/server";
 
+type MockSupabaseClient = {
+  from: vi.Mock;
+  select: vi.Mock;
+  eq: vi.Mock;
+  in: vi.Mock;
+};
+
 vi.mock("@/lib/client/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
 describe("filter_by_general_info (unit)", () => {
-  let mockClient: any;
+  let mockClient: MockSupabaseClient;
 
   beforeEach(() => {
     mockClient = {

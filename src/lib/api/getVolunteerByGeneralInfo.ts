@@ -24,7 +24,7 @@ export async function filter_by_general_info(
     if (uniqueValues.length > 1) {
       return { data: [], error: null }; // Return empty result if there are multiple unique values
     }
-    const value = uniqueValues[0];
+    const value = uniqueValues[0]!;
 
     const { data, error } = await client
       .from("Volunteers")
@@ -37,8 +37,14 @@ export async function filter_by_general_info(
     };
   }
   if (op === "OR") {
-    const result = await client.from("Volunteers").select().in(column, values);
-    return result;
+    const { data, error } = await client
+      .from("Volunteers")
+      .select()
+      .in(column, values);
+
+    return {
+      data,
+      error: error ? error.message : null,
+    };
   }
-  return { data: null, error: "Invalid operation." };
 }
