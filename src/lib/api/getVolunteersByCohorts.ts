@@ -52,11 +52,18 @@ export async function getVolunteersByCohorts(
   const cohortIds: number[] = [];
 
   for (const [term, year] of values) {
+    const parsedYear = parseInt(year, 10);
+    // If year is not a valid number, treat it as "no match" rather than querying with NaN
+    if (Number.isNaN(parsedYear)) {
+      if (op === "AND") return [];
+      continue;
+    }
+
     const { data: cohortData, error: cohortError } = await client
       .from("Cohorts")
       .select("id")
       .eq("term", term)
-      .eq("year", parseInt(year, 10))
+      .eq("year", parsedYear)
       .single();
 
     if (cohortError) {
