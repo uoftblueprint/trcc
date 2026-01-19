@@ -20,7 +20,7 @@ export async function GET(request: NextRequest): Promise<void> {
     });
     if (!error) {
       // redirect user to specified redirect URL or root of app
-      
+
       return redirect(safeNext);
     }
   }

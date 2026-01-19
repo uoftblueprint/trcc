@@ -1,4 +1,7 @@
-import { type AuthResponse, type AuthTokenResponse } from "@supabase/supabase-js";
+import {
+  type AuthResponse,
+  type AuthTokenResponse,
+} from "@supabase/supabase-js";
 import { createClient } from "./client";
 
 export async function signUpWithEmail(
