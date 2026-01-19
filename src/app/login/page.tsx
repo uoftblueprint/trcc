@@ -1,7 +1,7 @@
 // temp ugly auth page for testing
 "use client";
 
-import { useState } from "react";
+import { JSX, useState } from "react";
 import { signInWithEmail, signUpWithEmail } from "@/lib/client/supabase/auth";
 
 export default function LoginPage(): JSX.Element {

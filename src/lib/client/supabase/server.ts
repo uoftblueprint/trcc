@@ -12,9 +12,9 @@ import * as process from "node:process";
 // available in the Vitest environment.
 export async function createClient(): Promise<SupabaseClient<Database>> {
   const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env["API_URL"];
+    process.env["NEXT_PUBLIC_SUPABASE_URL"] ?? process.env["API_URL"];
   const supabaseKey =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] ??
     process.env["PUBLISHABLE_KEY"];
 
   if (!supabaseUrl || !supabaseKey) {

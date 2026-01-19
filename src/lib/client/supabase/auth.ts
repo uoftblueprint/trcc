@@ -9,7 +9,15 @@ export async function signUpWithEmail(
   password: string
 ): Promise<AuthResponse> {
   const supabase = createClient();
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const emailRedirectTo =
+    typeof window !== "undefined"
+      ? new URL("/auth/confirm", window.location.origin).toString()
+      : undefined;
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: emailRedirectTo ? { emailRedirectTo } : undefined,
+  });
   return { data, error };
 }
 
