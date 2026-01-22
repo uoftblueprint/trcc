@@ -1,6 +1,47 @@
 import { createClient } from "../client/supabase/server";
 
-export async function deleteVolunteer(id: number) {
+interface DeleteVolunteerResponse {
+  error: { message: string } | null;
+  data: { message: string; id: number } | null;
+  status: number;
+}
+
+/**
+ * Deletes a volunteer from the database by its numeric identifier.
+ *
+ * This function validates the provided `id`, attempts to delete the volunteer
+ * record from the `Volunteers` table, and returns a structured response
+ * indicating success or failure. On success, the response includes a
+ * confirmation message and the deleted volunteer's ID. On failure, it
+ * provides an appropriate HTTP-like status code and error message.
+ *
+ * Validation:
+ * - The `id` must be a positive integer.
+ *
+ * Possible outcomes:
+ * - `400` if the provided `id` is invalid.
+ * - `404` if no volunteer exists with the specified `id`.
+ * - `500` if a database or unexpected error occurs.
+ * - `200` when the volunteer is successfully deleted.
+ *
+ * @param {number} id - The unique numeric identifier of the volunteer to delete.
+ * @returns {Promise<DeleteVolunteerResponse>} A promise that resolves to an object containing:
+ * - `status`: HTTP-like status code (`200`, `400`, `404`, or `500`).
+ * - `data`: On success (`status === 200`), an object with a confirmation
+ *   message and the deleted volunteer's `id`; otherwise `null`.
+ * - `error`: On failure, an object with an explanatory `message`; otherwise `null`.
+ *
+ * @example
+ * const response = await deleteVolunteer(123);
+ * if (response.status === 200) {
+ *   console.log(response.data?.message); // "Volunteer deleted successfully."
+ * } else {
+ *   console.error(response.error?.message);
+ * }
+ */
+export async function deleteVolunteer(
+  id: number,
+): Promise<DeleteVolunteerResponse> {
   // Validate input
   if (typeof id !== "number" || id <= 0 || !Number.isInteger(id)) {
     return {
