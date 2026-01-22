@@ -47,3 +47,13 @@ next-env.d.ts
 !.vscode/extensions.json
 !.vscode/tasks.json
 !.vscode/launch.json
+
+# Exclude IntelliJ project files
+/.idea
+
+# Exclude Claude settings files
+/.claude
+
+# mocking supabase
+supabase/.branches/
+supabase/.temp/

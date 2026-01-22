@@ -15,6 +15,15 @@ const eslintConfig = [
     rules: {
       semi: ["error"],
       quotes: ["error", "double"],
+      "padding-line-between-statements": [
+        "error",
+        {
+          blankLine: "always",
+          prev: "function",
+          next: "*",
+        },
+      ],
+      "@typescript-eslint/explicit-function-return-type": "error",
     },
   }),
   {
