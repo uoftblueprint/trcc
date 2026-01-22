@@ -6,9 +6,9 @@ export async function deleteVolunteer(id: number) {
     return {
       error: {
         message: "Invalid volunteer ID. ID must be a positive integer.",
-        status: 400,
       },
       data: null,
+      status: 400,
     };
   }
 
@@ -26,9 +26,9 @@ export async function deleteVolunteer(id: number) {
       return {
         error: {
           message: deleteError.message || "Failed to delete volunteer.",
-          status: 500,
         },
         data: null,
+        status: 500,
       };
     }
 
@@ -37,9 +37,9 @@ export async function deleteVolunteer(id: number) {
       return {
         error: {
           message: "Volunteer not found.",
-          status: 404,
         },
         data: null,
+        status: 404,
       };
     }
 
@@ -58,9 +58,9 @@ export async function deleteVolunteer(id: number) {
           error instanceof Error
             ? error.message
             : "An unexpected error occurred.",
-        status: 500,
       },
       data: null,
+      status: 500,
     };
   }
 }
