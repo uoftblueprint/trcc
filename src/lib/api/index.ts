@@ -3,3 +3,4 @@
 export { getExample } from "./getExample";
 export { createRole } from "./createRole";
 export { getVolunteersByCohorts } from "./getVolunteersByCohorts";
+export { getVolunteersTable } from "./getVolunteersTable";
