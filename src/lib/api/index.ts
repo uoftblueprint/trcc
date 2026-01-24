@@ -2,3 +2,4 @@
 
 export { getExample } from "./getExample";
 export { getVolunteersByCohorts } from "./getVolunteersByCohorts";
+export { getVolunteersTable } from "./getVolunteersTable";
