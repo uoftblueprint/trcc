@@ -1,4 +1,5 @@
 import {
+  AuthError,
   type AuthResponse,
   type AuthTokenResponse,
 } from "@supabase/supabase-js";
@@ -9,14 +10,20 @@ export async function signUpWithEmail(
   password: string
 ): Promise<AuthResponse> {
   const supabase = createClient();
-  const emailRedirectTo =
-    typeof window !== "undefined"
-      ? new URL("/auth/confirm", window.location.origin).toString()
-      : undefined;
+  if (typeof window === "undefined") {
+    return {
+      data: { user: null, session: null },
+      error: new AuthError("Email sign-up requires a browser window."),
+    };
+  }
+  const emailRedirectTo = new URL(
+    "/auth/confirm",
+    window.location.origin
+  ).toString();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: emailRedirectTo ? { emailRedirectTo } : undefined,
+    options: { emailRedirectTo },
   });
   return { data, error };
 }
