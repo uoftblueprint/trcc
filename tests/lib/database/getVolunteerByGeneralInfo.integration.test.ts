@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { createServiceTestClient, deleteWhere } from "../support/helpers";
-import { makeTestVolunteerInsert } from "../support/factories"; //**double check with this one */
+import { makeTestVolunteerInsert, VolunteerInsert } from "../support/factories"; //**double check with this one */
 import { filter_by_general_info } from "@/lib/api/getVolunteerByGeneralInfo";
 
 describe("db: filter_by_general_info (integration)", () => {
@@ -44,7 +44,8 @@ describe("db: filter_by_general_info (integration)", () => {
     expect(result.error).toBeNull();
     expect(result.data).toHaveLength(2);
 
-    const emails = result.data!.map((v) => v.email);
+    const volunteers: VolunteerInsert[] = result.data ?? [];
+    const emails = volunteers.map((v) => v.email);
     expect(emails).toContain("a@test.com");
     expect(emails).toContain("b@test.com");
   });
@@ -53,7 +54,11 @@ describe("db: filter_by_general_info (integration)", () => {
     const result = await filter_by_general_info("AND", "email", ["a@test.com"]);
 
     expect(result.error).toBeNull();
-    expect(result.data).toHaveLength(1);
-    expect(result.data![0].email).toBe("a@test.com");
+    if (!result.data || result.data.length !== 1) {
+      throw new Error("Expected exactly one volunteer");
+    }
+
+    const volunteer = result.data[0]!;
+    expect(volunteer.email).toBe("a@test.com");
   });
 });

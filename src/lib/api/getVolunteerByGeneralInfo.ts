@@ -1,19 +1,20 @@
 import { createClient } from "../client/supabase/server";
-import type { VolunteerGeneralInfoColumn } from "./volunteer-general-info-columns";
+import type { Database } from "@/lib/client/supabase/types";
 
 type LogicalOp = "AND" | "OR";
-type FilterByGeneralInfoResult = {
-  data: unknown[] | null;
-  error: string | null;
-};
+
+type VolunteerRow = Database["public"]["Tables"]["Volunteers"]["Row"];
 
 export async function filter_by_general_info(
   op: LogicalOp,
-  column: VolunteerGeneralInfoColumn,
+  column: keyof VolunteerRow & string,
   values: string[]
-): Promise<FilterByGeneralInfoResult> {
+): Promise<{
+  data: VolunteerRow[] | null;
+  error: Error | null;
+}> {
   if (values.length === 0) {
-    return { data: null, error: "No values provided." };
+    return { data: null, error: new Error("No values provided.") };
   }
 
   const client = await createClient();
@@ -33,7 +34,7 @@ export async function filter_by_general_info(
 
     return {
       data,
-      error: error ? error.message : null,
+      error: error ?? null,
     };
   }
   if (op === "OR") {
@@ -44,8 +45,11 @@ export async function filter_by_general_info(
 
     return {
       data,
-      error: error ? error.message : null,
+      error: error ?? null,
     };
   }
-  return { data: null, error: `Unsupported operator: ${op}` };
+  return {
+    data: null,
+    error: new Error(`Unsupported operator: ${op}`),
+  };
 }

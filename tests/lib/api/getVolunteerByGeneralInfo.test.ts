@@ -36,7 +36,8 @@ describe("filter_by_general_info (unit)", () => {
   it("returns error if values are empty", async () => {
     const result = await filter_by_general_info("AND", "name_org", []);
     expect(result.data).toBeNull();
-    expect(result.error).toBe("No values provided.");
+    expect(result.error).toBeInstanceOf(Error);
+    expect(result.error?.message).toBe("No values provided.");
   });
 
   it("returns empty data if AND has multiple unique values", async () => {

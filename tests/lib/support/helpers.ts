@@ -89,21 +89,3 @@ export async function deleteWhereGte<
     throw new Error(`Cleanup failed for ${String(table)}: ${error.message}`);
   }
 }
-
-export function makeTestVolunteerInsert(
-  overrides: Partial<VolunteerInsert> = {}
-): VolunteerInsert {
-  const token = randomToken();
-  return {
-    id: overrides.id ?? uniqueTestId(),
-    name_org: overrides.name_org ?? `TEST_Volunteer_${token}`, // TEST_ prefix for cleanup
-    email: overrides.email ?? `test_${token}@example.com`,
-    phone: overrides.phone ?? "1234567890",
-    position: overrides.position ?? "front_desk",
-    pronouns: overrides.pronouns ?? "They/Them",
-    opt_in_communication: overrides.opt_in_communication ?? true,
-    pseudonym: overrides.pseudonym ?? null,
-
-    ...overrides,
-  };
-}
