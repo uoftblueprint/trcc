@@ -70,7 +70,7 @@ export async function getVolunteersByRoles(
     });
 
     return {
-      error: `Failed to query Supabase database: ${error.message}`,
+      error: "Failed to query Supabase database: ${error.message}",
       data: null,
     };
   }
@@ -79,7 +79,7 @@ export async function getVolunteersByRoles(
   if (!allRows) {
     console.log("No data returned from Supabase query");
     return {
-      error: `No data returned from Supabase query`,
+      error: "No data returned from Supabase query",
       data: null,
     };
   }
