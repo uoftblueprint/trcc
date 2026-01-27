@@ -79,7 +79,7 @@ export async function getVolunteersByRoles(
   if (!allRows) {
     console.log("No data returned from Supabase query");
     return {
-      error: `No data returned from Supabase query: ${error?.message}`,
+      error: `No data returned from Supabase query`,
       data: null,
     };
   }
