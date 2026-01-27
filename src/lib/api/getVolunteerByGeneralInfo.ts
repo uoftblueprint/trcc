@@ -5,7 +5,7 @@ type LogicalOp = "AND" | "OR";
 
 type VolunteerRow = Database["public"]["Tables"]["Volunteers"]["Row"];
 
-export async function filter_by_general_info(
+export async function getVolunteerByGeneralInfo(
   op: LogicalOp,
   column: keyof VolunteerRow & string,
   values: string[]
