@@ -41,7 +41,7 @@ export async function getVolunteersByRoles(
     return { error: "Operator is not AND or OR", data: null };
   }
 
-  if (!areAllStrings(filters)) {
+  if (!isAllStrings(filters)) {
     return {
       error: "Roles to filter by are not all strings",
       data: null,
