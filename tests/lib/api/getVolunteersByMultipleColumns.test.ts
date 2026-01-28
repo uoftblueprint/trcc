@@ -110,6 +110,11 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
   let cohort1Id: number, cohort2Id: number;
 
   beforeAll(async () => {
+    // Clean up any existing test data first to prevent unique constraint violations
+    await deleteWhere(client, "Volunteers", "name_org", "TEST_%");
+    await deleteWhere(client, "Roles", "name", "TEST_%");
+    await client.from("Cohorts").delete().eq("year", TEST_YEAR);
+
     const { data: v, error: vError } = await client
       .from("Volunteers")
       .insert([
