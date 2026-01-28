@@ -8,3 +8,4 @@ export { getVolunteersByMultipleColumns } from "./getVolunteersByMultipleColumns
 export { getVolunteersByRoles } from "./getVolunteersByRoles";
 export { createVolunteer } from "./createVolunteer";
 export { getVolunteersTable } from "./getVolunteersTable";
+export { removeRole } from "./removeRole";
