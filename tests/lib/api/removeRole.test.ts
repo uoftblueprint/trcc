@@ -17,20 +17,22 @@ describe("removeRole (integration)", () => {
 
   it("rejects non-existent role", async () => {
     const roleName = "TEST_Role_1";
-    const result = await removeRole(roleName);
+    const roleType = "current";
+    const result = await removeRole(roleName, roleType);
     expect(result.success).toBe(false);
-    if (!result.success) expect(result.error).toMatch(/not found/);
+    expect(result.error).toMatch(/not found/);
   });
 
   it("removes unassigned role", async () => {
     const roleName = "TEST_Role_1";
+    const roleType = "current";
     const { error: insertError } = await client
       .from("Roles")
-      .insert([makeTestRoleInsert({ name: roleName })])
+      .insert([makeTestRoleInsert({ name: roleName, type: roleType })])
       .select();
     expect(insertError).toBeNull();
 
-    const result = await removeRole(roleName);
+    const result = await removeRole(roleName, roleType);
     expect(result.success).toBe(true);
 
     const { data } = await client
@@ -40,8 +42,23 @@ describe("removeRole (integration)", () => {
     expect(data).toHaveLength(0);
   });
 
+  it("rejects removing a different role type", async () => {
+    const roleName = "TEST_Role_1";
+    const roleType = "current";
+    const { error: insertError } = await client
+      .from("Roles")
+      .insert([makeTestRoleInsert({ name: roleName, type: "prior" })])
+      .select();
+    expect(insertError).toBeNull();
+
+    const result = await removeRole(roleName, roleType);
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/not found/);
+  });
+
   it("removes assigned role and volunteer association", async () => {
     const roleName = "TEST_Role_1";
+    const roleType = "future_interest";
 
     const { data: volunteerInsertData, error: volunteerInsertError } =
       await client
@@ -59,7 +76,7 @@ describe("removeRole (integration)", () => {
 
     const { data: roleInsertData, error: roleInsertError } = await client
       .from("Roles")
-      .insert([makeTestRoleInsert({ name: roleName })])
+      .insert([makeTestRoleInsert({ name: roleName, type: roleType })])
       .select("id");
     expect(roleInsertError).toBeNull();
     const [role] = roleInsertData!;
@@ -70,7 +87,7 @@ describe("removeRole (integration)", () => {
       .insert([makeTestVolunteerRoleInsert(volunteerId, roleId)]);
     expect(volunteerRoleInsertError).toBeNull();
 
-    const result = await removeRole(roleName);
+    const result = await removeRole(roleName, roleType);
     expect(result.success).toBe(true);
 
     const { data: roleSelectData } = await client
@@ -88,7 +105,9 @@ describe("removeRole (integration)", () => {
 
   it("removes only assigned role and many volunteer associations", async () => {
     const role1Name = "TEST_Role_1";
+    const role1Type = "current";
     const role2Name = "TEST_Role_2";
+    const role2Type = "prior";
 
     const { data: volunteerInsertData, error: volunteerInsertError } =
       await client
@@ -108,8 +127,8 @@ describe("removeRole (integration)", () => {
     const { data: roleInsertData, error: roleInsertError } = await client
       .from("Roles")
       .insert([
-        makeTestRoleInsert({ name: role1Name }),
-        makeTestRoleInsert({ name: role2Name }),
+        makeTestRoleInsert({ name: role1Name, type: role1Type }),
+        makeTestRoleInsert({ name: role2Name, type: role2Type }),
       ])
       .select("id");
     expect(roleInsertError).toBeNull();
@@ -126,7 +145,7 @@ describe("removeRole (integration)", () => {
       ]);
     expect(volunteerRoleInsertError).toBeNull();
 
-    const result = await removeRole(role1Name);
+    const result = await removeRole(role1Name, role1Type);
     expect(result.success).toBe(true);
 
     const { data: roleSelectData } = await client.from("Roles").select("id");
@@ -137,7 +156,7 @@ describe("removeRole (integration)", () => {
       .from("VolunteerRoles")
       .select();
     expect(volunteerRoleSelectData).toHaveLength(1);
-    expect(volunteerRoleSelectData![0]!.role_id === role2Id);
-    expect(volunteerRoleSelectData![0]!.volunteer_id === volunteer3Id);
+    expect(volunteerRoleSelectData![0]!.role_id).toBe(role2Id);
+    expect(volunteerRoleSelectData![0]!.volunteer_id).toBe(volunteer3Id);
   });
 });
