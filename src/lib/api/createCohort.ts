@@ -10,7 +10,7 @@ const cohortTypeMap: Record<keyof Cohort, "string" | "number" | "boolean"> = {
   id: "number",
 };
 
-export async function addCohort(data: unknown): Promise<Cohort[]> {
+export async function createCohort(data: unknown): Promise<Cohort[]> {
   //validate the data input first
 
   if (typeof data !== "object" || data === null) {
