@@ -5,89 +5,10 @@ import { createServiceTestClient, deleteWhere } from "../support/helpers";
 import { makeTestVolunteerInsert } from "../support/factories";
 import type { Tables } from "@/lib/client/supabase/types";
 
-// Mock client type for Supabase
-type MockSupabaseClient = {
-  from: ReturnType<typeof vi.fn>;
-  select: ReturnType<typeof vi.fn>;
-  eq: ReturnType<typeof vi.fn>;
-  in: ReturnType<typeof vi.fn>;
-};
-
 vi.mock("@/lib/client/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
-describe("getVolunteerByGeneralInfo (unit)", () => {
-  let mockClient: MockSupabaseClient;
-
-  beforeEach(() => {
-    // Single object with mockReturnThis() for chainable interface
-    mockClient = {
-      from: vi.fn().mockReturnThis(),
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn(),
-      in: vi.fn(),
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    vi.mocked(createClient).mockResolvedValue(mockClient as any);
-  });
-
-  afterEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("returns error if values are empty", async () => {
-    const result = await getVolunteerByGeneralInfo("AND", "name_org", []);
-    expect(result.data).toBeNull();
-    expect(result.error).toBeInstanceOf(Error);
-    expect(result.error?.message).toBe("No values provided.");
-  });
-
-  it("returns empty data if AND has multiple unique values", async () => {
-    const result = await getVolunteerByGeneralInfo("AND", "email", [
-      "v1@mail.com",
-      "v2@mail.com",
-    ]);
-    expect(result.data).toEqual([]);
-    expect(result.error).toBeNull();
-  });
-
-  it("accepts valid AND operation", async () => {
-    const mockData = [{ id: 1, email: "v1@mail.com" }];
-    mockClient.eq!.mockResolvedValue({ data: mockData, error: null });
-
-    const result = await getVolunteerByGeneralInfo("AND", "email", [
-      "v1@mail.com",
-    ]);
-
-    expect(mockClient.from).toHaveBeenCalledWith("Volunteers");
-    expect(mockClient.eq).toHaveBeenCalledWith("email", "v1@mail.com");
-    expect(result).toEqual({ data: mockData, error: null });
-  });
-
-  it("accepts valid OR operation", async () => {
-    const mockData = [
-      { id: 1, pronouns: "He/him" },
-      { id: 2, pronouns: "She/her" },
-    ];
-    mockClient.in!.mockResolvedValue({ data: mockData, error: null });
-
-    const result = await getVolunteerByGeneralInfo("OR", "pronouns", [
-      "He/him",
-      "She/her",
-    ]);
-
-    expect(mockClient.from).toHaveBeenCalledWith("Volunteers");
-    expect(mockClient.in).toHaveBeenCalledWith("pronouns", [
-      "He/him",
-      "She/her",
-    ]);
-    expect(result).toEqual({ data: mockData, error: null });
-  });
-});
-
-// Integration test begins here
 describe("db: getVolunteerByGeneralInfo(integration)", () => {
   const client = createServiceTestClient();
 
@@ -123,6 +44,13 @@ describe("db: getVolunteerByGeneralInfo(integration)", () => {
     await deleteWhere(client, "Volunteers", "name_org", "TEST_%");
   });
 
+  it("returns error if values are empty", async () => {
+    const result = await getVolunteerByGeneralInfo("AND", "name_org", []);
+    expect(result.data).toBeNull();
+    expect(result.error).toBeInstanceOf(Error);
+    expect(result.error?.message).toBe("No values provided.");
+  });
+
   it("returns volunteers matching ANY email (OR)", async () => {
     const result = await getVolunteerByGeneralInfo("OR", "email", [
       "a@test.com",
@@ -156,8 +84,8 @@ describe("db: getVolunteerByGeneralInfo(integration)", () => {
 
   it("returns empty data if AND has multiple unique values", async () => {
     const result = await getVolunteerByGeneralInfo("AND", "email", [
-      "v1@mail.com",
-      "v2@mail.com",
+      "a@mail.com",
+      "b@mail.com",
     ]);
     expect(result.data).toEqual([]);
     expect(result.error).toBeNull();
