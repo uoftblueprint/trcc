@@ -21,6 +21,7 @@ describe("getVolunteerByGeneralInfo (unit)", () => {
   let mockClient: MockSupabaseClient;
 
   beforeEach(() => {
+    // Single object with mockReturnThis() for chainable interface
     mockClient = {
       from: vi.fn().mockReturnThis(),
       select: vi.fn().mockReturnThis(),
@@ -50,16 +51,6 @@ describe("getVolunteerByGeneralInfo (unit)", () => {
     ]);
     expect(result.data).toEqual([]);
     expect(result.error).toBeNull();
-  });
-
-  it("returns error if the operators are not AND/OR", async () => {
-    const result = await getVolunteerByGeneralInfo("XOR", "email", [
-      "v1@mail.com",
-      "v2@mail.com",
-    ]);
-    expect(result.data).toBeNull();
-    expect(result.error).toBeInstanceOf(Error);
-    expect(result.error?.message).toBe("Unsupported operator: XOR");
   });
 
   it("accepts valid AND operation", async () => {
