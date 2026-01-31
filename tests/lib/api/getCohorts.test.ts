@@ -4,11 +4,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { getCohorts } from "@/lib/api/getCohorts";
-import {
-  createServiceTestClient,
-  deleteWhere,
-  deleteWhereGte,
-} from "../support/helpers";
+import { createServiceTestClient, deleteWhereGte } from "../support/helpers";
 import { makeTestCohortInsert, TEST_YEAR } from "../support/factories";
 import type { Database } from "@/lib/client/supabase/types";
 
