@@ -1,13 +1,13 @@
 // API function to create a new volunteer in the database
-import { createClient } from "../client/supabase/server";
-import type { TablesInsert } from "../client/supabase/types";
+import { createClient } from "@/lib/client/supabase";
+import type { Json, TablesInsert } from "@/lib/client/supabase/types";
 
 // Valid role types
 const VALID_ROLE_TYPES = ["prior", "current", "future_interest"] as const;
 export type RoleType = (typeof VALID_ROLE_TYPES)[number];
 
 // Valid cohort terms
-const VALID_COHORT_TERMS = ["fall", "summer", "winter", "spring"] as const;
+const VALID_COHORT_TERMS = ["Fall", "Summer", "Winter", "Spring"] as const;
 export type CohortTerm = (typeof VALID_COHORT_TERMS)[number];
 
 // Role input type
@@ -102,7 +102,7 @@ function validateVolunteerData(
     }
   }
 
-  // opt_in_communication
+  // opt_in_communication (optional; when provided must be boolean)
   if (
     data["opt_in_communication"] !== undefined &&
     data["opt_in_communication"] !== null
@@ -291,7 +291,26 @@ function isValidEmail(email: string): boolean {
 }
 
 /**
- * Creates a new volunteer in the database with associated role and cohort
+ * Builds the volunteer JSON payload for the RPC (only allowed columns).
+ */
+function volunteerToJson(volunteer: VolunteerInput): Record<string, unknown> {
+  return {
+    name_org: volunteer.name_org,
+    pseudonym: volunteer.pseudonym ?? null,
+    pronouns: volunteer.pronouns ?? null,
+    email: volunteer.email ?? null,
+    phone: volunteer.phone ?? null,
+    position: volunteer.position ?? null,
+    opt_in_communication: volunteer.opt_in_communication ?? true,
+    notes: volunteer.notes ?? null,
+  };
+}
+
+/**
+ * Creates a new volunteer in the database with associated role and cohort.
+ * Runs in a single transaction: either all tables are updated or none.
+ * If the role or cohort does not exist, it is created.
+ *
  * @param input - The volunteer, role, and cohort data to insert
  * @returns A response object indicating success or failure
  */
@@ -310,120 +329,47 @@ export async function createVolunteer(
     }
 
     const { volunteer, role, cohort } = input;
-
-    // Create Supabase client
     const client = await createClient();
 
-    // Verify role exists in the Roles table
-    const { data: roleData, error: roleError } = await client
-      .from("Roles")
-      .select("id")
-      .eq("name", role.name)
-      .eq("type", role.type)
-      .single();
+    const { data: volunteerId, error } = await client.rpc(
+      "create_volunteer_with_role_and_cohort",
+      {
+        p_volunteer: volunteerToJson(volunteer) as Json,
+        p_role_name: role.name,
+        p_role_type: role.type,
+        p_cohort_year: cohort.year,
+        p_cohort_term: cohort.term,
+      }
+    );
 
-    if (roleError || !roleData) {
-      return {
-        success: false,
-        error: `Role not found: ${role.name} (${role.type})`,
-        dbError: roleError,
-      };
-    }
+    if (error) {
+      console.error("Database error while creating volunteer:", error);
 
-    // Verify cohort exists in the Cohorts table
-    const { data: cohortData, error: cohortError } = await client
-      .from("Cohorts")
-      .select("id")
-      .eq("year", cohort.year)
-      .eq("term", cohort.term)
-      .single();
-
-    if (cohortError || !cohortData) {
-      return {
-        success: false,
-        error: `Cohort not found: ${cohort.term} ${cohort.year}`,
-        dbError: cohortError,
-      };
-    }
-
-    // Insert volunteer into database
-    const { data: volunteerResult, error: volunteerError } = await client
-      .from("Volunteers")
-      .insert(volunteer)
-      .select("id")
-      .single();
-
-    if (volunteerError) {
-      console.error("Database error while creating volunteer:", volunteerError);
-
-      if (volunteerError.code === "23505") {
+      if (error.code === "23505") {
         return {
           success: false,
           error: "A volunteer with this information already exists",
-          dbError: volunteerError,
+          dbError: error,
         };
       }
 
       return {
         success: false,
-        error: "Failed to create volunteer in database",
-        dbError: volunteerError,
+        error: error.message ?? "Failed to create volunteer in database",
+        dbError: error,
       };
     }
 
-    if (!volunteerResult || !volunteerResult.id) {
+    if (volunteerId === null || volunteerId === undefined) {
       return {
         success: false,
         error: "Failed to retrieve volunteer ID after insertion",
       };
     }
 
-    const volunteerId = volunteerResult.id;
-
-    // Create VolunteerRoles relation
-    const { error: volunteerRoleError } = await client
-      .from("VolunteerRoles")
-      .insert({
-        volunteer_id: volunteerId,
-        role_id: roleData.id,
-      });
-
-    if (volunteerRoleError) {
-      console.error(
-        "Database error while creating volunteer role:",
-        volunteerRoleError
-      );
-      return {
-        success: false,
-        error: "Failed to create volunteer role relation",
-        dbError: volunteerRoleError,
-      };
-    }
-
-    // Create VolunteerCohorts relation
-    const { error: volunteerCohortError } = await client
-      .from("VolunteerCohorts")
-      .insert({
-        volunteer_id: volunteerId,
-        cohort_id: cohortData.id,
-      });
-
-    if (volunteerCohortError) {
-      console.error(
-        "Database error while creating volunteer cohort:",
-        volunteerCohortError
-      );
-      return {
-        success: false,
-        error: "Failed to create volunteer cohort relation",
-        dbError: volunteerCohortError,
-      };
-    }
-
-    // Return success response
     return {
       success: true,
-      data: { id: volunteerId },
+      data: { id: Number(volunteerId) },
     };
   } catch (error) {
     console.error("Unexpected error while creating volunteer:", error);
