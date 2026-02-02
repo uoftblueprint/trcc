@@ -18,7 +18,9 @@
     "check": "npm run format:check && npm run lint && npm run typecheck",
     "fix": "npm run format && npm run lint:fix",
     "supabase:setup": "bash scripts/supabase-setup.sh",
-    "supabase:status": "npx supabase status"
+    "supabase:status": "npx supabase status",
+    "supabase:db:reset": "npx supabase db reset",
+    "supabase:migration:up": "npx supabase migration up"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",

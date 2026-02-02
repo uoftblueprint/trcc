@@ -9,8 +9,15 @@ fi
 echo "Starting local Supabase"
 npx supabase start
 
+echo "Applying migrations"
+if ! npx supabase migration up; then
+  npx supabase db pull
+  npx supabase db reset
+  npx supabase migration up
+fi
+
 echo "Dump local Supabase env variables"
 npx supabase status -o env >> .env
 
-echo "Local test Supabase ready"
+echo "Local Supabase ready (migrations applied)"
 

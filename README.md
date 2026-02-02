@@ -48,7 +48,7 @@ Welcome to the TRCC Volunteer Management System codebase! This guide outlines ho
 
 This repo supports **database integration tests** that run against a **local Supabase** instance.
 
-- **Start/reset local Supabase**: `npm run supabase:setup`
+- **Start local Supabase and apply migrations**: `npm run supabase:setup` (run once; new devs get all migrations automatically)
 - **Run DB tests only**: `npm run test:db`
 - **Notes**: see `tests/db/README.md` for the team testing standard and required env vars.
 
