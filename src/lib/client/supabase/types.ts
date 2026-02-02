@@ -221,7 +221,16 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      create_volunteer_with_role_and_cohort: {
+        Args: {
+          p_volunteer: Json;
+          p_role_name: string;
+          p_role_type: string;
+          p_cohort_year: number;
+          p_cohort_term: string;
+        };
+        Returns: number;
+      };
     };
     Enums: {
       [_ in never]: never;
