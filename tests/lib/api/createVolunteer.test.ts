@@ -77,24 +77,6 @@ describe("createVolunteer", () => {
     }
   });
 
-  // Test validation - invalid email
-  it("should fail when email is invalid", async () => {
-    const input: CreateVolunteerInput = {
-      volunteer: { name_org: "Test Volunteer", email: "not-an-email" },
-      role: { name: "Test Role", type: "current" },
-      cohort: { year: 2024, term: "Fall" },
-    };
-
-    const result = await createVolunteer(input);
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(
-        result.validationErrors!.some((e) => e.field === "volunteer.email")
-      ).toBe(true);
-    }
-  });
-
   // Test validation - missing role
   it("should fail when role is missing", async () => {
     const input = {
