@@ -81,14 +81,6 @@ function validateVolunteerData(
         field: "volunteer.email",
         message: "Email must be a string",
       });
-    } else if (
-      (data["email"] as string).trim().length > 0 &&
-      !isValidEmail(data["email"] as string)
-    ) {
-      errors.push({
-        field: "volunteer.email",
-        message: "Email must be a valid email address",
-      });
     }
   }
 
@@ -278,16 +270,6 @@ function validateInput(input: unknown): ValidationError[] {
   errors.push(...validateCohortInput(data["cohort"]));
 
   return errors;
-}
-
-/**
- * Simple email validation using regex
- * @param email - The email to validate
- * @returns true if the email is valid, false otherwise
- */
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
 }
 
 /**
