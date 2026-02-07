@@ -22,3 +22,4 @@ export { updateVolunteer } from "./updateVolunteer";
 export { updateCohort } from "./updateCohort";
 export { createCohort } from "./createCohort";
 export { getCohorts } from "./getCohorts";
+export { removeCohort } from "./removeCohort";
