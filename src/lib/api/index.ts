@@ -19,3 +19,4 @@ export { removeCohort } from "./removeCohort";
 export { updateUser } from "./updateUser";
 export { import_csv } from "./import_csv";
 export { getUsers } from "./getUsers";
+export { updateRole } from "./updateRole";
