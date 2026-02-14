@@ -13,6 +13,7 @@ export const getTagColorClass = (label: string): string => {
   if (text === "she/her") return "bg-tag-pink";
   if (text === "he/him") return "bg-tag-purple";
   if (text === "they/them") return "bg-tag-yellow";
+  if (text.includes("member")) return "bg-tag-brown";
   if (text.includes("crisis")) return "bg-tag-orange";
   if (text.includes("chat")) return "bg-tag-yellow";
   if (text.includes("emergency")) return "bg-tag-red";
