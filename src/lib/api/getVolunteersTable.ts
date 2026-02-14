@@ -18,6 +18,9 @@
  * //   ...
  * // ]
  */
+
+"use server";
+
 import { createClient } from "@/lib/client/supabase";
 import type { Database } from "@/lib/client/supabase/types";
 import type { PostgrestError } from "@supabase/supabase-js";
