@@ -7,7 +7,7 @@ type RoleRow = Database["public"]["Tables"]["Roles"]["Row"];
  * Fetches all roles from the Roles database table.
  *
  * @returns A Promise resolving to an array of RoleRow objects containing all roles.
- *   Each role object includes: type, name, is_active, created_at, and id.
+ *   Each role object contains all columns defined in the `Roles` table (i.e. a full `RoleRow`).
  *
  * @throws Error if the Supabase query fails
  *
