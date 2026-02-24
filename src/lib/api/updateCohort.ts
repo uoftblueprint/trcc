@@ -129,7 +129,7 @@ export async function updateCohort(
     .update(validation.updates)
     .eq("id", cohortId as number)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     if (error.code === "23505" || error.code === "23514") {
