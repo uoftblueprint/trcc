@@ -4,26 +4,30 @@ import type { Database } from "@/lib/client/supabase/types";
 
 export type DbClient = SupabaseClient<Database>;
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
+function requireEnv(...names: string[]): string {
+  const value = names.map((name) => process.env[name]).find(Boolean);
   if (!value) {
     throw new Error(
-      `Missing env var ${name}. For DB tests, ensure local Supabase is running and your test env is configured.`
+      `Missing env var (${names.join(" or ")}). For DB tests, ensure local Supabase is running and your test env is configured.`
     );
   }
   return value;
 }
 
 export function getTestSupabaseUrl(): string {
-  return requireEnv("API_URL");
+  return requireEnv("API_URL", "NEXT_PUBLIC_SUPABASE_URL");
 }
 
 export function getTestAnonKey(): string {
-  return requireEnv("PUBLISHABLE_KEY");
+  return requireEnv(
+    "PUBLISHABLE_KEY",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY"
+  );
 }
 
 export function getTestServiceRoleKey(): string {
-  return requireEnv("SERVICE_ROLE_KEY");
+  return requireEnv("SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY");
 }
 
 export function createAnonTestClient(): DbClient {
