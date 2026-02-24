@@ -83,12 +83,53 @@ export async function updateCohort(
   }
 
   const client = await createClient();
+
+  const { data: existingCohort, error: existingCohortError } = await client
+    .from("Cohorts")
+    .select("id, term, year")
+    .eq("id", cohortId as number)
+    .single();
+
+  if (existingCohortError) {
+    if (existingCohortError.code === "PGRST116") {
+      return { status: 404, body: { error: "Cohort not found" } };
+    }
+    return { status: 500, body: { error: existingCohortError.message } };
+  }
+
+  if (!existingCohort) {
+    return { status: 404, body: { error: "Cohort not found" } };
+  }
+
+  const nextTerm = validation.updates.term ?? existingCohort.term;
+  const nextYear = validation.updates.year ?? existingCohort.year;
+
+  const { data: conflictingCohort, error: conflictingCohortError } =
+    await client
+      .from("Cohorts")
+      .select("id")
+      .eq("term", nextTerm)
+      .eq("year", nextYear)
+      .neq("id", cohortId as number)
+      .maybeSingle();
+
+  if (conflictingCohortError) {
+    return { status: 500, body: { error: conflictingCohortError.message } };
+  }
+
+  if (conflictingCohort) {
+    return {
+      status: 409,
+      body: { error: "A cohort with this term and year already exists" },
+    };
+  }
+
   const { data, error } = await client
     .from("Cohorts")
     .update(validation.updates)
     .eq("id", cohortId as number)
     .select()
-    .maybeSingle();
+    .single();
 
   if (error) {
     if (error.code === "23505" || error.code === "23514") {
