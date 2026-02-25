@@ -154,7 +154,9 @@ describe("updateCohort (integration)", () => {
 
     expect(result.status).toBe(409);
     if (result.status === 200) throw new Error("Expected error response");
-    expect(result.body.error).toMatch(/duplicate|unique/i);
+    expect(result.body.error).toBe(
+      "A cohort with this term and year already exists"
+    );
   });
 
   it("updates only the provided field(s)", async () => {
