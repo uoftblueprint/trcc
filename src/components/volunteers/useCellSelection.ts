@@ -3,7 +3,7 @@ import { Table, Cell } from "@tanstack/react-table";
 import type { Volunteer } from "./types";
 import { formatCellData } from "./utils";
 
-export type CellCoords = {
+type CellCoords = {
   rowIndex: number;
   colIndex: number;
 };

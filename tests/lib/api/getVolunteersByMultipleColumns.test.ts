@@ -16,61 +16,61 @@ import {
 
 // Unit tests
 describe("validateMultipleColumnFilter (unit)", () => {
-  it("accepts a valid filter", () => {
+  it("accepts a valid filter", async () => {
     const filtersList: FilterTuple[] = [
-      { field: "roles", miniOp: "OR", values: ["Role 1"] },
+      { field: "current_roles", miniOp: "OR", values: ["Role 1"] },
       { field: "cohorts", miniOp: "AND", values: [["Winter", "2025"]] },
       { field: "name_org", miniOp: "OR", values: ["Volunteer1, Volunteer2"] },
     ];
-    const result = validateMultipleColumnFilter(filtersList, "AND");
+    const result = await validateMultipleColumnFilter(filtersList, "AND");
     expect(result.valid).toBe(true);
   });
 
-  it("rejects non-array filters", () => {
+  it("rejects non-array filters", async () => {
     // @ts-expect-error Test invalid filter array type
-    const result = validateMultipleColumnFilter(null, "AND");
+    const result = await validateMultipleColumnFilter(null, "AND");
     expect(result.valid).toBe(false);
     if (!result.valid) expect(result.error).toMatch(/must be an array/);
   });
 
-  it("rejects invalid global operations", () => {
-    const result = validateMultipleColumnFilter([], "NOT");
+  it("rejects invalid global operations", async () => {
+    const result = await validateMultipleColumnFilter([], "NOT");
     expect(result.valid).toBe(false);
     if (!result.valid) expect(result.error).toMatch(/Invalid global operation/);
   });
 
-  it("rejects any invalid mini operations", () => {
+  it("rejects any invalid mini operations", async () => {
     const filtersList: FilterTuple[] = [
-      { field: "roles", miniOp: "OR", values: ["Role 1"] },
+      { field: "current_roles", miniOp: "OR", values: ["Role 1"] },
       // @ts-expect-error Test invalid mini operation type
       { field: "cohorts", miniOp: "XOR", values: [["Winter", "2025"]] },
     ];
-    const result = validateMultipleColumnFilter(filtersList, "OR");
+    const result = await validateMultipleColumnFilter(filtersList, "OR");
     expect(result.valid).toBe(false);
     if (!result.valid)
       expect(result.error).toMatch(/Invalid filter mini-operation/);
   });
 
-  it("rejects invalid filter field", () => {
+  it("rejects invalid filter field", async () => {
     const filtersList: FilterTuple[] = [
       { field: "invalid_field", miniOp: "OR", values: ["Role 1"] },
     ];
-    const result = validateMultipleColumnFilter(filtersList, "OR");
+    const result = await validateMultipleColumnFilter(filtersList, "OR");
     expect(result.valid).toBe(false);
     if (!result.valid)
       expect(result.error).toMatch(/Invalid filter field name/);
   });
 
-  it("rejects invalid values array", () => {
+  it("rejects invalid values array", async () => {
     const filtersList: FilterTuple[] = [
-      { field: "roles", miniOp: "OR", values: [] },
+      { field: "prior_roles", miniOp: "OR", values: [] },
     ];
-    const result = validateMultipleColumnFilter(filtersList, "OR");
+    const result = await validateMultipleColumnFilter(filtersList, "OR");
     expect(result.valid).toBe(false);
     if (!result.valid) expect(result.error).toMatch(/Invalid filter values/);
   });
 
-  it("rejects any invalid cohort value", () => {
+  it("rejects any invalid cohort value", async () => {
     const filtersList: FilterTuple[] = [
       {
         field: "cohorts",
@@ -81,18 +81,18 @@ describe("validateMultipleColumnFilter (unit)", () => {
         ],
       },
     ];
-    const result = validateMultipleColumnFilter(filtersList, "OR");
+    const result = await validateMultipleColumnFilter(filtersList, "OR");
     expect(result.valid).toBe(false);
     if (!result.valid)
       expect(result.error).toMatch(/Invalid cohort filter values/);
   });
 
-  it("rejects any invalid general or role value", () => {
+  it("rejects any invalid general or role value", async () => {
     const filtersList: FilterTuple[] = [
       // @ts-expect-error Test invalid value type
       { field: "name_org", miniOp: "OR", values: ["Volunteer 1", null] },
     ];
-    const result = validateMultipleColumnFilter(filtersList, "OR");
+    const result = await validateMultipleColumnFilter(filtersList, "OR");
     expect(result.valid).toBe(false);
     if (!result.valid)
       expect(result.error).toMatch(/Invalid general or role filter values/);
@@ -202,7 +202,7 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
 
   it("filters by role with OR", async () => {
     const filters: FilterTuple[] = [
-      { field: "roles", miniOp: "OR", values: ["TEST_Role1"] },
+      { field: "current_roles", miniOp: "OR", values: ["TEST_Role1"] },
     ];
     const { data } = await getVolunteersByMultipleColumns(filters, "AND");
     const ids = data?.map((v) => v.id);
@@ -214,7 +214,11 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
 
   it("filters by role with AND", async () => {
     const filters: FilterTuple[] = [
-      { field: "roles", miniOp: "AND", values: ["TEST_Role1", "TEST_Role2"] },
+      {
+        field: "current_roles",
+        miniOp: "AND",
+        values: ["TEST_Role1", "TEST_Role2"],
+      },
     ];
     const { data } = await getVolunteersByMultipleColumns(filters, "AND");
     const ids = data?.map((v) => v.id);
@@ -278,7 +282,7 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
   it("filters by global AND", async () => {
     const filters: FilterTuple[] = [
       {
-        field: "roles",
+        field: "current_roles",
         miniOp: "AND",
         values: ["TEST_Role2"],
       },
