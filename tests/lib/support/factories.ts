@@ -9,6 +9,7 @@ export type VolunteerCohortInsert =
   Database["public"]["Tables"]["VolunteerCohorts"]["Insert"];
 export type VolunteerRoleInsert =
   Database["public"]["Tables"]["VolunteerRoles"]["Insert"];
+export type UserInsert = Database["public"]["Tables"]["Users"]["Insert"];
 
 // Valid Values (from CHECK constraints)
 export const VALID_ROLE_TYPES = [
@@ -94,6 +95,26 @@ export function makeTestVolunteerInsert(
     opt_in_communication: overrides.opt_in_communication ?? true,
     notes: overrides.notes ?? "Test notes",
     ...overrides,
+  };
+}
+
+// Users Factory (public.Users)
+// Insert shape for public.Users when DB has email column (migration has id uuid, email, role).
+export function makeTestUserInsertWithEmail(
+  overrides: {
+    id?: string;
+    email?: string | null;
+    role?: "admin" | "staff" | null;
+  } = {}
+): { id: string; email: string | null; role: "admin" | "staff" | null } {
+  const token = randomToken();
+  return {
+    id: overrides.id ?? crypto.randomUUID(),
+    email:
+      overrides.email !== undefined
+        ? overrides.email
+        : `TEST_User_${token}@example.com`,
+    role: overrides.role !== undefined ? overrides.role : "staff",
   };
 }
 

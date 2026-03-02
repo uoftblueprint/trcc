@@ -82,6 +82,17 @@ export async function deleteWhere<
   }
 }
 
+// Delete rows where id is in the given list (e.g. for Users with UUID ids)
+export async function deleteWhereIdIn<
+  TTable extends keyof Database["public"]["Tables"],
+>(client: DbClient, table: TTable, ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const { error } = await client.from(table).delete().in("id", ids);
+  if (error) {
+    throw new Error(`Cleanup failed for ${String(table)}: ${error.message}`);
+  }
+}
+
 // Delete rows based on a numeric column >= a threshold
 export async function deleteWhereGte<
   TTable extends keyof Database["public"]["Tables"],
