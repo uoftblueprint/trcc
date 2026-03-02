@@ -1,6 +1,34 @@
+import { getUsers } from "@/lib/api";
 import { ManageStaffTable } from "./ManageStaffTable";
+import type { StaffRow } from "./ManageStaffTable";
 
-export default function ManageStaffPage(): React.JSX.Element {
+function mapUserToStaffRow(user: {
+  id: string;
+  name: string | null;
+  role: "admin" | "staff" | null;
+}): StaffRow {
+  const memberType: StaffRow["memberType"] =
+    user.role === "admin" ? "Admin" : "Staff";
+  return {
+    id: user.id,
+    name: user.name ?? "",
+    email: "",
+    password: "",
+    memberType,
+  };
+}
+
+export default async function ManageStaffPage(): Promise<React.JSX.Element> {
+  let initialData: StaffRow[] = [];
+  let loadError: string | null = null;
+
+  try {
+    const users = await getUsers();
+    initialData = users.map(mapUserToStaffRow);
+  } catch (err) {
+    loadError = err instanceof Error ? err.message : String(err);
+  }
+
   return (
     <div>
       <div
@@ -40,7 +68,22 @@ export default function ManageStaffPage(): React.JSX.Element {
           New User
         </button>
       </div>
-      <ManageStaffTable />
+      {loadError && (
+        <div
+          role="alert"
+          style={{
+            padding: "0.75rem 1rem",
+            marginBottom: "1rem",
+            backgroundColor: "#fef2f2",
+            color: "#991b1b",
+            borderRadius: "6px",
+            fontSize: "0.875rem",
+          }}
+        >
+          {"Error loading users: " + loadError}
+        </div>
+      )}
+      <ManageStaffTable initialData={initialData} />
     </div>
   );
 }
