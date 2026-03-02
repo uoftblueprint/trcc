@@ -9,3 +9,4 @@ export { getVolunteersByRoles } from "./getVolunteersByRoles";
 export { createVolunteer } from "./createVolunteer";
 export { getVolunteersTable } from "./getVolunteersTable";
 export { removeRole } from "./removeRole";
+export { getUsers } from "./getUsers";

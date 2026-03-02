@@ -14,7 +14,7 @@ export type StaffRow = {
   name: string;
   email: string;
   password: string;
-  memberType: "Admin" | "Member" | "Viewer";
+  memberType: "Admin" | "Staff" | "Member" | "Viewer";
 };
 
 declare module "@tanstack/react-table" {
@@ -24,7 +24,12 @@ declare module "@tanstack/react-table" {
   }
 }
 
-const MEMBER_TYPES: StaffRow["memberType"][] = ["Admin", "Member", "Viewer"];
+const MEMBER_TYPES: StaffRow["memberType"][] = [
+  "Admin",
+  "Staff",
+  "Member",
+  "Viewer",
+];
 
 const columnHelper = createColumnHelper<StaffRow>();
 
@@ -228,8 +233,16 @@ function MemberTypeCell({
   );
 }
 
-export function ManageStaffTable(): React.JSX.Element {
-  const [data, setData] = useState<StaffRow[]>(() => defaultData);
+type ManageStaffTableProps = {
+  initialData?: StaffRow[];
+};
+
+export function ManageStaffTable({
+  initialData,
+}: ManageStaffTableProps): React.JSX.Element {
+  const [data, setData] = useState<StaffRow[]>(
+    () => initialData ?? defaultData
+  );
 
   const updateData = useCallback(
     (rowIndex: number, columnId: string, value: unknown) => {
