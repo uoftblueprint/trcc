@@ -19,68 +19,32 @@ import {
   RowSelectionState,
 } from "@tanstack/react-table";
 import { clsx } from "clsx";
-import { Volunteer } from "./types";
-import { VolunteerTag } from "./VolunteerTag";
+import { Volunteer, CohortRow, RoleRow } from "./types";
 import { useCellSelection } from "./useCellSelection";
+import { getBaseColumns } from "./volunteerColumns";
+import { Search, ListFilter, ArrowUpDown } from "lucide-react";
+import { FilterBar } from "./FilterBar";
+import { FilterModal, filterModalAlignRight } from "./FilterModal";
+import { FILTERABLE_COLUMNS } from "./volunteerColumns";
 import {
-  Search,
-  ListFilter,
-  ArrowUpDown,
-  CaseSensitive,
-  User,
-  AtSign,
-  Phone,
-  List,
-  TextAlignStart,
-} from "lucide-react";
-import { HeaderWithIcon } from "./HeaderWithIcon";
-import {
-  getVolunteersTable,
-  VolunteerTableEntry,
-} from "@/lib/api/getVolunteersTable";
-
-// TODO: Here for demonstration, remove later in favour of proper filtering
-const getMockVolunteers = async (filter?: string): Promise<Volunteer[]> => {
-  await new Promise<void>((resolve) => setTimeout(resolve, 800));
-
-  const baseData = Array(15)
-    .fill(null)
-    .map(
-      (_, i): Volunteer => ({
-        id: i,
-        name_org: `Volunteer ${i + 1}`,
-        pseudonym: `Pseudonym ${i + 1}`,
-        pronouns: i % 2 === 0 ? "She/Her" : "He/Him",
-        email: "volunteer@example.com",
-        phone: "123-456-7890",
-        position: "Member",
-        notes: "Notes...",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        opt_in_communication: true,
-        cohorts: ["2025 Fall", "2025 Summer", "2025 Spring"],
-        prior_roles: ["Crisis Line Counsellor"],
-        current_roles:
-          i % 2 !== 0 ? ["Emergency Back-up", "Chat Counsellor"] : [],
-        future_interests: i % 2 === 0 ? ["Chat Counsellor"] : [],
-      })
-    );
-
-  if (filter === "2024 Only") {
-    return baseData
-      .slice(0, 3)
-      .map((v) => ({ ...v, cohorts: ["2024 Spring"] }));
-  }
-
-  return baseData;
-};
+  getVolunteersByMultipleColumns,
+  FilterTuple,
+} from "@/lib/api/getVolunteersByMultipleColumns";
+import { getVolunteersTable } from "@/lib/api/getVolunteersTable";
+import { useDebounce } from "@/hooks/useDebounce";
 
 export const VolunteersTable = (): React.JSX.Element => {
   const [data, setData] = useState<Volunteer[]>([]);
+  const [allVolunteers, setAllVolunteers] = useState<Volunteer[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const isResizingRef = useRef(false);
 
-  const [dataSource, setDataSource] = useState<string>("backend");
+  const [filters, setFilters] = useState<FilterTuple[]>([]);
+  const [globalOp, setGlobalOp] = useState<"AND" | "OR">("AND");
+  const [isMainFilterOpen, setIsMainFilterOpen] = useState(false);
+  const [mainFilterAlignRight, setMainFilterAlignRight] = useState(false);
+  const debouncedFilters = useDebounce(filters);
+  const debouncedGlobalOp = useDebounce(globalOp);
 
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -117,117 +81,7 @@ export const VolunteersTable = (): React.JSX.Element => {
         enableSorting: false,
         enableResizing: false,
       },
-      {
-        accessorKey: "name_org",
-        header: (): React.JSX.Element => (
-          <HeaderWithIcon icon={CaseSensitive} label="Full Name" />
-        ),
-        size: 140,
-      },
-      {
-        accessorKey: "pseudonym",
-        header: (): React.JSX.Element => (
-          <HeaderWithIcon icon={CaseSensitive} label="Pseudonym" />
-        ),
-        size: 150,
-      },
-      {
-        accessorKey: "pronouns",
-        header: (): React.JSX.Element => (
-          <HeaderWithIcon icon={User} label="Pronouns" />
-        ),
-        cell: (info): React.JSX.Element => (
-          <VolunteerTag label={info.getValue() as string} />
-        ),
-        size: 120,
-      },
-      {
-        accessorKey: "email",
-        header: (): React.JSX.Element => (
-          <HeaderWithIcon icon={AtSign} label="Email" />
-        ),
-        size: 200,
-      },
-      {
-        accessorKey: "phone",
-        header: (): React.JSX.Element => (
-          <HeaderWithIcon icon={Phone} label="Phone" />
-        ),
-        size: 140,
-      },
-      {
-        accessorKey: "position",
-        header: (): React.JSX.Element => (
-          <HeaderWithIcon icon={User} label="Position" />
-        ),
-        cell: (info): React.JSX.Element => (
-          <VolunteerTag label={info.getValue() as string} />
-        ),
-        size: 120,
-      },
-      {
-        accessorKey: "cohorts",
-        header: (): React.JSX.Element => (
-          <HeaderWithIcon icon={List} label="Cohorts" />
-        ),
-        cell: (info): React.JSX.Element => (
-          <div className="flex flex-wrap gap-1">
-            {(info.getValue() as string[]).map((tag, i) => (
-              <VolunteerTag key={i} label={tag} />
-            ))}
-          </div>
-        ),
-        size: 150,
-      },
-      {
-        accessorKey: "prior_roles",
-        header: (): React.JSX.Element => (
-          <HeaderWithIcon icon={User} label="Prior Role" />
-        ),
-        cell: (info): React.JSX.Element => (
-          <div className="flex flex-wrap gap-1">
-            {(info.getValue() as string[]).map((tag, i) => (
-              <VolunteerTag key={i} label={tag} />
-            ))}
-          </div>
-        ),
-        size: 180,
-      },
-      {
-        accessorKey: "current_roles",
-        header: (): React.JSX.Element => (
-          <HeaderWithIcon icon={User} label="Current Role" />
-        ),
-        cell: (info): React.JSX.Element => (
-          <div className="flex flex-wrap gap-1">
-            {(info.getValue() as string[]).map((tag, i) => (
-              <VolunteerTag key={i} label={tag} />
-            ))}
-          </div>
-        ),
-        size: 180,
-      },
-      {
-        accessorKey: "future_interests",
-        header: (): React.JSX.Element => (
-          <HeaderWithIcon icon={User} label="Future Interest" />
-        ),
-        cell: (info): React.JSX.Element => (
-          <div className="flex flex-wrap gap-1">
-            {(info.getValue() as string[]).map((tag, i) => (
-              <VolunteerTag key={i} label={tag} />
-            ))}
-          </div>
-        ),
-        size: 180,
-      },
-      {
-        accessorKey: "notes",
-        header: (): React.JSX.Element => (
-          <HeaderWithIcon icon={TextAlignStart} label="Notes" />
-        ),
-        size: 200,
-      },
+      ...getBaseColumns(),
     ],
     []
   );
@@ -254,70 +108,136 @@ export const VolunteersTable = (): React.JSX.Element => {
     resetSelection,
   } = useCellSelection(table);
 
-  // TODO: Modify to use proper filtering
-  const handleFetchData = useCallback(
-    async (source: string) => {
-      setLoading(true);
-      setGlobalFilter("");
-      setSorting([]);
-      setRowSelection({});
-      if (resetSelection) resetSelection();
-
-      try {
-        if (source === "empty") {
-          setData([]);
-          setLoading(false);
-          return;
-        }
-
-        if (source === "mock") {
-          const mockData = await getMockVolunteers();
-          setData(mockData);
-          setLoading(false);
-          return;
-        }
-
-        const result: VolunteerTableEntry[] = await getVolunteersTable();
-        const transformedData: Volunteer[] = result.map((entry) => ({
-          ...entry.volunteer,
-          cohorts: entry.cohorts.map(
-            (c) =>
-              (c as { name?: string; id?: string | number }).name ||
-              String(c.id) ||
-              ""
-          ),
-          current_roles: entry.roles.map(
-            (r) =>
-              (r as { name?: string; id?: string | number }).name ||
-              String(r.id) ||
-              ""
-          ),
-          prior_roles: [] as string[],
-          future_interests: [] as string[],
-        }));
-        setData(transformedData);
-      } catch (error) {
-        console.error("Failed to fetch volunteers:", error);
-        setData([]);
-      } finally {
-        setLoading(false);
+  const filterOptions = useMemo(() => {
+    if (!allVolunteers) return {};
+    const options: Record<string, Set<string>> = {};
+    FILTERABLE_COLUMNS.forEach((col) => {
+      if (col.type === "options") {
+        options[col.id] = new Set<string>();
       }
-    },
-    [resetSelection]
-  );
+    });
+    allVolunteers.forEach((volunteer) => {
+      FILTERABLE_COLUMNS.forEach((col) => {
+        if (col.type === "options") {
+          const value = volunteer[col.id as keyof Volunteer];
+          if (Array.isArray(value)) {
+            value.forEach((v) => {
+              if (v) options[col.id]?.add(v);
+            });
+          } else if (value) {
+            options[col.id]?.add(String(value));
+          }
+        }
+      });
+    });
+    const result: Record<string, string[]> = {};
+    Object.keys(options).forEach((key) => {
+      result[key] = Array.from(options[key]!).sort();
+    });
+    return result;
+  }, [allVolunteers]);
 
-  // TODO: Modify to use proper filtering
-  const handleSourceChange = (
-    e: React.ChangeEvent<HTMLSelectElement>
-  ): void => {
-    const newSource = e.target.value;
-    setDataSource(newSource);
-    handleFetchData(newSource);
+  const handleOpenMainFilter = (e: React.MouseEvent): void => {
+    if (isMainFilterOpen) {
+      setIsMainFilterOpen(false);
+      return;
+    }
+    setMainFilterAlignRight(
+      filterModalAlignRight(e.currentTarget as HTMLElement)
+    );
+    setIsMainFilterOpen(true);
   };
 
+  const fetchInitialData = useCallback(async () => {
+    try {
+      const volunteerData = await getVolunteersTable();
+
+      const formattedAll: Volunteer[] = volunteerData.map((entry) => {
+        const formatTag = (item: CohortRow | RoleRow): string => {
+          if ("term" in item && "year" in item && item.term && item.year) {
+            return `${item.term} ${item.year}`;
+          }
+          if ("name" in item && item.name) {
+            return item.name;
+          }
+          return String(item.id) || "";
+        };
+
+        return {
+          ...entry.volunteer,
+          cohorts: entry.cohorts.map(formatTag),
+          current_roles: entry.roles
+            .filter((r) => r.type === "current")
+            .map(formatTag),
+          prior_roles: entry.roles
+            .filter((r) => r.type === "prior")
+            .map(formatTag),
+          future_interests: entry.roles
+            .filter((r) => r.type === "future_interest")
+            .map(formatTag),
+        };
+      });
+      setAllVolunteers(formattedAll);
+      setData(formattedAll);
+    } catch (error) {
+      console.error("Error fetching volunteer data:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    handleFetchData("backend");
-  }, [handleFetchData]);
+    fetchInitialData();
+  }, [fetchInitialData]);
+
+  useEffect(() => {
+    let ignore = false;
+    const applyFilters = async (): Promise<void> => {
+      if (!allVolunteers) return;
+      setGlobalFilter("");
+      setSorting([]);
+      if (debouncedFilters.length === 0) {
+        setData(allVolunteers);
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      if (resetSelection) resetSelection();
+      try {
+        const formattedFilters: FilterTuple[] = debouncedFilters.map((f) => {
+          if (f.field === "cohorts") {
+            return {
+              ...f,
+              values: (f.values as string[]).map((v) => {
+                const [term, year] = v.split(" ");
+                return [term, year] as [string, string];
+              }),
+            };
+          }
+          return f;
+        });
+        const filterResult = await getVolunteersByMultipleColumns(
+          formattedFilters,
+          debouncedGlobalOp
+        );
+        if (!ignore) {
+          if (filterResult.error) throw new Error(filterResult.error);
+          const filteredIds = new Set(
+            filterResult.data?.map((v) => v.id) || []
+          );
+          setData(allVolunteers.filter((v) => filteredIds.has(v.id)));
+        }
+      } catch (error) {
+        if (!ignore) console.error("Error applying filters:", error);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    };
+    applyFilters();
+    return (): void => {
+      ignore = true;
+    };
+  }, [debouncedFilters, debouncedGlobalOp, allVolunteers, resetSelection]);
 
   useEffect(() => {
     const handleMouseUp = (): void => {
@@ -330,7 +250,7 @@ export const VolunteersTable = (): React.JSX.Element => {
   }, []);
 
   return (
-    <div className="w-full flex flex-col gap-4 p-6 bg-white">
+    <div className="w-full flex flex-col gap-4 p-6 bg-white min-h-150">
       {/* Controls Section */}
       <div className="flex items-center justify-end gap-3 mb-2">
         {/* Search Bar */}
@@ -343,37 +263,54 @@ export const VolunteersTable = (): React.JSX.Element => {
             placeholder=""
             value={globalFilter ?? ""}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            className="w-96 pl-10 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm text-gray-900 placeholder-gray-800 border-none focus:outline-none focus:ring-2 focus:ring-purple-300"
+            className="w-96 pl-10 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm text-gray-900 placeholder-gray-800 border-none focus:outline-none focus:ring-2 focus:ring-accent-purple/50"
           />
         </div>
 
-        {/* TODO: Implement filter functionality */}
-        {/* Filter / Source Button */}
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-900">
-            <ListFilter className="w-4 h-4" />
-          </div>
-          <select
-            value={dataSource}
-            onChange={handleSourceChange}
-            className="appearance-none pl-10 pr-8 py-2 bg-primary-purple hover:bg-secondary-purple cursor-pointer transition-colors rounded-lg text-sm font-medium text-gray-900 border-none focus:outline-none focus:ring-2 focus:ring-purple-300"
+        {/* Filter Button + Modal */}
+        <div className={clsx("relative", isMainFilterOpen ? "z-50" : "z-10")}>
+          <button
+            onClick={handleOpenMainFilter}
+            className={`flex items-center gap-2 px-4 py-2 transition-colors rounded-lg text-sm font-medium cursor-pointer ${
+              filters.length > 0
+                ? "bg-secondary-purple text-accent-purple"
+                : "bg-primary-purple hover:bg-secondary-purple text-gray-900"
+            }`}
           >
-            <option value="backend">Backend Data</option>
-            <option value="mock">Sample Data</option>
-            <option value="empty">Empty Table</option>
-          </select>
+            <ListFilter className="w-4 h-4" />
+            <span>Filter</span>
+          </button>
+
+          <FilterModal
+            isOpen={isMainFilterOpen}
+            onClose={() => setIsMainFilterOpen(false)}
+            onApply={(newFilter) => {
+              if (newFilter) setFilters((prev) => [...prev, newFilter]);
+              setIsMainFilterOpen(false);
+            }}
+            optionsData={filterOptions}
+            alignRight={mainFilterAlignRight}
+          />
         </div>
 
-        {/* TODO: Implement sorting functionality */}
         {/* Sort Button */}
         <button
           onClick={() => {}}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm font-medium text-gray-900"
+          className="flex items-center gap-2 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm font-medium text-gray-900 cursor-pointer"
         >
           <ArrowUpDown className="w-4 h-4" />
           <span>Sort</span>
         </button>
       </div>
+
+      {/* Filter Bar */}
+      <FilterBar
+        filters={filters}
+        setFilters={setFilters}
+        globalOp={globalOp}
+        setGlobalOp={setGlobalOp}
+        optionsData={filterOptions}
+      />
 
       {/* Table Content */}
       {loading ? (
@@ -522,7 +459,7 @@ export const VolunteersTable = (): React.JSX.Element => {
                           {cellSelected && (
                             <div
                               className={clsx(
-                                "absolute pointer-events-none z-50 border-blue-300",
+                                "absolute pointer-events-none z-10 border-blue-300",
                                 "-top-px -bottom-px -left-px -right-px",
                                 !topSelected && "border-t-2",
                                 !bottomSelected && "border-b-2",
