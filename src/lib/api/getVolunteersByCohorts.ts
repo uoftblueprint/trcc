@@ -1,3 +1,6 @@
+import { createClient } from "@/lib/client/supabase";
+import type { Database } from "@/lib/client/supabase/types";
+
 /**
  * Fetches volunteers filtered by their cohort assignments.
  *
@@ -25,9 +28,6 @@
  * // Get volunteers in BOTH Fall 2025 AND Spring 2023
  * const volunteers = await getVolunteersByCohorts("AND", [["Fall", "2025"], ["Spring", "2023"]]);
  */
-import { createClient } from "@/lib/client/supabase";
-import type { Database } from "@/lib/client/supabase/types";
-
 type VolunteerRow = Database["public"]["Tables"]["Volunteers"]["Row"];
 type CohortValue = [string, string]; // [term, year]
 

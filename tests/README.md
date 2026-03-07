@@ -276,10 +276,14 @@ it("queries with related data", async () => {
 ## Required Environment Variables
 
 ```bash
-# In .env.local or test environment
-NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<anon_key>
-SUPABASE_SERVICE_ROLE_KEY=<service_role_key>  # Required for CRUD tests
+# In .env or test environment (preferred names shown first)
+API_URL=http://127.0.0.1:54321
+PUBLISHABLE_KEY=<anon_key>
+SERVICE_ROLE_KEY=<service_role_key>  # Required for CRUD tests
+# Also accepted by test helpers:
+# NEXT_PUBLIC_SUPABASE_URL=...
+# NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+# SUPABASE_SERVICE_ROLE_KEY=...
 SUPABASE_TESTING=1
 ```
 
