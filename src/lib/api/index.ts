@@ -13,3 +13,4 @@ export { removeRole } from "./removeRole";
 export { updateRole } from "./updateRole";
 export { updateVolunteer } from "./updateVolunteer";
 export { updateCohort } from "./updateCohort";
+export { createCohort } from "./createCohort";
