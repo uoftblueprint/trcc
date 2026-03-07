@@ -12,6 +12,15 @@ export type UserRow = Tables<"Users">;
 export async function getUsers(): Promise<UserRow[]> {
   const client = await createClient();
 
+  if (process.env.NODE_ENV === "development" && process.env["API_URL"]) {
+    try {
+      const host = new URL(process.env["API_URL"]).hostname;
+      console.log("[getUsers] Supabase host:", host);
+    } catch {
+      console.log("[getUsers] API_URL missing or invalid");
+    }
+  }
+
   const { data, error } = await client
     .from("Users")
     .select("*")
@@ -22,5 +31,9 @@ export async function getUsers(): Promise<UserRow[]> {
     throw new Error(msg);
   }
 
-  return (data ?? []) as UserRow[];
+  const rows = (data ?? []) as UserRow[];
+  if (process.env.NODE_ENV === "development") {
+    console.log("[getUsers] row count:", rows.length);
+  }
+  return rows;
 }
