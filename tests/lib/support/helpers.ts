@@ -87,7 +87,10 @@ export async function deleteWhereIdIn<
   TTable extends keyof Database["public"]["Tables"],
 >(client: DbClient, table: TTable, ids: string[]): Promise<void> {
   if (ids.length === 0) return;
-  const { error } = await client.from(table).delete().in("id", ids);
+  const { error } = await client
+    .from(table)
+    .delete()
+    .in("id", ids as never);
   if (error) {
     throw new Error(`Cleanup failed for ${String(table)}: ${error.message}`);
   }
