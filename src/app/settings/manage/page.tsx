@@ -4,15 +4,17 @@ import type { StaffRow } from "./ManageStaffTable";
 
 function mapUserToStaffRow(user: {
   id: string;
-  name: string | null;
+  name?: string | null;
+  email?: string | null;
   role: "admin" | "staff" | null;
 }): StaffRow {
   const memberType: StaffRow["memberType"] =
     user.role === "admin" ? "Admin" : "Staff";
+  const name = user.name ?? user.email ?? "";
   return {
     id: user.id,
-    name: user.name ?? "",
-    email: "",
+    name,
+    email: typeof user.email === "string" ? user.email : "",
     password: "",
     memberType,
   };
