@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { createServiceTestClient, deleteWhere } from "../support/helpers";
+import { createServiceTestClient, deleteWhereGte } from "../support/helpers";
 import { makeTestCohortInsert, TEST_YEAR } from "../support/factories";
 import { createCohort, CohortInsert } from "../../../src/lib/api/createCohort";
 
@@ -8,11 +8,11 @@ describe("db: Cohorts createCohort (integration)", () => {
 
   beforeEach(async () => {
     client = createServiceTestClient();
-    await deleteWhere(client, "Cohorts", "term", "Fall");
+    await deleteWhereGte(client, "Cohorts", "year", TEST_YEAR);
   });
 
   afterEach(async () => {
-    await deleteWhere(client, "Cohorts", "term", "Fall");
+    await deleteWhereGte(client, "Cohorts", "year", TEST_YEAR);
   });
 
   it("inserts a valid cohort", async () => {
@@ -45,6 +45,15 @@ describe("db: Cohorts createCohort (integration)", () => {
     } as unknown as CohortInsert);
     await expect(createCohort(cohort)).rejects.toThrow(
       "Field 'year' must be a number"
+    );
+  });
+
+  it("throws if term is not a valid value", async () => {
+    const cohort = makeTestCohortInsert({
+      term: "Autumn",
+    } as unknown as CohortInsert);
+    await expect(createCohort(cohort)).rejects.toThrow(
+      "Field 'term' must be one of: Fall, Spring, Summer, Winter"
     );
   });
 });
