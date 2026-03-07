@@ -18,3 +18,4 @@ export { getCohorts } from "./getCohorts";
 export { removeCohort } from "./removeCohort";
 export { getUsers } from "./getUsers";
 export { updateRole } from "./updateRole";
+export { updateVolunteer } from "./updateVolunteer";
