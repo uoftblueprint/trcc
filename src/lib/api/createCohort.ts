@@ -4,6 +4,8 @@ import type { Database } from "@/lib/client/supabase/types";
 type Cohort = Database["public"]["Tables"]["Cohorts"]["Row"];
 export type CohortInsert = Database["public"]["Tables"]["Cohorts"]["Insert"];
 
+const VALID_TERMS = ["Fall", "Spring", "Summer", "Winter"] as const;
+
 export async function createCohort(data: unknown): Promise<Cohort[]> {
   if (typeof data !== "object" || data === null) {
     throw new Error("Data must be an object");
@@ -29,6 +31,10 @@ export async function createCohort(data: unknown): Promise<Cohort[]> {
   }
   if (typeof record["is_active"] !== "boolean") {
     throw new Error("Field 'is_active' must be a boolean");
+  }
+
+  if (!VALID_TERMS.includes(record["term"] as (typeof VALID_TERMS)[number])) {
+    throw new Error(`Field 'term' must be one of: ${VALID_TERMS.join(", ")}`);
   }
 
   const insertData: CohortInsert = {

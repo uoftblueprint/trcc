@@ -22,3 +22,4 @@ export { getUsers } from "./getUsers";
 export { updateRole } from "./updateRole";
 export { updateVolunteer } from "./updateVolunteer";
 export { updateCohort } from "./updateCohort";
+export { createCohort } from "./createCohort";
