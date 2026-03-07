@@ -51,7 +51,7 @@ export function createServiceTestClient(): DbClient {
   return createClient<Database>(getTestSupabaseUrl(), getTestServiceRoleKey(), {
     global: {
       headers: {
-        Authorization: "",
+        Authorization: `Bearer ${getTestServiceRoleKey()}`,
       },
     },
     auth: {
