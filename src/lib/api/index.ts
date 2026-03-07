@@ -8,6 +8,7 @@ export { getVolunteersByCohorts } from "./getVolunteersByCohorts";
 export { getVolunteersByMultipleColumns } from "./getVolunteersByMultipleColumns";
 export { getVolunteersByRoles } from "./getVolunteersByRoles";
 export { createVolunteer } from "./createVolunteer";
+export { removeCohort } from "./removeCohort";
 export { getVolunteersTable } from "./getVolunteersTable";
 export { removeRole } from "./removeRole";
 export { updateRole } from "./updateRole";
