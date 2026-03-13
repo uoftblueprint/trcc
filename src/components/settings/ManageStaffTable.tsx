@@ -14,7 +14,7 @@ export type StaffRow = {
   name: string;
   email: string;
   password: string;
-  memberType: "Admin" | "Staff" | "Member" | "Viewer";
+  memberType: "Admin" | "Staff";
 };
 
 declare module "@tanstack/react-table" {
@@ -24,22 +24,17 @@ declare module "@tanstack/react-table" {
   }
 }
 
-const MEMBER_TYPES: StaffRow["memberType"][] = [
-  "Admin",
-  "Staff",
-  "Member",
-  "Viewer",
-];
+const MEMBER_TYPES: StaffRow["memberType"][] = ["Admin", "Staff"];
 
 const columnHelper = createColumnHelper<StaffRow>();
 
-const defaultData: StaffRow[] = Array.from({ length: 6 }, (_, i) => ({
-  id: `staff-${i + 1}`,
-  name: "First Last Name",
-  email: "alicesmith@gmail.com",
-  password: "password",
-  memberType: "Admin",
-}));
+// const defaultData: StaffRow[] = Array.from({ length: 6 }, (_, i) => ({
+//   id: `staff-${i + 1}`,
+//   name: "First Last Name",
+//   email: "alicesmith@gmail.com",
+//   password: "password",
+//   memberType: "Admin",
+// }));
 
 function EditableCell({
   getValue,
@@ -172,9 +167,9 @@ function PasswordCell({
       tabIndex={0}
       onClick={startEditing}
       onKeyDown={(e) => e.key === "Enter" && startEditing()}
-      style={{ cursor: "text", minHeight: "24px" }}
+      style={{ cursor: "text", minHeight: "24px", color: "#737373" }}
     >
-      {getValue() || " "}
+      ****************
     </div>
   );
 }
@@ -235,24 +230,31 @@ function MemberTypeCell({
 
 type ManageStaffTableProps = {
   initialData?: StaffRow[];
+  /** When provided with onDataChange, table is controlled (e.g. for adding rows from a parent modal). */
+  data?: StaffRow[];
+  onDataChange?: (data: StaffRow[]) => void;
 };
 
 export function ManageStaffTable({
   initialData,
+  data: controlledData,
+  onDataChange,
 }: ManageStaffTableProps): React.JSX.Element {
-  const [data, setData] = useState<StaffRow[]>(
-    () => initialData ?? defaultData
+  const [internalData, setInternalData] = useState<StaffRow[]>(
+    () => initialData ?? []
   );
+  const isControlled = controlledData != null && onDataChange != null;
+  const data = isControlled ? controlledData : internalData;
 
   const updateData = useCallback(
     (rowIndex: number, columnId: string, value: unknown) => {
-      setData((prev) =>
-        prev.map((row, i) =>
-          i === rowIndex ? { ...row, [columnId]: value } : row
-        )
+      const next = data.map((row, i) =>
+        i === rowIndex ? { ...row, [columnId]: value } : row
       );
+      if (isControlled) onDataChange(next);
+      else setInternalData(next);
     },
-    []
+    [data, isControlled, onDataChange]
   );
 
   const table = useReactTable({

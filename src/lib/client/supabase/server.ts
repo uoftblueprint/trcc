@@ -13,7 +13,8 @@ import * as process from "node:process";
 export async function createClient(): Promise<SupabaseClient<Database>> {
   if (
     process.env.NODE_ENV === "test" ||
-    process.env["SUPABASE_TESTING"] === "1"
+    process.env["SUPABASE_TESTING"] === "1" ||
+    process.env.NODE_ENV === "development"
   ) {
     // In tests we connect to a local Supabase instance
     // and do not use SSR or cookies
