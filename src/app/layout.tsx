@@ -20,8 +20,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>): React.JSX.Element {
   return (
-    <html lang="en">
-      <body className={`${manrope.variable} font-sans`}>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className={`${manrope.variable} font-sans`}
+        suppressHydrationWarning
+      >
+        {children}
+      </body>
     </html>
   );
 }
