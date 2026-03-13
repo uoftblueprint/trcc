@@ -4,8 +4,8 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --trcc-purple: #78468C;
-  --trcc-light-purple: #E9DDEE;
+  --trcc-purple: #78468c;
+  --trcc-light-purple: #e9ddee;
 }
 
 @media (prefers-color-scheme: dark) {
