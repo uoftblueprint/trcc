@@ -1,4 +1,4 @@
-import { SettingsNav } from "@/components/SettingsNav";
+import { SettingsNav } from "@/components/settings/SettingsNav";
 
 const panelShadow = "0 1px 3px rgba(0,0,0,0.2)";
 
