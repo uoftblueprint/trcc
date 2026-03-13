@@ -55,7 +55,7 @@ export function SettingsNav(): React.JSX.Element {
       })}
       <div style={{ flex: 1, minHeight: "1rem" }} />
       <Link
-        href="/"
+        href="/volunteers"
         style={{
           display: "block",
           padding: "0.625rem 1rem",
