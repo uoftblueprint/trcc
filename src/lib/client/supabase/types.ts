@@ -90,52 +90,52 @@ export type Database = {
       Users: {
         Row: {
           created_at: string;
-          email: string | null;
           id: string;
-          role: string | null;
+          name: string | null;
+          role: Database["public"]["Enums"]["user_roles"] | null;
         };
         Insert: {
           created_at?: string;
-          email?: string | null;
           id?: string;
-          role?: string | null;
+          name?: string | null;
+          role?: Database["public"]["Enums"]["user_roles"] | null;
         };
         Update: {
           created_at?: string;
-          email?: string | null;
           id?: string;
-          role?: string | null;
+          name?: string | null;
+          role?: Database["public"]["Enums"]["user_roles"] | null;
         };
         Relationships: [];
       };
       VolunteerCohorts: {
         Row: {
-          assigned_at: string;
           cohort_id: number;
+          created_at: string;
           volunteer_id: number;
         };
         Insert: {
-          assigned_at?: string;
           cohort_id: number;
+          created_at?: string;
           volunteer_id: number;
         };
         Update: {
-          assigned_at?: string;
           cohort_id?: number;
+          created_at?: string;
           volunteer_id?: number;
         };
         Relationships: [
           {
             foreignKeyName: "VolunteerCohorts_cohort_id_fkey";
             columns: ["cohort_id"];
-            isOneToOne: true;
+            isOneToOne: false;
             referencedRelation: "Cohorts";
             referencedColumns: ["id"];
           },
           {
             foreignKeyName: "VolunteerCohorts_volunteer_id_fkey";
             columns: ["volunteer_id"];
-            isOneToOne: true;
+            isOneToOne: false;
             referencedRelation: "Volunteers";
             referencedColumns: ["id"];
           },
@@ -149,8 +149,8 @@ export type Database = {
         };
         Insert: {
           created_at?: string;
-          role_id?: number;
-          volunteer_id?: number;
+          role_id: number;
+          volunteer_id: number;
         };
         Update: {
           created_at?: string;
@@ -161,14 +161,14 @@ export type Database = {
           {
             foreignKeyName: "VolunteerRoles_role_id_fkey";
             columns: ["role_id"];
-            isOneToOne: true;
+            isOneToOne: false;
             referencedRelation: "Roles";
             referencedColumns: ["id"];
           },
           {
             foreignKeyName: "VolunteerRoles_volunteer_id_fkey";
             columns: ["volunteer_id"];
-            isOneToOne: true;
+            isOneToOne: false;
             referencedRelation: "Volunteers";
             referencedColumns: ["id"];
           },
@@ -223,17 +223,17 @@ export type Database = {
     Functions: {
       create_volunteer_with_role_and_cohort: {
         Args: {
-          p_volunteer: Json;
+          p_cohort_term: string;
+          p_cohort_year: number;
           p_role_name: string;
           p_role_type: string;
-          p_cohort_year: number;
-          p_cohort_term: string;
+          p_volunteer: Json;
         };
         Returns: number;
       };
     };
     Enums: {
-      [_ in never]: never;
+      user_roles: "admin" | "staff";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -366,6 +366,8 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {},
+    Enums: {
+      user_roles: ["admin", "staff"],
+    },
   },
 } as const;
