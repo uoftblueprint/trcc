@@ -27,6 +27,7 @@
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.80.0",
     "@tanstack/react-table": "^8.21.3",
+    "lucide-react": "^0.460.0",
     "dotenv": "^17.2.3",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
