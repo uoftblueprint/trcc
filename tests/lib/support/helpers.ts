@@ -89,3 +89,19 @@ export async function deleteWhereGte<
     throw new Error(`Cleanup failed for ${String(table)}: ${error.message}`);
   }
 }
+
+export function createAdminTestClient(): DbClient {
+  const serviceRoleKey = getTestServiceRoleKey();
+  return createClient<Database>(getTestSupabaseUrl(), serviceRoleKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
