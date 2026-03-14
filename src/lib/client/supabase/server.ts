@@ -75,7 +75,7 @@ export function createAdminClient(): SupabaseClient<Database> {
   return createBrowserClient<Database>(process.env["API_URL"], serviceRoleKey, {
     global: {
       headers: {
-        Authorization: "",
+        Authorization: `Bearer ${serviceRoleKey}`,
       },
     },
     auth: {
