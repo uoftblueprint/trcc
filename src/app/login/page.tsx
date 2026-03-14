@@ -1,10 +1,13 @@
 // temp ugly auth page for testing
 "use client";
 
-import { JSX, useState } from "react";
+import { useState } from "react";
+import { AnimatedButton } from "@/components/ui/AnimatedButton";
+import { AnimatedInput } from "@/components/ui/AnimatedInput";
+import { Reveal } from "@/components/ui/Reveal";
 import { signInWithEmail, signUpWithEmail } from "@/lib/client/supabase/auth";
 
-export default function LoginPage(): JSX.Element {
+export default function LoginPage(): React.JSX.Element {
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
   const [signUpEmail, setSignUpEmail] = useState("");
@@ -43,10 +46,10 @@ export default function LoginPage(): JSX.Element {
 
   return (
     <main>
-      <h1>Sign In</h1>
-      <form onSubmit={handleSignIn}>
+      <Reveal as="h1">Sign In</Reveal>
+      <Reveal as="form" onSubmit={handleSignIn} delayMs={40}>
         <label htmlFor="signin-email">Email</label>
-        <input
+        <AnimatedInput
           id="signin-email"
           type="email"
           value={signInEmail}
@@ -55,7 +58,7 @@ export default function LoginPage(): JSX.Element {
         />
 
         <label htmlFor="signin-password">Password</label>
-        <input
+        <AnimatedInput
           id="signin-password"
           type="password"
           value={signInPassword}
@@ -63,15 +66,17 @@ export default function LoginPage(): JSX.Element {
           required
         />
 
-        <button type="submit" disabled={loading}>
+        <AnimatedButton type="submit" disabled={loading}>
           Sign In
-        </button>
-      </form>
+        </AnimatedButton>
+      </Reveal>
 
-      <h1>Sign Up</h1>
-      <form onSubmit={handleSignUp}>
+      <Reveal as="h1" delayMs={80}>
+        Sign Up
+      </Reveal>
+      <Reveal as="form" onSubmit={handleSignUp} delayMs={120}>
         <label htmlFor="signup-email">Email</label>
-        <input
+        <AnimatedInput
           id="signup-email"
           type="email"
           value={signUpEmail}
@@ -80,7 +85,7 @@ export default function LoginPage(): JSX.Element {
         />
 
         <label htmlFor="signup-password">Password</label>
-        <input
+        <AnimatedInput
           id="signup-password"
           type="password"
           value={signUpPassword}
@@ -88,13 +93,21 @@ export default function LoginPage(): JSX.Element {
           required
         />
 
-        <button type="submit" disabled={loading}>
+        <AnimatedButton type="submit" disabled={loading}>
           Sign Up
-        </button>
-      </form>
+        </AnimatedButton>
+      </Reveal>
 
-      {message ? <p>{message}</p> : null}
-      {responseData ? <pre>{JSON.stringify(responseData, null, 2)}</pre> : null}
+      {message ? (
+        <Reveal as="p" delayMs={160}>
+          {message}
+        </Reveal>
+      ) : null}
+      {responseData ? (
+        <Reveal as="pre" delayMs={200}>
+          {JSON.stringify(responseData, null, 2)}
+        </Reveal>
+      ) : null}
     </main>
   );
 }
