@@ -1,100 +1,84 @@
-// temp ugly auth page for testing
 "use client";
 
 import { JSX, useState } from "react";
-import { signInWithEmail, signUpWithEmail } from "@/lib/client/supabase/auth";
+import { useRouter } from "next/navigation";
+import { signInWithEmail } from "@/lib/client/supabase/auth";
 
 export default function LoginPage(): JSX.Element {
-  const [signInEmail, setSignInEmail] = useState("");
-  const [signInPassword, setSignInPassword] = useState("");
-  const [signUpEmail, setSignUpEmail] = useState("");
-  const [signUpPassword, setSignUpPassword] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
-  const [responseData, setResponseData] = useState<unknown>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  const handleSignIn = async (
+  const handleSubmit = async (
     event: React.FormEvent<HTMLFormElement>
   ): Promise<void> => {
     event.preventDefault();
+    setError(null);
     setLoading(true);
-    setMessage(null);
-    setResponseData(null);
-    const { data, error } = await signInWithEmail(signInEmail, signInPassword);
-    setMessage(error ? error.message : "Signed in successfully.");
-    setResponseData(data);
-    setLoading(false);
-  };
 
-  const handleSignUp = async (
-    event: React.FormEvent<HTMLFormElement>
-  ): Promise<void> => {
-    event.preventDefault();
-    setLoading(true);
-    setMessage(null);
-    setResponseData(null);
-    const { data, error } = await signUpWithEmail(signUpEmail, signUpPassword);
-    setMessage(
-      error ? error.message : "Check your email to confirm your account."
-    );
-    setResponseData(data);
-    setLoading(false);
+    try {
+      const { error: authError } = await signInWithEmail(email, password);
+
+      if (authError) {
+        setError(authError.message);
+        return;
+      }
+
+      router.push("/");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <main>
-      <h1>Sign In</h1>
-      <form onSubmit={handleSignIn}>
-        <label htmlFor="signin-email">Email</label>
-        <input
-          id="signin-email"
-          type="email"
-          value={signInEmail}
-          onChange={(event) => setSignInEmail(event.target.value)}
-          required
-        />
+      <h1>Log in</h1>
 
-        <label htmlFor="signin-password">Password</label>
-        <input
-          id="signin-password"
-          type="password"
-          value={signInPassword}
-          onChange={(event) => setSignInPassword(event.target.value)}
-          required
-        />
+      <form onSubmit={handleSubmit}>
+        <fieldset>
+          <legend>Log in</legend>
 
-        <button type="submit" disabled={loading}>
-          Sign In
-        </button>
+          <div>
+            <label htmlFor="login-email">Email</label>
+            <input
+              id="login-email"
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="login-password">Password</label>
+            <input
+              id="login-password"
+              name="password"
+              type="password"
+              required
+              autoComplete="current-password"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </div>
+
+          <nav>
+            <a href="/forgot-password">Forgot password?</a>
+          </nav>
+
+          <button type="submit" disabled={loading}>
+            {loading ? "Logging in…" : "Log in"}
+          </button>
+        </fieldset>
       </form>
 
-      <h1>Sign Up</h1>
-      <form onSubmit={handleSignUp}>
-        <label htmlFor="signup-email">Email</label>
-        <input
-          id="signup-email"
-          type="email"
-          value={signUpEmail}
-          onChange={(event) => setSignUpEmail(event.target.value)}
-          required
-        />
-
-        <label htmlFor="signup-password">Password</label>
-        <input
-          id="signup-password"
-          type="password"
-          value={signUpPassword}
-          onChange={(event) => setSignUpPassword(event.target.value)}
-          required
-        />
-
-        <button type="submit" disabled={loading}>
-          Sign Up
-        </button>
-      </form>
-
-      {message ? <p>{message}</p> : null}
-      {responseData ? <pre>{JSON.stringify(responseData, null, 2)}</pre> : null}
+      {error ? <p role="alert">{error}</p> : null}
     </main>
   );
 }
