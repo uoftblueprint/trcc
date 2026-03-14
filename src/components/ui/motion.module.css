@@ -1,0 +1,74 @@
+.reveal {
+  opacity: 0;
+  animation: fadeUp 220ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--motion-delay, 0ms);
+}
+
+.interactiveButton,
+.interactiveInput {
+  transition:
+    transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 160ms ease;
+}
+
+.interactiveInput {
+  transform-origin: center;
+}
+
+.interactiveInput:hover {
+  border-color: rgba(23, 23, 23, 0.35);
+}
+
+.interactiveInput:focus-visible {
+  outline: none;
+  transform: scale(1.01);
+  border-color: rgba(23, 23, 23, 0.5);
+  box-shadow: 0 0 0 3px rgba(23, 23, 23, 0.12);
+}
+
+.interactiveButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(23, 23, 23, 0.12);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .interactiveButton:hover {
+    transform: translateY(-1px);
+  }
+}
+
+.interactiveButton:active {
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    animation: none;
+    opacity: 1;
+  }
+
+  .interactiveButton,
+  .interactiveInput {
+    transition: none;
+  }
+
+  .interactiveButton:hover,
+  .interactiveButton:active,
+  .interactiveInput:focus-visible {
+    transform: none;
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
