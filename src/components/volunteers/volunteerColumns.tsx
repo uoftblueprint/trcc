@@ -136,6 +136,15 @@ const COLUMNS_CONFIG: ColumnConfig[] = [
     cell: renderMultiTags,
   },
   {
+    id: "opt_in_communication",
+    label: "Opt-In Communication",
+    icon: Phone,
+    filterType: "options",
+    isMulti: false,
+    size: 150,
+    cell: renderSingleTag,
+  },
+  {
     id: "notes",
     label: "Notes",
     icon: TextAlignStart,
