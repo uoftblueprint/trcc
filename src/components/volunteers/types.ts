@@ -1,4 +1,4 @@
-import { Database } from "@/lib/client/supabase/types";
+import type { Database } from "@/lib/client/supabase/types";
 
 export type VolunteerRow = Database["public"]["Tables"]["Volunteers"]["Row"];
 export type CohortRow = Database["public"]["Tables"]["Cohorts"]["Row"];
