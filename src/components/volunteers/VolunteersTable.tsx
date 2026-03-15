@@ -22,7 +22,7 @@ import { clsx } from "clsx";
 import { Volunteer, CohortRow, RoleRow } from "./types";
 import { useCellSelection } from "./useCellSelection";
 import { getBaseColumns } from "./volunteerColumns";
-import { Search, ListFilter, ArrowUpDown } from "lucide-react";
+import { Search, ListFilter, ArrowUpDown, Import, Plus } from "lucide-react";
 import { FilterBar } from "./FilterBar";
 import { FilterModal, filterModalAlignRight } from "./FilterModal";
 import { FILTERABLE_COLUMNS } from "./volunteerColumns";
@@ -99,6 +99,19 @@ export const VolunteersTable = (): React.JSX.Element => {
     onRowSelectionChange: setRowSelection,
     onGlobalFilterChange: setGlobalFilter,
     enableRowSelection: true,
+    globalFilterFn: (row, _columnId, filterValue) => {
+      const lowerFilter = String(filterValue).toLowerCase();
+      return row.getAllCells().some((cell) => {
+        const value = cell.getValue();
+        if (Array.isArray(value)) {
+          return value.some((tag) =>
+            String(tag).toLowerCase().includes(lowerFilter)
+          );
+        }
+        if (value == null) return false;
+        return String(value).toLowerCase().includes(lowerFilter);
+      });
+    },
   });
 
   const {
@@ -260,7 +273,8 @@ export const VolunteersTable = (): React.JSX.Element => {
           </div>
           <input
             type="text"
-            placeholder=""
+            placeholder="Search volunteers..."
+            aria-label="Search volunteers"
             value={globalFilter ?? ""}
             onChange={(e) => setGlobalFilter(e.target.value)}
             className="w-96 pl-10 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm text-gray-900 placeholder-gray-800 border-none focus:outline-none focus:ring-2 focus:ring-accent-purple/50"
@@ -300,6 +314,18 @@ export const VolunteersTable = (): React.JSX.Element => {
         >
           <ArrowUpDown className="w-4 h-4" />
           <span>Sort</span>
+        </button>
+
+        {/* New Volunteer Button */}
+        <button className="flex items-center gap-2 px-4 py-2 bg-accent-purple hover:bg-dark-accent-purple transition-colors rounded-lg text-sm font-medium text-white shadow-sm">
+          <Plus className="w-4 h-4" />
+          <span>New Volunteer</span>
+        </button>
+
+        {/* Import CSV Button */}
+        <button className="flex items-center gap-2 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm font-medium text-gray-900">
+          <Import className="w-4 h-4" />
+          <span>Import from CSV</span>
         </button>
       </div>
 

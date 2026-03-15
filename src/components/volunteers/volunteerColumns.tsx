@@ -91,15 +91,6 @@ const COLUMNS_CONFIG: ColumnConfig[] = [
     size: 140,
   },
   {
-    id: "position",
-    label: "Position",
-    icon: User,
-    filterType: "options",
-    isMulti: false,
-    size: 120,
-    cell: renderSingleTag,
-  },
-  {
     id: "cohorts",
     label: "Cohort",
     icon: List,
