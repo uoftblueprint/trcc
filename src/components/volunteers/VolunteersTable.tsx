@@ -41,7 +41,9 @@ export const VolunteersTable = (): React.JSX.Element => {
   const isResizingRef = useRef(false);
   const [role, setRole] = useState<string | null>(null);
 
-  const [filters, setFilters] = useState<FilterTuple[]>([]);
+  const [filters, setFilters] = useState<FilterTuple[]>([
+    { field: "opt_in_communication", miniOp: "OR", values: ["Yes"] },
+  ]);
   const [globalOp, setGlobalOp] = useState<"AND" | "OR">("AND");
   const [isMainFilterOpen, setIsMainFilterOpen] = useState(false);
   const [mainFilterAlignRight, setMainFilterAlignRight] = useState(false);
@@ -186,6 +188,9 @@ export const VolunteersTable = (): React.JSX.Element => {
 
         return {
           ...entry.volunteer,
+          opt_in_communication: entry.volunteer.opt_in_communication
+            ? "Yes"
+            : "No",
           cohorts: entry.cohorts.map(formatTag),
           current_roles: entry.roles
             .filter((r) => r.type === "current")
@@ -199,13 +204,16 @@ export const VolunteersTable = (): React.JSX.Element => {
         };
       });
       setAllVolunteers(formattedAll);
-      setData(formattedAll);
     } catch (error) {
       console.error("Error fetching volunteer data:", error);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    setLoading(true);
+  }, [filters, globalOp]);
 
   useEffect(() => {
     fetchInitialData();
