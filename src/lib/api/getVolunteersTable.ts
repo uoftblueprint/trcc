@@ -18,6 +18,9 @@
  * //   ...
  * // ]
  */
+
+"use server";
+
 import { createClient } from "@/lib/client/supabase";
 import type { Database } from "@/lib/client/supabase/types";
 import type { PostgrestError } from "@supabase/supabase-js";
@@ -42,11 +45,16 @@ export async function getVolunteersTable(): Promise<VolunteerTableEntry[]> {
   const client = await createClient();
 
   // Single query with nested selects - type assertion for proper array inference
-  const { data, error } = (await client.from("Volunteers").select(`
+  const { data, error } = (await client
+    .from("Volunteers")
+    .select(
+      `
       *,
       VolunteerCohorts ( Cohorts (*) ),
       VolunteerRoles ( Roles (*) )
-    `)) as {
+    `
+    )
+    .order("id", { ascending: true })) as {
     data: VolunteerWithRelations[] | null;
     error: PostgrestError | null;
   };

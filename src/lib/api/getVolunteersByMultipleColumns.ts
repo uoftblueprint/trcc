@@ -1,3 +1,5 @@
+"use server";
+
 import { createClient } from "../client/supabase/server";
 import type { Database } from "../client/supabase/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -21,7 +23,9 @@ const ALLOWED_FIELDS = [
   "created_at",
   "updated_at",
   "id",
-  "roles",
+  "current_roles",
+  "prior_roles",
+  "future_interests",
   "cohorts",
 ];
 
@@ -35,10 +39,8 @@ type ValidationResult =
   | { valid: true; cleanedFiltersList: FilterTuple[] }
   | { valid: false; error: string };
 
-type VolunteerRow = Database["public"]["Tables"]["Volunteers"]["Row"];
-
 type VolunteerFilterResponse =
-  | { data: VolunteerRow[]; error?: never }
+  | { data: number[]; error?: never }
   | { data?: never; error: string };
 
 /**
@@ -48,7 +50,7 @@ type VolunteerFilterResponse =
  * of a volunteer, with AND/OR logic for each filter.
  *
  * @param filtersList - An array of filter tuples. Each tuple contains:
- * - field: The general attribute, 'roles', or 'cohorts'.
+ * - field: The general attribute, prior, current or future roles, or cohorts.
  * - miniOp: The operation to apply ('AND'/'OR').
  * - values: The array of values to filter by.
  * @param op - The global operation on the filters ('AND'/'OR').
@@ -61,7 +63,7 @@ export async function getVolunteersByMultipleColumns(
   filtersList: FilterTuple[],
   op: string
 ): Promise<VolunteerFilterResponse> {
-  const validation = validateMultipleColumnFilter(filtersList, op);
+  const validation = await validateMultipleColumnFilter(filtersList, op);
   if (!validation.valid) {
     return { error: validation.error };
   }
@@ -76,8 +78,22 @@ export async function getVolunteersByMultipleColumns(
 
   try {
     const promises = cleanFiltersList.map(async (f) => {
-      if (f.field === "roles") {
-        return filterIdsByRoles(client, f.miniOp, f.values as string[]);
+      if (
+        f.field === "current_roles" ||
+        f.field === "prior_roles" ||
+        f.field === "future_interests"
+      ) {
+        let roleType;
+        if (f.field === "current_roles") roleType = "current";
+        else if (f.field === "prior_roles") roleType = "prior";
+        else roleType = "future_interest";
+
+        return filterIdsByRoles(
+          client,
+          f.miniOp,
+          f.values as string[],
+          roleType
+        );
       } else if (f.field === "cohorts") {
         return filterIdsByCohorts(
           client,
@@ -109,24 +125,17 @@ export async function getVolunteersByMultipleColumns(
 
     if (finalIds.size === 0) return { data: [] };
 
-    const { data, error } = await client
-      .from("Volunteers")
-      .select("*")
-      .in("id", Array.from(finalIds));
-
-    if (error) throw error;
-
-    return { data };
+    return { data: Array.from(finalIds) };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unexpected error";
     return { error: message };
   }
 }
 
-export function validateMultipleColumnFilter(
+export async function validateMultipleColumnFilter(
   filtersList: FilterTuple[],
   op: string
-): ValidationResult {
+): Promise<ValidationResult> {
   if (!Array.isArray(filtersList))
     return { valid: false, error: "'filtersList' must be an array" };
 
@@ -198,11 +207,13 @@ function filterMatchingIds(
 async function filterIdsByRoles(
   client: SupabaseClient<Database>,
   op: string,
-  values: string[]
+  values: string[],
+  type: string
 ): Promise<Set<number>> {
   const { data, error } = await client
     .from("VolunteerRoles")
-    .select("volunteer_id, Roles!inner(name)")
+    .select("volunteer_id, Roles!inner(name, type)")
+    .eq("Roles.type", type)
     .in("Roles.name", values);
 
   if (error) throw error;
