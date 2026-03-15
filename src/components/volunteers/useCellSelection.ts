@@ -146,11 +146,13 @@ export const useCellSelection = (
   };
 
   useEffect(() => {
-    const handleWindowMouseUp = (e: MouseEvent): void => {
+    const handleWindowMouseUp = (): void => {
       if (isDragging) {
-        if (e.metaKey || e.ctrlKey) {
+        const range = draggedRangeRef.current;
+        const hasDraggedRange = Object.keys(range).length > 0;
+
+        if (hasDraggedRange) {
           const currentSelected = { ...selectedCellsRef.current };
-          const range = draggedRangeRef.current;
           const isAdding = isDragAddingRef.current;
 
           Object.keys(range).forEach((id) => {
@@ -171,8 +173,27 @@ export const useCellSelection = (
   }, [isDragging]);
 
   useEffect(() => {
+    const isEditableElement = (el: EventTarget | Element | null): boolean => {
+      if (!el) return false;
+      const element = el as HTMLElement;
+      const tagName = element.tagName;
+      if (!tagName) return false;
+
+      const editableTags = ["INPUT", "TEXTAREA", "SELECT"];
+      if (editableTags.includes(tagName)) return true;
+      if (element.isContentEditable) return true;
+      return false;
+    };
+
     const handleKeyDown = (e: KeyboardEvent): void => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
+      if (
+        isEditableElement(e.target as Element | null) ||
+        isEditableElement(document.activeElement)
+      ) {
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C")) {
         const selectedIds = Object.keys(selectedCells).filter(
           (k) => selectedCells[k]
         );
@@ -187,7 +208,12 @@ export const useCellSelection = (
         const visibleColumns = table.getVisibleLeafColumns();
 
         selectedIds.forEach((id) => {
-          const [rowId, colId] = id.split("_");
+          const separatorIndex = id.indexOf("_");
+          if (separatorIndex === -1) return;
+
+          const rowId = id.slice(0, separatorIndex);
+          const colId = id.slice(separatorIndex + 1);
+
           if (!rowId || !colId) return;
 
           const row = tableRows.find((r) => String(r.id) === rowId);
