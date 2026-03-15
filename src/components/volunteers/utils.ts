@@ -7,6 +7,8 @@ export const formatCellData = (value: unknown): string => {
 export const getTagColorClass = (label: string): string => {
   const text = label.toLowerCase();
 
+  if (text === "yes") return "bg-tag-green";
+  if (text === "no") return "bg-tag-red";
   if (text.includes("fall")) return "bg-tag-yellow";
   if (text.includes("summer")) return "bg-tag-green";
   if (text.includes("spring")) return "bg-tag-blue";

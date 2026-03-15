@@ -39,10 +39,8 @@ type ValidationResult =
   | { valid: true; cleanedFiltersList: FilterTuple[] }
   | { valid: false; error: string };
 
-type VolunteerRow = Database["public"]["Tables"]["Volunteers"]["Row"];
-
 type VolunteerFilterResponse =
-  | { data: VolunteerRow[]; error?: never }
+  | { data: number[]; error?: never }
   | { data?: never; error: string };
 
 /**
@@ -127,14 +125,7 @@ export async function getVolunteersByMultipleColumns(
 
     if (finalIds.size === 0) return { data: [] };
 
-    const { data, error } = await client
-      .from("Volunteers")
-      .select("*")
-      .in("id", Array.from(finalIds));
-
-    if (error) throw error;
-
-    return { data };
+    return { data: Array.from(finalIds) };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unexpected error";
     return { error: message };

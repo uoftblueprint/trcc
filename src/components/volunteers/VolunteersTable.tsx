@@ -39,7 +39,9 @@ export const VolunteersTable = (): React.JSX.Element => {
   const [loading, setLoading] = useState<boolean>(true);
   const isResizingRef = useRef(false);
 
-  const [filters, setFilters] = useState<FilterTuple[]>([]);
+  const [filters, setFilters] = useState<FilterTuple[]>([
+    { field: "opt_in_communication", miniOp: "OR", values: ["Yes"] },
+  ]);
   const [globalOp, setGlobalOp] = useState<"AND" | "OR">("AND");
   const [isMainFilterOpen, setIsMainFilterOpen] = useState(false);
   const [mainFilterAlignRight, setMainFilterAlignRight] = useState(false);
@@ -178,6 +180,9 @@ export const VolunteersTable = (): React.JSX.Element => {
 
         return {
           ...entry.volunteer,
+          opt_in_communication: entry.volunteer.opt_in_communication
+            ? "Yes"
+            : "No",
           cohorts: entry.cohorts.map(formatTag),
           current_roles: entry.roles
             .filter((r) => r.type === "current")
@@ -191,13 +196,16 @@ export const VolunteersTable = (): React.JSX.Element => {
         };
       });
       setAllVolunteers(formattedAll);
-      setData(formattedAll);
     } catch (error) {
       console.error("Error fetching volunteer data:", error);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    setLoading(true);
+  }, [filters, globalOp]);
 
   useEffect(() => {
     fetchInitialData();
@@ -227,6 +235,14 @@ export const VolunteersTable = (): React.JSX.Element => {
               }),
             };
           }
+          if (f.field === "opt_in_communication") {
+            return {
+              ...f,
+              values: (f.values as string[]).map((v) =>
+                String(v).toLowerCase() === "yes" ? "true" : "false"
+              ),
+            };
+          }
           return f;
         });
         const filterResult = await getVolunteersByMultipleColumns(
@@ -235,9 +251,7 @@ export const VolunteersTable = (): React.JSX.Element => {
         );
         if (!ignore) {
           if (filterResult.error) throw new Error(filterResult.error);
-          const filteredIds = new Set(
-            filterResult.data?.map((v) => v.id) || []
-          );
+          const filteredIds = new Set(filterResult.data || []);
           setData(allVolunteers.filter((v) => filteredIds.has(v.id)));
         }
       } catch (error) {
