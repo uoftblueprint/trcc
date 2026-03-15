@@ -19,7 +19,7 @@ import {
   RowSelectionState,
 } from "@tanstack/react-table";
 import { clsx } from "clsx";
-import { Volunteer } from "./types";
+import { Volunteer, CohortRow, RoleRow } from "./types";
 import { VolunteerTag } from "./VolunteerTag";
 import { useCellSelection } from "./useCellSelection";
 import {
@@ -32,6 +32,8 @@ import {
   Phone,
   List,
   TextAlignStart,
+  Import,
+  Plus,
 } from "lucide-react";
 import { HeaderWithIcon } from "./HeaderWithIcon";
 import {
@@ -156,17 +158,8 @@ export const VolunteersTable = (): React.JSX.Element => {
         size: 140,
       },
       {
-        accessorKey: "position",
-        header: (): React.JSX.Element => (
-          <HeaderWithIcon icon={User} label="Position" />
-        ),
-        cell: (info): React.JSX.Element => (
-          <VolunteerTag label={info.getValue() as string} />
-        ),
-        size: 120,
-      },
-      {
         accessorKey: "cohorts",
+        enableGlobalFilter: true,
         header: (): React.JSX.Element => (
           <HeaderWithIcon icon={List} label="Cohorts" />
         ),
@@ -245,6 +238,19 @@ export const VolunteersTable = (): React.JSX.Element => {
     onRowSelectionChange: setRowSelection,
     onGlobalFilterChange: setGlobalFilter,
     enableRowSelection: true,
+    globalFilterFn: (row, _columnId, filterValue) => {
+      const lowerFilter = String(filterValue).toLowerCase();
+      return row.getAllCells().some((cell) => {
+        const value = cell.getValue();
+        if (Array.isArray(value)) {
+          return value.some((tag) =>
+            String(tag).toLowerCase().includes(lowerFilter)
+          );
+        }
+        if (value == null) return false;
+        return String(value).toLowerCase().includes(lowerFilter);
+      });
+    },
   });
 
   const {
@@ -254,7 +260,6 @@ export const VolunteersTable = (): React.JSX.Element => {
     resetSelection,
   } = useCellSelection(table);
 
-  // TODO: Modify to use proper filtering
   const handleFetchData = useCallback(
     async (source: string) => {
       setLoading(true);
@@ -278,23 +283,31 @@ export const VolunteersTable = (): React.JSX.Element => {
         }
 
         const result: VolunteerTableEntry[] = await getVolunteersTable();
-        const transformedData: Volunteer[] = result.map((entry) => ({
-          ...entry.volunteer,
-          cohorts: entry.cohorts.map(
-            (c) =>
-              (c as { name?: string; id?: string | number }).name ||
-              String(c.id) ||
-              ""
-          ),
-          current_roles: entry.roles.map(
-            (r) =>
-              (r as { name?: string; id?: string | number }).name ||
-              String(r.id) ||
-              ""
-          ),
-          prior_roles: [] as string[],
-          future_interests: [] as string[],
-        }));
+        const transformedData: Volunteer[] = result.map((entry) => {
+          const formatTag = (item: CohortRow | RoleRow): string => {
+            if ("term" in item && "year" in item && item.term && item.year) {
+              return `${item.term} ${item.year}`;
+            }
+            if ("name" in item && item.name) {
+              return item.name;
+            }
+            return String(item.id) || "";
+          };
+
+          return {
+            ...entry.volunteer,
+            cohorts: entry.cohorts.map(formatTag),
+            current_roles: entry.roles
+              .filter((r) => r.type === "current")
+              .map(formatTag),
+            prior_roles: entry.roles
+              .filter((r) => r.type === "prior")
+              .map(formatTag),
+            future_interests: entry.roles
+              .filter((r) => r.type === "future_interest")
+              .map(formatTag),
+          };
+        });
         setData(transformedData);
       } catch (error) {
         console.error("Failed to fetch volunteers:", error);
@@ -340,10 +353,11 @@ export const VolunteersTable = (): React.JSX.Element => {
           </div>
           <input
             type="text"
-            placeholder=""
+            placeholder="Search volunteers..."
+            aria-label="Search volunteers"
             value={globalFilter ?? ""}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            className="w-96 pl-10 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm text-gray-900 placeholder-gray-800 border-none focus:outline-none focus:ring-2 focus:ring-purple-300"
+            className="w-96 pl-10 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm text-gray-900 placeholder-gray-500 border-none focus:outline-none focus:ring-2 focus:ring-purple-300"
           />
         </div>
 
@@ -372,6 +386,18 @@ export const VolunteersTable = (): React.JSX.Element => {
         >
           <ArrowUpDown className="w-4 h-4" />
           <span>Sort</span>
+        </button>
+
+        {/* New Volunteer Button */}
+        <button className="flex items-center gap-2 px-4 py-2 bg-accent-purple hover:bg-dark-accent-purple transition-colors rounded-lg text-sm font-medium text-white shadow-sm">
+          <Plus className="w-4 h-4" />
+          <span>New Volunteer</span>
+        </button>
+
+        {/* Import CSV Button */}
+        <button className="flex items-center gap-2 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm font-medium text-gray-900">
+          <Import className="w-4 h-4" />
+          <span>Import from CSV</span>
         </button>
       </div>
 
