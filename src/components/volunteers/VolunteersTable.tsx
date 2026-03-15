@@ -304,11 +304,7 @@ export const VolunteersTable = (): React.JSX.Element => {
             aria-label="Search volunteers"
             value={globalFilter ?? ""}
             onChange={(e) => setGlobalFilter(e.target.value)}
-<<<<<<< HEAD
             className="w-full pl-10 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm text-gray-900 placeholder-gray-500 border-none focus:outline-none focus:ring-2 focus:ring-purple-300"
-=======
-            className="w-96 pl-10 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm text-gray-900 placeholder-gray-800 border-none focus:outline-none focus:ring-2 focus:ring-accent-purple/50"
->>>>>>> ea67fea (Implement Volunteer Table Modal)
           />
         </div>
 
@@ -322,11 +318,7 @@ export const VolunteersTable = (): React.JSX.Element => {
                 : "bg-primary-purple hover:bg-secondary-purple text-gray-900"
             }`}
           >
-<<<<<<< HEAD
             <ListFilter className="w-4 h-4 shrink-0" />
-=======
-            <ListFilter className="w-4 h-4" />
->>>>>>> ea67fea (Implement Volunteer Table Modal)
             <span>Filter</span>
           </button>
 
@@ -377,10 +369,7 @@ export const VolunteersTable = (): React.JSX.Element => {
         optionsData={filterOptions}
       />
 
-<<<<<<< HEAD
 
-=======
->>>>>>> ea67fea (Implement Volunteer Table Modal)
       {/* Table Content */}
       {loading ? (
         <div className="space-y-4 p-4 animate-pulse rounded-lg h-64 bg-gray-50">
@@ -520,25 +509,12 @@ export const VolunteersTable = (): React.JSX.Element => {
                               isSelectColumn && "cursor-pointer",
                               cellSelected && "bg-blue-100/50"
                             )}
-<<<<<<< HEAD
                             style={{ width: cell.column.getSize() }}
                           >
                             <div className="truncate w-full h-full">
                               {flexRender(
                                 cell.column.columnDef.cell,
                                 cell.getContext()
-=======
-                          </div>
-                          {cellSelected && (
-                            <div
-                              className={clsx(
-                                "absolute pointer-events-none z-10 border-blue-300",
-                                "-top-px -bottom-px -left-px -right-px",
-                                !topSelected && "border-t-2",
-                                !bottomSelected && "border-b-2",
-                                !leftSelected && "border-l-2",
-                                !rightSelected && "border-r-2"
->>>>>>> ea67fea (Implement Volunteer Table Modal)
                               )}
                             </div>
                             {cellSelected && (
