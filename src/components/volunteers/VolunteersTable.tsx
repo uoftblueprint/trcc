@@ -18,8 +18,8 @@ import {
   SortingState,
   RowSelectionState,
 } from "@tanstack/react-table";
-import { clsx } from "clsx";
-import { Volunteer, CohortRow, RoleRow } from "./types";
+import clsx from "clsx";
+import type { Volunteer, CohortRow, RoleRow } from "./types";
 import { VolunteerTag } from "./VolunteerTag";
 import { useCellSelection } from "./useCellSelection";
 import {

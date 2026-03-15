@@ -1,5 +1,5 @@
 import { getTagColorClass } from "./utils";
-import { clsx } from "clsx";
+import clsx from "clsx";
 
 export const VolunteerTag = ({
   label,

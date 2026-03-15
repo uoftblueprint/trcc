@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Table, Cell } from "@tanstack/react-table";
-import { Volunteer } from "./types";
+import type { Volunteer } from "./types";
 import { formatCellData } from "./utils";
 
 export type CellCoords = {
