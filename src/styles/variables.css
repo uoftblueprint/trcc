@@ -1,0 +1,16 @@
+@theme {
+  --color-tag-yellow: #fdecc8;
+  --color-tag-green: #dbeddb;
+  --color-tag-blue: #d3e5ef;
+  --color-tag-pink: #f5e0e9;
+  --color-tag-purple: #e8deee;
+  --color-tag-gray: #e3e2e0;
+  --color-tag-red: #ffe2dd;
+  --color-tag-orange: #fadec9;
+  --color-tag-brown: #eee0da;
+
+  --color-primary-purple: #e9ddee;
+  --color-secondary-purple: #e5d9ea;
+  --color-accent-purple: #855998;
+  --color-dark-accent-purple: #78468c;
+}
