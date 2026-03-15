@@ -205,7 +205,7 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
       { field: "current_roles", miniOp: "OR", values: ["TEST_Role1"] },
     ];
     const { data } = await getVolunteersByMultipleColumns(filters, "AND");
-    const ids = data?.map((v) => v.id);
+    const ids = data;
 
     expect(ids).toContain(volunteer1Id);
     expect(ids).toContain(volunteer3Id);
@@ -221,7 +221,7 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
       },
     ];
     const { data } = await getVolunteersByMultipleColumns(filters, "AND");
-    const ids = data?.map((v) => v.id);
+    const ids = data;
 
     expect(ids).toContain(volunteer3Id);
     expect(ids).not.toContain(volunteer1Id);
@@ -233,7 +233,7 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
       { field: "cohorts", miniOp: "OR", values: [["Fall", String(TEST_YEAR)]] },
     ];
     const { data } = await getVolunteersByMultipleColumns(filters, "AND");
-    const ids = data?.map((v) => v.id);
+    const ids = data;
 
     expect(ids).toContain(volunteer1Id);
     expect(ids).toContain(volunteer2Id);
@@ -252,7 +252,7 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
       },
     ];
     const { data } = await getVolunteersByMultipleColumns(filters, "AND");
-    const ids = data?.map((v) => v.id);
+    const ids = data;
 
     expect(ids).toContain(volunteer2Id);
     expect(ids).not.toContain(volunteer1Id);
@@ -264,7 +264,7 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
       { field: "position", miniOp: "AND", values: ["member"] },
     ];
     const { data } = await getVolunteersByMultipleColumns(filters, "AND");
-    const ids = data?.map((v) => v.id);
+    const ids = data;
 
     expect(ids).toContain(volunteer3Id);
     expect(ids).not.toContain(volunteer1Id);
@@ -301,7 +301,7 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
       },
     ];
     const { data } = await getVolunteersByMultipleColumns(filters, "AND");
-    const ids = data?.map((v) => v.id);
+    const ids = data;
 
     expect(ids).toContain(volunteer2Id);
     expect(ids).not.toContain(volunteer1Id);
@@ -318,7 +318,7 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
       },
     ];
     const { data } = await getVolunteersByMultipleColumns(filters, "OR");
-    const ids = data?.map((v) => v.id);
+    const ids = data;
 
     expect(ids).toContain(volunteer2Id);
     expect(ids).toContain(volunteer3Id);
