@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { FilterTuple } from "@/lib/api/getVolunteersByMultipleColumns";
 import { ChevronDown, Plus } from "lucide-react";
-import { clsx } from "clsx";
+import clsx from "clsx";
 import { FILTERABLE_COLUMNS } from "./volunteerColumns";
 import { FilterModal, filterModalAlignRight } from "./FilterModal";
 
