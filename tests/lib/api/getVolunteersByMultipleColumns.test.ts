@@ -106,7 +106,7 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
   let volunteer1Id: number; // Role 1, Cohort 1
   let volunteer2Id: number; // Role 2, Cohort 1, Cohort 2
   let volunteer3Id: number; // Role 1, Role 2, Cohort 2
-  let role1Id: number, role2Id: number;
+  let role1Id: number, role2Id: number, role3Id: number, role4Id: number;
   let cohort1Id: number, cohort2Id: number;
 
   beforeAll(async () => {
@@ -138,6 +138,8 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
       .insert([
         makeTestRoleInsert({ name: "TEST_Role1" }),
         makeTestRoleInsert({ name: "TEST_Role2" }),
+        makeTestRoleInsert({ name: "TEST_Role3", type: "prior" }),
+        makeTestRoleInsert({ name: "TEST_Role4", type: "future_interest" }),
       ])
       .select();
 
@@ -158,9 +160,11 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
     volunteer2Id = v2!.id;
     volunteer3Id = v3!.id;
 
-    const [r1, r2] = r!;
+    const [r1, r2, r3, r4] = r!;
     role1Id = r1!.id;
     role2Id = r2!.id;
+    role3Id = r3!.id;
+    role4Id = r4!.id;
 
     const [c1, c2] = c!;
     cohort1Id = c1!.id;
@@ -170,9 +174,13 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
       .from("VolunteerRoles")
       .insert([
         makeTestVolunteerRoleInsert(volunteer1Id, role1Id),
+        makeTestVolunteerRoleInsert(volunteer1Id, role3Id),
         makeTestVolunteerRoleInsert(volunteer3Id, role1Id),
+        makeTestVolunteerRoleInsert(volunteer2Id, role4Id),
         makeTestVolunteerRoleInsert(volunteer2Id, role2Id),
         makeTestVolunteerRoleInsert(volunteer3Id, role2Id),
+        makeTestVolunteerRoleInsert(volunteer3Id, role3Id),
+        makeTestVolunteerRoleInsert(volunteer3Id, role4Id),
       ]);
 
     const { error: vcError } = await client
@@ -226,6 +234,30 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
     expect(ids).toContain(volunteer3Id);
     expect(ids).not.toContain(volunteer1Id);
     expect(ids).not.toContain(volunteer2Id);
+  });
+
+  it("filters by prior_roles", async () => {
+    const filters: FilterTuple[] = [
+      { field: "prior_roles", miniOp: "OR", values: ["TEST_Role3"] },
+    ];
+    const { data } = await getVolunteersByMultipleColumns(filters, "AND");
+    const ids = data;
+
+    expect(ids).toContain(volunteer1Id);
+    expect(ids).toContain(volunteer3Id);
+    expect(ids).not.toContain(volunteer2Id);
+  });
+
+  it("filters by future_interests", async () => {
+    const filters: FilterTuple[] = [
+      { field: "future_interests", miniOp: "OR", values: ["TEST_Role4"] },
+    ];
+    const { data } = await getVolunteersByMultipleColumns(filters, "AND");
+    const ids = data;
+
+    expect(ids).toContain(volunteer2Id);
+    expect(ids).toContain(volunteer3Id);
+    expect(ids).not.toContain(volunteer1Id);
   });
 
   it("cohorts by cohort with OR", async () => {

@@ -22,6 +22,7 @@ interface ColumnConfig {
   isMulti?: boolean;
   size: number;
   cell?: (info: CellContext<Volunteer, unknown>) => React.JSX.Element;
+  accessorFn?: (row: Volunteer) => unknown;
 }
 
 const renderMultiTags = (
@@ -142,6 +143,11 @@ const COLUMNS_CONFIG: ColumnConfig[] = [
     filterType: "options",
     isMulti: false,
     size: 150,
+    accessorFn: (row: Volunteer): string | null => {
+      if (row.opt_in_communication === true) return "Yes";
+      if (row.opt_in_communication === false) return "No";
+      return null;
+    },
     cell: renderSingleTag,
   },
   {
@@ -164,10 +170,15 @@ export const FILTERABLE_COLUMNS = COLUMNS_CONFIG.filter(
 }));
 
 export const getBaseColumns = (): ColumnDef<Volunteer>[] => {
-  return COLUMNS_CONFIG.map((col) => ({
-    accessorKey: col.id,
-    header: () => <HeaderWithIcon icon={col.icon} label={col.label} />,
-    size: col.size,
-    ...(col.cell ? { cell: col.cell } : {}),
-  }));
+  return COLUMNS_CONFIG.map(
+    (col): ColumnDef<Volunteer> => ({
+      id: col.id,
+      header: () => <HeaderWithIcon icon={col.icon} label={col.label} />,
+      size: col.size,
+      ...(col.accessorFn
+        ? { accessorFn: col.accessorFn }
+        : { accessorKey: col.id }),
+      ...(col.cell ? { cell: col.cell } : {}),
+    })
+  );
 };
