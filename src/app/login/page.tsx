@@ -3,6 +3,7 @@
 import { JSX, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmail } from "@/lib/client/supabase/auth";
+import styles from "@/styles/login.module.css";
 
 export default function LoginPage(): JSX.Element {
   const [email, setEmail] = useState("");
@@ -33,15 +34,15 @@ export default function LoginPage(): JSX.Element {
   };
 
   return (
-    <main>
-      <h1>Log in</h1>
+    <main className={styles["container"]}>
+      <div className={styles["content"]}>
+        <h1 className={styles["title"]}>Log in</h1>
 
-      <form onSubmit={handleSubmit}>
-        <fieldset>
-          <legend>Log in</legend>
-
-          <div>
-            <label htmlFor="login-email">Email</label>
+        <form onSubmit={handleSubmit} className={styles["formCard"]}>
+          <div className={styles["inputGroup"]}>
+            <label htmlFor="login-email" className={styles["label"]}>
+              Email
+            </label>
             <input
               id="login-email"
               name="email"
@@ -49,13 +50,16 @@ export default function LoginPage(): JSX.Element {
               required
               autoComplete="email"
               placeholder="Enter your email"
+              className={styles["input"]}
               value={email}
               onChange={(event) => setEmail(event.target.value)}
             />
           </div>
 
-          <div>
-            <label htmlFor="login-password">Password</label>
+          <div className={styles["inputGroup"]}>
+            <label htmlFor="login-password" className={styles["label"]}>
+              Password
+            </label>
             <input
               id="login-password"
               name="password"
@@ -63,22 +67,33 @@ export default function LoginPage(): JSX.Element {
               required
               autoComplete="current-password"
               placeholder="Enter your password"
+              className={styles["input"]}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
             />
           </div>
 
-          <nav>
-            <a href="/forgot-password">Forgot password?</a>
-          </nav>
+          <div className={styles["forgotPasswordContainer"]}>
+            <a href="/forgot-password" className={styles["forgotPassword"]}>
+              Forgot password?
+            </a>
+          </div>
 
-          <button type="submit" disabled={loading}>
+          <button
+            type="submit"
+            disabled={loading}
+            className={styles["submitButton"]}
+          >
             {loading ? "Logging in…" : "Log in"}
           </button>
-        </fieldset>
-      </form>
+        </form>
 
-      {error ? <p role="alert">{error}</p> : null}
+        {error ? (
+          <p role="alert" className={styles["error"]}>
+            {error}
+          </p>
+        ) : null}
+      </div>
     </main>
   );
 }
