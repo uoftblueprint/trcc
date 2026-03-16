@@ -188,9 +188,6 @@ export const VolunteersTable = (): React.JSX.Element => {
 
         return {
           ...entry.volunteer,
-          opt_in_communication: entry.volunteer.opt_in_communication
-            ? "Yes"
-            : "No",
           cohorts: entry.cohorts.map(formatTag),
           current_roles: entry.roles
             .filter((r) => r.type === "current")

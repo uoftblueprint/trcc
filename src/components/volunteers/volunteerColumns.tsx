@@ -143,6 +143,11 @@ const COLUMNS_CONFIG: ColumnConfig[] = [
     filterType: "options",
     isMulti: false,
     size: 150,
+    accessorFn: (row: Volunteer): string | null => {
+      if (row.opt_in_communication === true) return "Yes";
+      if (row.opt_in_communication === false) return "No";
+      return null;
+    },
     cell: renderSingleTag,
   },
   {
