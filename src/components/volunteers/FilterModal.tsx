@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { FilterTuple } from "@/lib/api/getVolunteersByMultipleColumns";
 import { Trash2 } from "lucide-react";
 import { VolunteerTag } from "./VolunteerTag";
-import { clsx } from "clsx";
+import clsx from "clsx";
 import { FILTERABLE_COLUMNS } from "./volunteerColumns";
 
 const MODAL_WIDTH_PX = 288;
