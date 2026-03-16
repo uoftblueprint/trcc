@@ -96,6 +96,7 @@ export const VolunteersTable = (): React.JSX.Element => {
           <div className="flex items-center justify-center h-full">
             <input
               type="checkbox"
+              aria-label="Select all rows on this page"
               checked={table.getIsAllPageRowsSelected()}
               onChange={table.getToggleAllPageRowsSelectedHandler()}
               onClick={(e) => e.stopPropagation()}
@@ -107,6 +108,7 @@ export const VolunteersTable = (): React.JSX.Element => {
           <div className="flex items-center justify-center h-full">
             <input
               type="checkbox"
+              aria-label={`Select ${row.original.name_org}`}
               checked={row.getIsSelected()}
               disabled={!row.getCanSelect()}
               onChange={row.getToggleSelectedHandler()}
@@ -486,82 +488,86 @@ export const VolunteersTable = (): React.JSX.Element => {
                 ))}
               </thead>
               <tbody className="">
-                {table.getRowModel().rows.map((row, rowIndex) => (
-                  <tr
-                    key={row.id}
-                    data-state={row.getIsSelected() ? "selected" : undefined}
-                    className={clsx(
-                      "group transition-colors border-b border-gray-100 bg-white",
-                      "hover:bg-gray-50",
-                      "data-[state=selected]:bg-blue-100/30",
-                      "data-[state=selected]:hover:bg-blue-100/50"
-                    )}
-                  >
-                    {row.getVisibleCells().map((cell, colIndex) => {
-                      const cellSelected = isSelected(
-                        String(row.id),
-                        cell.column.id
-                      );
-                      const isSelectColumn = cell.column.id === "select";
+                {((): React.JSX.Element[] => {
+                  const rows = table.getRowModel().rows;
+                  const visibleCols = table.getVisibleLeafColumns();
 
-                      const visibleCols = table.getVisibleLeafColumns();
-                      const topRow = table.getRowModel().rows[rowIndex - 1];
-                      const bottomRow = table.getRowModel().rows[rowIndex + 1];
-                      const leftCol = visibleCols[colIndex - 1];
-                      const rightCol = visibleCols[colIndex + 1];
+                  return rows.map((row, rowIndex) => (
+                    <tr
+                      key={row.id}
+                      data-state={row.getIsSelected() ? "selected" : undefined}
+                      className={clsx(
+                        "group transition-colors border-b border-gray-100 bg-white",
+                        "hover:bg-gray-50",
+                        "data-[state=selected]:bg-blue-100/30",
+                        "data-[state=selected]:hover:bg-blue-100/50"
+                      )}
+                    >
+                      {row.getVisibleCells().map((cell, colIndex) => {
+                        const cellSelected = isSelected(
+                          String(row.id),
+                          cell.column.id
+                        );
+                        const isSelectColumn = cell.column.id === "select";
+                        const topRow = rows[rowIndex - 1];
+                        const bottomRow = rows[rowIndex + 1];
+                        const leftCol = visibleCols[colIndex - 1];
+                        const rightCol = visibleCols[colIndex + 1];
 
-                      const topSelected =
-                        topRow && isSelected(String(topRow.id), cell.column.id);
-                      const bottomSelected =
-                        bottomRow &&
-                        isSelected(String(bottomRow.id), cell.column.id);
-                      const leftSelected =
-                        leftCol && isSelected(String(row.id), leftCol.id);
-                      const rightSelected =
-                        rightCol && isSelected(String(row.id), rightCol.id);
+                        const topSelected =
+                          topRow &&
+                          isSelected(String(topRow.id), cell.column.id);
+                        const bottomSelected =
+                          bottomRow &&
+                          isSelected(String(bottomRow.id), cell.column.id);
+                        const leftSelected =
+                          leftCol && isSelected(String(row.id), leftCol.id);
+                        const rightSelected =
+                          rightCol && isSelected(String(row.id), rightCol.id);
 
-                      return (
-                        <td
-                          key={cell.id}
-                          onMouseDown={(e) =>
-                            handleCellMouseDown(e, cell, rowIndex, colIndex)
-                          }
-                          onMouseEnter={(e) =>
-                            handleCellMouseEnter(e, cell, rowIndex, colIndex)
-                          }
-                          onClick={() => {
-                            if (isSelectColumn) row.toggleSelected();
-                          }}
-                          className={clsx(
-                            "relative px-4 py-3 text-gray-900 font-normal",
-                            isSelectColumn && "cursor-pointer",
-                            cellSelected && "bg-blue-100/50"
-                          )}
-                          style={{ width: cell.column.getSize() }}
-                        >
-                          <div className="truncate w-full h-full">
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext()
+                        return (
+                          <td
+                            key={cell.id}
+                            onMouseDown={(e) =>
+                              handleCellMouseDown(e, cell, rowIndex, colIndex)
+                            }
+                            onMouseEnter={(e) =>
+                              handleCellMouseEnter(e, cell, rowIndex, colIndex)
+                            }
+                            onClick={() => {
+                              if (isSelectColumn) row.toggleSelected();
+                            }}
+                            className={clsx(
+                              "relative px-4 py-3 text-gray-900 font-normal",
+                              isSelectColumn && "cursor-pointer",
+                              cellSelected && "bg-blue-100/50"
                             )}
-                          </div>
-                          {cellSelected && (
-                            <div
-                              className={clsx(
-                                "absolute pointer-events-none z-50 border-blue-300",
-                                "-top-px -bottom-px -left-px -right-px",
-                                !topSelected && "border-t-2",
-                                !bottomSelected && "border-b-2",
-                                !leftSelected && "border-l-2",
-                                !rightSelected && "border-r-2"
+                            style={{ width: cell.column.getSize() }}
+                          >
+                            <div className="truncate w-full h-full">
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext()
                               )}
-                            />
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+                            </div>
+                            {cellSelected && (
+                              <div
+                                className={clsx(
+                                  "absolute pointer-events-none z-10 border-blue-300",
+                                  "-top-px -bottom-px -left-px -right-px",
+                                  !topSelected && "border-t-2",
+                                  !bottomSelected && "border-b-2",
+                                  !leftSelected && "border-l-2",
+                                  !rightSelected && "border-r-2"
+                                )}
+                              />
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ));
+                })()}
               </tbody>
             </table>
           </div>
