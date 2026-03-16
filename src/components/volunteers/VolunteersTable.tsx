@@ -349,7 +349,7 @@ export const VolunteersTable = (): React.JSX.Element => {
         {/* Search Bar */}
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-800">
-            <Search className="w-5 h-5" />
+            <Search className="w-4 h-4 shrink-0" />
           </div>
           <input
             type="text"
@@ -365,7 +365,7 @@ export const VolunteersTable = (): React.JSX.Element => {
         {/* Filter / Source Button */}
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-900">
-            <ListFilter className="w-4 h-4" />
+            <ListFilter className="w-4 h-4 shrink-0" />
           </div>
           <select
             value={dataSource}
@@ -384,19 +384,19 @@ export const VolunteersTable = (): React.JSX.Element => {
           onClick={() => {}}
           className="flex items-center gap-2 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm font-medium text-gray-900"
         >
-          <ArrowUpDown className="w-4 h-4" />
+          <ArrowUpDown className="w-4 h-4 shrink-0" />
           <span>Sort</span>
         </button>
 
         {/* New Volunteer Button */}
         <button className="flex items-center gap-2 px-4 py-2 bg-accent-purple hover:bg-dark-accent-purple transition-colors rounded-lg text-sm font-medium text-white shadow-sm">
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4 shrink-0" />
           <span>New Volunteer</span>
         </button>
 
         {/* Import CSV Button */}
         <button className="flex items-center gap-2 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm font-medium text-gray-900">
-          <Import className="w-4 h-4" />
+          <Import className="w-4 h-4 shrink-0" />
           <span>Import from CSV</span>
         </button>
       </div>
