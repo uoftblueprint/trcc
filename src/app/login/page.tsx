@@ -2,6 +2,7 @@
 
 import { JSX, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { signInWithEmail } from "@/lib/client/supabase/auth";
 import styles from "@/styles/login.module.css";
 
@@ -74,9 +75,9 @@ export default function LoginPage(): JSX.Element {
           </div>
 
           <div className={styles["forgotPasswordContainer"]}>
-            <a href="/forgot-password" className={styles["forgotPassword"]}>
+            <Link href="/forgot-password" className={styles["forgotPassword"]}>
               Forgot password?
-            </a>
+            </Link>
           </div>
 
           <button
