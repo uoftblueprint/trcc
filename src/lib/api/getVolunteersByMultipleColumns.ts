@@ -56,7 +56,7 @@ type VolunteerFilterResponse =
  * @param op - The global operation on the filters ('AND'/'OR').
  *
  * @returns A Promise resolving to an object containing:
- * - data: Volunteer rows.
+ * - data: Volunteer ids.
  * - error: Error message.
  */
 export async function getVolunteersByMultipleColumns(
@@ -83,7 +83,7 @@ export async function getVolunteersByMultipleColumns(
         f.field === "prior_roles" ||
         f.field === "future_interests"
       ) {
-        let roleType;
+        let roleType: "current" | "prior" | "future_interest";
         if (f.field === "current_roles") roleType = "current";
         else if (f.field === "prior_roles") roleType = "prior";
         else roleType = "future_interest";
