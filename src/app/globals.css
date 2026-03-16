@@ -1,5 +1,6 @@
 @import "tailwindcss";
-@import "../styles/variables.css";
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&display=swap');
+@import '../styles/variables.css';
 
 :root {
   --background: #ffffff;
