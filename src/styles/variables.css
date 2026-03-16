@@ -1,0 +1,58 @@
+:root {
+  /* Purple Palette */
+  --color-purple-900: #311D38;
+  --color-purple-800: #492A55;
+  --color-purple-700: #663D75;
+  --color-purple-600: #78468C;
+  --color-purple-500: #9D68B3;
+  --color-purple-400: #B487C4;
+  --color-purple-300: #C9A9D5;
+  --color-purple-200: #DECCE6;
+  --color-purple-100: #FAF8FB;
+
+  /* Teal Palette */
+  --color-teal-900: #13353B;
+  --color-teal-800: #1F5861;
+  --color-teal-700: #2C7C88;
+  --color-teal-600: #379FAE;
+  --color-teal-500: #58BBCA;
+  --color-teal-400: #77C8D4;
+  --color-teal-300: #9ED8E1;
+  --color-teal-200: #C5E8ED;
+  --color-teal-100: #F0F5F7;
+
+  /* Neutral Palette */
+  --color-neutral-900: #1C2230;
+  --color-neutral-800: #272E40;
+  --color-neutral-700: #43516F;
+  --color-neutral-600: #56698F;
+  --color-neutral-500: #7082A8;
+  --color-neutral-400: #8F9DBC;
+  --color-neutral-300: #AFBACF;
+  --color-neutral-200: #D9DEE8;
+  --color-neutral-100: #F9F9FB;
+
+  /* Borders / Strokes */
+  --color-border: #D4E3EE;
+
+  /* Typography */
+  --font-family-primary: 'Manrope', sans-serif;
+  --font-family-secondary: 'Jost', sans-serif;
+
+  /* Font Sizes */
+  --font-size-h1: 48px;
+  --font-size-h2: 24px;
+  --font-size-body: 18px;
+  --font-size-sm: 16px;
+  --font-size-xs: 14px;
+
+  /* Font Weights */
+  --font-weight-regular: 400;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  /* Pre-composed Typography defaults */
+  --font-heading-1: var(--font-weight-extrabold) var(--font-size-h1) var(--font-family-primary);
+  --font-heading-2: var(--font-weight-bold) var(--font-size-h2) var(--font-family-primary);
+  --font-body: var(--font-weight-regular) var(--font-size-body) var(--font-family-primary);
+}
