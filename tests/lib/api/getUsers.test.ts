@@ -1,13 +1,17 @@
-// Tests the API function that fetches all users from public.Users
+// Tests the API function that fetches all users from public.Users and enriches with email from auth.users.
 // Requires RLS policy on public.Users for anon (migration 20260316000000). Run: supabase db reset
 
 import { describe, it, expect, beforeEach, afterEach, beforeAll } from "vitest";
 import { createServiceTestClient, deleteWhereIdIn } from "../support/helpers";
 import { makeTestUserInsertWithEmail } from "../support/factories";
-import { getUsers, type UserRow } from "@/lib/api/getUsers";
+import {
+  getUsers,
+  type UserRow,
+  type UserRowWithEmail,
+} from "@/lib/api/getUsers";
 
-// Rows returned by getUsers(); DB has email column (types may show name).
-type UserRowFromDb = UserRow & { email?: string | null };
+// Rows returned by getUsers() (enriched with email from auth.users).
+type UserRowFromDb = UserRowWithEmail;
 
 describe("getUsers (integration)", () => {
   const client = createServiceTestClient();
@@ -217,10 +221,75 @@ describe("getUsers (integration)", () => {
         expect(row).toHaveProperty("id");
         expect(row).toHaveProperty("created_at");
         expect(row).toHaveProperty("role");
-        // DB may return email; types say name
+        // getUsers enriches with email from auth.users
         expect(
           (row as UserRowFromDb).email !== undefined || row.name !== undefined
         ).toBe(true);
+      }
+    });
+  });
+
+  describe("email from auth.users", () => {
+    it("returns every row with email property (string or null)", async () => {
+      const result = await getUsers();
+
+      for (const row of result) {
+        expect(row).toHaveProperty("email");
+        expect(row.email === null || typeof row.email === "string").toBe(true);
+      }
+    });
+
+    it("returns email null for user that exists only in public.Users", async () => {
+      if (!canReadUsers) return;
+      const { id } = await insertUser({
+        email: "TEST_User_NoAuth@example.com",
+        role: "staff",
+      });
+
+      const result = await getUsers();
+      const row = result.find((r) => r.id === id);
+
+      expect(row).toBeDefined();
+      // User was never created in auth; getUsers enriches from auth.admin.listUsers, so email is null
+      expect(row!.email).toBeNull();
+    });
+
+    it("returns email from auth when auth user exists with same id", async () => {
+      if (!canReadUsers) return;
+      const { createServiceRoleTestClient } =
+        await import("../support/helpers");
+      let adminClient: ReturnType<typeof createServiceRoleTestClient>;
+      try {
+        adminClient = createServiceRoleTestClient();
+      } catch {
+        return; // skip when service role key not available
+      }
+      const testEmail = `TEST_getUsers_auth_${Date.now()}@example.com`;
+      const { data: createData, error: createError } =
+        await adminClient.auth.admin.createUser({
+          email: testEmail,
+          password: "TEST_password_12345",
+          email_confirm: true,
+        });
+      if (createError || !createData.user) {
+        return; // skip if auth admin not available (e.g. local Supabase)
+      }
+      const authUserId = createData.user.id;
+      insertedIds.push(authUserId);
+      try {
+        await client.from("Users").insert({
+          id: authUserId,
+          email: null,
+          role: "staff",
+        } as never);
+
+        const result = await getUsers();
+        const row = result.find((r) => r.id === authUserId);
+
+        expect(row).toBeDefined();
+        expect(row!.email).toBe(testEmail);
+      } finally {
+        await adminClient.auth.admin.deleteUser(authUserId);
       }
     });
   });
