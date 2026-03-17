@@ -1,6 +1,8 @@
 -- Expose auth.users email for public.Users rows via SECURITY DEFINER function.
 -- This avoids requiring service role keys at runtime for server-side pages.
 
+drop function if exists public.get_users_with_email();
+
 create or replace function public.get_users_with_email()
 returns table (
   id uuid,
