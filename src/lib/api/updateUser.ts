@@ -88,12 +88,15 @@ function validateUserUpdateBody(body: unknown): {
   if ("role" in body) {
     if (typeof body["role"] !== "string") {
       errors.push({ field: "role", message: "Role must be a string" });
-    } else if (!body["role"].trim()) {
-      errors.push({ field: "role", message: "Role cannot be empty" });
-    } else if (!ALLOWED_USER_ROLES.includes(body["role"])) {
-      errors.push({ field: "role", message: "Role invalid" });
     } else {
-      cleanedPatch.role = body["role"].trim();
+      const trimmedRole = body["role"].trim();
+      if (!trimmedRole) {
+        errors.push({ field: "role", message: "Role cannot be empty" });
+      } else if (!ALLOWED_USER_ROLES.includes(trimmedRole)) {
+        errors.push({ field: "role", message: "Role invalid" });
+      } else {
+        cleanedPatch.role = trimmedRole;
+      }
     }
   }
 
