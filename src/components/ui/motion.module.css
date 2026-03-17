@@ -1,7 +1,9 @@
 .reveal {
   opacity: 0;
-  animation: fadeUp 220ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
   animation-delay: var(--motion-delay, 0ms);
+  animation-duration: 260ms;
+  animation-fill-mode: forwards;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .interactiveButton,
@@ -10,7 +12,77 @@
     transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
     border-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 160ms ease;
+    opacity 160ms ease,
+    filter 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-position 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.revealFade {
+  animation-name: fadeUp;
+}
+
+.revealBlur {
+  animation-name: blurIn;
+}
+
+.revealScale {
+  animation-name: scaleIn;
+}
+
+.stagger > * {
+  --stagger-index: 0;
+  opacity: 0;
+  animation: fadeUp 260ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(
+    var(--motion-delay, 0ms) + var(--stagger-step, 36ms) * var(--stagger-index)
+  );
+}
+
+.stagger > *:nth-child(1) {
+  --stagger-index: 0;
+}
+
+.stagger > *:nth-child(2) {
+  --stagger-index: 1;
+}
+
+.stagger > *:nth-child(3) {
+  --stagger-index: 2;
+}
+
+.stagger > *:nth-child(4) {
+  --stagger-index: 3;
+}
+
+.stagger > *:nth-child(5) {
+  --stagger-index: 4;
+}
+
+.stagger > *:nth-child(6) {
+  --stagger-index: 5;
+}
+
+.interactiveSurface {
+  position: relative;
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.interactiveSurface::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at top,
+    rgba(255, 255, 255, 0.18),
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
 }
 
 .interactiveInput {
@@ -25,22 +97,73 @@
   outline: none;
   transform: scale(1.01);
   border-color: rgba(23, 23, 23, 0.5);
-  box-shadow: 0 0 0 3px rgba(23, 23, 23, 0.12);
+  box-shadow:
+    0 0 0 3px rgba(23, 23, 23, 0.12),
+    0 10px 24px rgba(23, 23, 23, 0.08);
+  filter: saturate(1.04);
 }
 
 .interactiveButton:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(23, 23, 23, 0.12);
+  box-shadow:
+    0 0 0 3px rgba(23, 23, 23, 0.12),
+    0 8px 20px rgba(23, 23, 23, 0.1);
+}
+
+.interactiveButton {
+  position: relative;
+  overflow: hidden;
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+}
+
+.interactiveButton::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 38%,
+    transparent 72%
+  );
+  transform: translateX(-140%);
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.interactiveButtonLabel {
+  position: relative;
+  z-index: 1;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .interactiveButton:hover {
     transform: translateY(-1px);
+    background-position: 100% 50%;
+    filter: saturate(1.06);
+  }
+
+  .interactiveButton:hover::before {
+    transform: translateX(140%);
+  }
+
+  .interactiveSurface:hover {
+    transform: translateY(-2px);
+    filter: saturate(1.02);
+  }
+
+  .interactiveSurface:hover::before {
+    opacity: 1;
   }
 }
 
 .interactiveButton:active {
   transform: scale(0.98);
+}
+
+.interactiveSurface:focus-within {
+  transform: translateY(-1px);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -49,14 +172,27 @@
     opacity: 1;
   }
 
+  .stagger > * {
+    animation: none;
+    opacity: 1;
+  }
+
   .interactiveButton,
-  .interactiveInput {
+  .interactiveInput,
+  .interactiveSurface {
+    transition: none;
+  }
+
+  .interactiveButton::before,
+  .interactiveSurface::before {
     transition: none;
   }
 
   .interactiveButton:hover,
   .interactiveButton:active,
-  .interactiveInput:focus-visible {
+  .interactiveInput:focus-visible,
+  .interactiveSurface:hover,
+  .interactiveSurface:focus-within {
     transform: none;
   }
 }
@@ -64,11 +200,37 @@
 @keyframes fadeUp {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(var(--motion-distance, 8px));
   }
 
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes blurIn {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(var(--motion-distance, 8px));
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--motion-distance, 8px) * 0.5)) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }

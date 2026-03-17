@@ -4,6 +4,7 @@ import styles from "./motion.module.css";
 type AnimatedButtonProps = ButtonHTMLAttributes<HTMLButtonElement>;
 
 export function AnimatedButton({
+  children,
   className,
   ...props
 }: AnimatedButtonProps): React.JSX.Element {
@@ -11,5 +12,9 @@ export function AnimatedButton({
     .filter(Boolean)
     .join(" ");
 
-  return <button className={combinedClassName} {...props} />;
+  return (
+    <button className={combinedClassName} {...props}>
+      <span className={styles["interactiveButtonLabel"]}>{children}</span>
+    </button>
+  );
 }
