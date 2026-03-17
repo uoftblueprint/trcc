@@ -50,8 +50,26 @@ export function createAnonTestClient(): DbClient {
   });
 }
 
-// Use this client for setup/teardown in tests (insert, cleanup rows), bypasses RLS
+// Use this client for setup/teardown in tests (insert, cleanup rows). Uses anon key with
+// empty Authorization so PostgREST does not try to verify a JWT (avoids PGRST301 with local Supabase).
+// RLS still applies; migrations grant anon full access for development.
 export function createServiceTestClient(): DbClient {
+  return createClient<Database>(getTestSupabaseUrl(), getTestAnonKey(), {
+    global: {
+      headers: {
+        Authorization: "",
+      },
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
+
+// Use only for Auth Admin API (e.g. listUsers, deleteUser). PostgREST/DB calls may still return PGRST301 with local Supabase.
+export function createServiceRoleTestClient(): DbClient {
   return createClient<Database>(getTestSupabaseUrl(), getTestServiceRoleKey(), {
     global: {
       headers: {
