@@ -25,6 +25,7 @@ import { getBaseColumns } from "./volunteerColumns";
 import { Search, ListFilter, ArrowUpDown, Import, Plus } from "lucide-react";
 import { FilterBar } from "./FilterBar";
 import { FilterModal, filterModalAlignRight } from "./FilterModal";
+import { SortModal } from "./SortModal";
 import { FILTERABLE_COLUMNS } from "./volunteerColumns";
 import {
   getVolunteersByMultipleColumns,
@@ -50,9 +51,13 @@ export const VolunteersTable = (): React.JSX.Element => {
   const debouncedFilters = useDebounce(filters);
   const debouncedGlobalOp = useDebounce(globalOp);
 
+  const [isSortModalOpen, setIsSortModalOpen] = useState(false);
+  const [sortModalAlignRight, setSortModalAlignRight] = useState(false);
+
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
+  const debouncedGlobalFilter = useDebounce(globalFilter, 300);
 
   const columns = useMemo<ColumnDef<Volunteer>[]>(
     () => [
@@ -96,7 +101,7 @@ export const VolunteersTable = (): React.JSX.Element => {
     data,
     columns,
     columnResizeMode: "onChange",
-    state: { sorting, rowSelection, globalFilter },
+    state: { sorting, rowSelection, globalFilter: debouncedGlobalFilter },
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -317,14 +322,15 @@ export const VolunteersTable = (): React.JSX.Element => {
         <div className={clsx("relative", isMainFilterOpen ? "z-50" : "z-10")}>
           <button
             onClick={handleOpenMainFilter}
-            className={`flex items-center gap-2 px-4 py-2 transition-colors rounded-lg text-sm font-medium cursor-pointer ${
+            className={clsx(
+              "flex items-center justify-center gap-2 w-28 py-2 transition-colors rounded-lg text-sm font-medium cursor-pointer",
               filters.length > 0
                 ? "bg-secondary-purple text-accent-purple"
                 : "bg-primary-purple hover:bg-secondary-purple text-gray-900"
-            }`}
+            )}
           >
             <ListFilter className="w-4 h-4 shrink-0" />
-            <span>Filter</span>
+            <span>Filter {filters.length > 0 && `(${filters.length})`}</span>
           </button>
 
           <FilterModal
@@ -339,14 +345,34 @@ export const VolunteersTable = (): React.JSX.Element => {
           />
         </div>
 
-        {/* Sort Button */}
-        <button
-          onClick={() => {}}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm font-medium text-gray-900 cursor-pointer"
-        >
-          <ArrowUpDown className="w-4 h-4 shrink-0" />
-          <span>Sort</span>
-        </button>
+        {/* Sort Button + Modal */}
+        <div className={clsx("relative", isSortModalOpen ? "z-50" : "z-10")}>
+          <button
+            onClick={(e) => {
+              setSortModalAlignRight(
+                filterModalAlignRight(e.currentTarget as HTMLElement)
+              );
+              setIsSortModalOpen(!isSortModalOpen);
+            }}
+            className={clsx(
+              "flex items-center justify-center gap-2 w-24 py-2 transition-colors rounded-lg text-sm font-medium cursor-pointer",
+              sorting.length > 0
+                ? "bg-secondary-purple text-accent-purple"
+                : "bg-primary-purple hover:bg-secondary-purple text-gray-900"
+            )}
+          >
+            <ArrowUpDown className="w-4 h-4 shrink-0" />
+            <span>Sort {sorting.length > 0 && `(${sorting.length})`}</span>
+          </button>
+
+          <SortModal
+            isOpen={isSortModalOpen}
+            onClose={() => setIsSortModalOpen(false)}
+            sorting={sorting}
+            setSorting={setSorting}
+            alignRight={sortModalAlignRight}
+          />
+        </div>
 
         {/* New Volunteer Button */}
         {role === "admin" && (
@@ -372,6 +398,8 @@ export const VolunteersTable = (): React.JSX.Element => {
         globalOp={globalOp}
         setGlobalOp={setGlobalOp}
         optionsData={filterOptions}
+        sorting={sorting}
+        setSorting={setSorting}
       />
 
 

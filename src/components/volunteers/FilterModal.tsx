@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { ColumnSelector } from "./ColumnSelector";
 import { FilterTuple } from "@/lib/api/getVolunteersByMultipleColumns";
 import { Trash2 } from "lucide-react";
 import { VolunteerTag } from "./VolunteerTag";
@@ -34,18 +35,18 @@ export const FilterModal = ({
     "SELECT_COLUMN" | "SELECT_VALUES"
   >("SELECT_COLUMN");
   const [selectedCol, setSelectedCol] = useState<string | null>(null);
-  const [columnSearch, setColumnSearch] = useState("");
   const [inputValue, setInputValue] = useState("");
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [miniOp, setMiniOp] = useState<"AND" | "OR">("OR");
 
   const colDef = FILTERABLE_COLUMNS.find((c) => c.id === selectedCol);
   const availableOptions = selectedCol ? optionsData[selectedCol] || [] : [];
-  const visibleColumns = FILTERABLE_COLUMNS.filter((col) =>
-    col.label.toLowerCase().includes(columnSearch.toLowerCase())
-  );
+  const visibleColumns = FILTERABLE_COLUMNS.map((c) => ({
+    id: c.id,
+    label: c.label,
+    icon: c.icon,
+  }));
 
-  const columnInputRef = useRef<HTMLInputElement>(null);
   const valueInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -67,7 +68,6 @@ export const FilterModal = ({
       } else {
         setActiveStep("SELECT_COLUMN");
         setSelectedCol(null);
-        setColumnSearch("");
         setInputValue("");
         setSelectedOptions([]);
         setMiniOp("OR");
@@ -77,9 +77,7 @@ export const FilterModal = ({
 
   useEffect(() => {
     if (isOpen) {
-      if (activeStep === "SELECT_COLUMN") {
-        setTimeout(() => columnInputRef.current?.focus(), 0);
-      } else if (activeStep === "SELECT_VALUES") {
+      if (activeStep === "SELECT_VALUES") {
         setTimeout(() => valueInputRef.current?.focus(), 0);
       }
     }
@@ -154,53 +152,16 @@ export const FilterModal = ({
         )}
       >
         {activeStep === "SELECT_COLUMN" ? (
-          <>
-            <input
-              ref={columnInputRef}
-              type="text"
-              placeholder="Filter by..."
-              value={columnSearch}
-              onChange={(e) => setColumnSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  if (visibleColumns.length > 0 && visibleColumns[0]) {
-                    setSelectedCol(visibleColumns[0].id);
-                    setActiveStep("SELECT_VALUES");
-                    setInputValue("");
-                    setMiniOp("OR");
-                  }
-                }
-              }}
-              className="w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-purple"
-            />
-            <div className="flex flex-col max-h-60 overflow-y-auto mt-2">
-              {visibleColumns.length > 0 ? (
-                visibleColumns.map((col) => {
-                  const Icon = col.icon;
-                  return (
-                    <button
-                      key={col.id}
-                      onClick={() => {
-                        setSelectedCol(col.id);
-                        setActiveStep("SELECT_VALUES");
-                        setInputValue("");
-                        setMiniOp("OR");
-                      }}
-                      className="text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors flex items-center gap-2"
-                    >
-                      <Icon className="w-4 h-4 text-gray-400" />
-                      <span>{col.label}</span>
-                    </button>
-                  );
-                })
-              ) : (
-                <p className="text-xs text-gray-500 italic p-2 text-center">
-                  No available columns
-                </p>
-              )}
-            </div>
-          </>
+          <ColumnSelector
+            columns={visibleColumns}
+            placeholder="Filter by..."
+            onSelect={(colId) => {
+              setSelectedCol(colId);
+              setActiveStep("SELECT_VALUES");
+              setInputValue("");
+              setMiniOp("OR");
+            }}
+          />
         ) : (
           <>
             <div className="flex items-center justify-between">

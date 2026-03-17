@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FilterTuple } from "@/lib/api/getVolunteersByMultipleColumns";
-import { ChevronDown, Plus } from "lucide-react";
+import { ChevronDown, Plus, ArrowUpDown } from "lucide-react";
+import { SortingState } from "@tanstack/react-table";
 import clsx from "clsx";
 import { FILTERABLE_COLUMNS } from "./volunteerColumns";
 import { FilterModal, filterModalAlignRight } from "./FilterModal";
+import { SortModal } from "./SortModal";
 
 interface FilterBarProps {
   filters: FilterTuple[];
@@ -11,6 +13,8 @@ interface FilterBarProps {
   globalOp: "AND" | "OR";
   setGlobalOp: (op: "AND" | "OR") => void;
   optionsData: Record<string, string[]>;
+  sorting: SortingState;
+  setSorting: React.Dispatch<React.SetStateAction<SortingState>>;
 }
 
 export const FilterBar = ({
@@ -19,13 +23,23 @@ export const FilterBar = ({
   globalOp,
   setGlobalOp,
   optionsData,
+  sorting,
+  setSorting,
 }: FilterBarProps): React.JSX.Element | null => {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editAlignRight, setEditAlignRight] = useState(false);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newAlignRight, setNewAlignRight] = useState(false);
+  const [isSortModalOpen, setIsSortModalOpen] = useState(false);
+  const [sortAlignRight, setSortAlignRight] = useState(false);
 
-  if (filters.length === 0) return null;
+  useEffect(() => {
+    if (sorting.length === 0) {
+      setIsSortModalOpen(false);
+    }
+  }, [sorting.length]);
+
+  if (filters.length === 0 && sorting.length === 0) return null;
 
   const handleEditClick = (e: React.MouseEvent, index: number): void => {
     setIsAddingNew(false);
@@ -68,6 +82,34 @@ export const FilterBar = ({
 
   return (
     <div className="flex flex-wrap items-center gap-2 py-2 relative">
+      {sorting.length > 0 && (
+        <>
+          <div className={clsx("relative", isSortModalOpen ? "z-50" : "z-10")}>
+            <button
+              onClick={(e) => {
+                setSortAlignRight(
+                  filterModalAlignRight(e.currentTarget as HTMLElement)
+                );
+                setIsSortModalOpen(!isSortModalOpen);
+              }}
+              className="bg-primary-purple text-accent-purple hover:bg-secondary-purple rounded-lg px-3 py-1.5 text-sm font-medium flex items-center gap-2 transition-colors cursor-pointer"
+            >
+              <ArrowUpDown className="w-3.5 h-3.5" />
+              {sorting.length} Sort{sorting.length !== 1 && "s"}
+            </button>
+
+            <SortModal
+              isOpen={isSortModalOpen}
+              onClose={() => setIsSortModalOpen(false)}
+              sorting={sorting}
+              setSorting={setSorting}
+              alignRight={sortAlignRight}
+            />
+          </div>
+          <div className="w-px h-5 bg-gray-300 mx-1" />
+        </>
+      )}
+
       <div className="bg-gray-100 rounded-lg px-3 py-1.5 text-sm font-medium flex items-center gap-2 text-gray-800 relative z-10">
         Matches
         <select

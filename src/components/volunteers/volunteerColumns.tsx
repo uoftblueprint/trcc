@@ -14,7 +14,7 @@ import {
 
 type FilterType = "text" | "options" | null;
 
-interface ColumnConfig {
+export interface ColumnConfig {
   id: keyof Volunteer;
   label: string;
   icon: React.ElementType;
@@ -53,7 +53,7 @@ const renderSingleTag = (
   return <VolunteerTag label={String(value)} />;
 };
 
-const COLUMNS_CONFIG: ColumnConfig[] = [
+export const COLUMNS_CONFIG: ColumnConfig[] = [
   {
     id: "name_org",
     label: "Full Name",
@@ -175,6 +175,7 @@ export const getBaseColumns = (): ColumnDef<Volunteer>[] => {
       id: col.id,
       header: () => <HeaderWithIcon icon={col.icon} label={col.label} />,
       size: col.size,
+      sortDescFirst: false,
       ...(col.accessorFn
         ? { accessorFn: col.accessorFn }
         : { accessorKey: col.id }),
