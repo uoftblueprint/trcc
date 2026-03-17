@@ -221,6 +221,16 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      get_users_with_email: {
+        Args: Record<string, never>;
+        Returns: {
+          id: string;
+          created_at: string;
+          name: string | null;
+          role: Database["public"]["Enums"]["user_roles"] | null;
+          email: string | null;
+        }[];
+      };
       create_volunteer_with_role_and_cohort: {
         Args: {
           p_cohort_term: string;

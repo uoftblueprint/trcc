@@ -7,10 +7,7 @@ export type UserRow = Tables<"Users">;
 /** User row with email from auth.users (enriched by getUsers). */
 export type UserRowWithEmail = UserRow & { email: string | null };
 
-/**
- * Builds a map of user id -> email from auth.admin.listUsers (auth.users).
- * Returns empty map if admin client or listUsers fails.
- */
+/** Builds id -> email from auth.admin.listUsers. Returns empty map on failure. */
 async function getEmailByIdMap(): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   try {
@@ -30,10 +27,9 @@ async function getEmailByIdMap(): Promise<Map<string, string>> {
 }
 
 /**
- * Fetches all users from public.Users and enriches each with email from auth.users.
- *
- * @returns A Promise resolving to an array of user rows (id, created_at, name, role, email).
- * @throws Error if the Supabase query for public.Users fails.
+ * Fetches all users from public.Users with email from auth.users.
+ * Tries RPC get_users_with_email first; if not available, falls back to
+ * select + auth.admin.listUsers.
  */
 export async function getUsers(): Promise<UserRowWithEmail[]> {
   const client = await createClient();
@@ -47,26 +43,53 @@ export async function getUsers(): Promise<UserRowWithEmail[]> {
     }
   }
 
-  const { data, error } = await client
+  const { data, error } = await client.rpc("get_users_with_email");
+
+  const isFunctionMissing =
+    error &&
+    typeof (error as { message?: string }).message === "string" &&
+    (error as { message: string }).message.includes(
+      "Could not find the function"
+    );
+
+  if (!error) {
+    const withEmail = (data ?? []).map((r: Record<string, unknown>) => ({
+      ...r,
+      email:
+        typeof r["email"] === "string" && r["email"] !== "" ? r["email"] : null,
+    })) as UserRowWithEmail[];
+    if (process.env.NODE_ENV === "development") {
+      console.log("[getUsers] row count:", withEmail.length);
+    }
+    return withEmail;
+  }
+
+  if (!isFunctionMissing) {
+    const msg =
+      typeof (error as { message?: unknown })?.message === "string"
+        ? (error as { message: string }).message
+        : String(error);
+    throw new Error(msg);
+  }
+
+  const { data: rowsData, error: selectError } = await client
     .from("Users")
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (error) {
-    const msg = error.message ?? String(error);
-    throw new Error(msg);
+  if (selectError) {
+    throw new Error(selectError.message ?? String(selectError));
   }
 
-  const rows = (data ?? []) as UserRow[];
+  const rows = (rowsData ?? []) as UserRow[];
   const emailById = await getEmailByIdMap();
-
   const withEmail: UserRowWithEmail[] = rows.map((row) => ({
     ...row,
     email: emailById.get(row.id) ?? null,
   }));
 
   if (process.env.NODE_ENV === "development") {
-    console.log("[getUsers] row count:", withEmail.length);
+    console.log("[getUsers] row count (fallback):", withEmail.length);
   }
   return withEmail;
 }
