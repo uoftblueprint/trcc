@@ -1,8 +1,13 @@
 // Tests the API function that fetches all users from public.Users and enriches with email from auth.users.
 // Requires RLS policy on public.Users for anon (migration 20260316000000). Run: supabase db reset
+// When tests expect email in the result, we create a matching auth.users row (get_users_with_email joins auth.users for email).
 
 import { describe, it, expect, beforeEach, afterEach, beforeAll } from "vitest";
-import { createServiceTestClient, deleteWhereIdIn } from "../support/helpers";
+import {
+  createServiceTestClient,
+  createServiceRoleTestClient,
+  deleteWhereIdIn,
+} from "../support/helpers";
 import { makeTestUserInsertWithEmail } from "../support/factories";
 import {
   getUsers,
@@ -13,10 +18,14 @@ import {
 // Rows returned by getUsers() (enriched with email from auth.users).
 type UserRowFromDb = UserRowWithEmail;
 
+const AUTH_TEST_PASSWORD = "TEST_password_12345";
+
 describe("getUsers (integration)", () => {
   const client = createServiceTestClient();
   const insertedIds: string[] = [];
+  const insertedAuthIds: string[] = [];
   let canReadUsers = false;
+  let authAdminAvailable = false;
 
   beforeAll(async () => {
     const canaryId = crypto.randomUUID();
@@ -35,16 +44,41 @@ describe("getUsers (integration)", () => {
     } catch {
       canReadUsers = false;
     }
+    try {
+      const adminClient = createServiceRoleTestClient();
+      const probeEmail = `TEST_probe_${canaryId}@example.com`;
+      const { data, error } = await adminClient.auth.admin.createUser({
+        email: probeEmail,
+        password: AUTH_TEST_PASSWORD,
+        email_confirm: true,
+      });
+      if (!error && data?.user) {
+        await adminClient.auth.admin.deleteUser(data.user.id);
+        authAdminAvailable = true;
+      } else {
+        authAdminAvailable = false;
+      }
+    } catch {
+      authAdminAvailable = false;
+    }
   });
 
   beforeEach(async () => {
     await deleteWhereIdIn(client, "Users", insertedIds);
     insertedIds.length = 0;
+    insertedAuthIds.length = 0;
   });
 
   afterEach(async () => {
     await deleteWhereIdIn(client, "Users", insertedIds);
     insertedIds.length = 0;
+    if (authAdminAvailable && insertedAuthIds.length > 0) {
+      const adminClient = createServiceRoleTestClient();
+      for (const id of insertedAuthIds) {
+        await adminClient.auth.admin.deleteUser(id);
+      }
+      insertedAuthIds.length = 0;
+    }
   });
 
   async function insertUser(
@@ -52,13 +86,41 @@ describe("getUsers (integration)", () => {
       id?: string;
       email?: string | null;
       role?: "admin" | "staff" | null;
-    } = {}
+    } = {},
+    options?: { createAuthUser?: boolean }
   ): Promise<{
     id: string;
     email: string | null;
     role: "admin" | "staff" | null;
   }> {
-    const row = makeTestUserInsertWithEmail(overrides);
+    const createAuth =
+      options?.createAuthUser !== false &&
+      overrides.email != null &&
+      overrides.email !== "";
+    let id: string;
+    if (createAuth && authAdminAvailable) {
+      const adminClient = createServiceRoleTestClient();
+      const { data, error } = await adminClient.auth.admin.createUser({
+        email: overrides.email as string,
+        password: AUTH_TEST_PASSWORD,
+        email_confirm: true,
+      });
+      if (error || !data.user) {
+        const row = makeTestUserInsertWithEmail(overrides);
+        await client.from("Users").insert(row as never);
+        insertedIds.push(row.id);
+        return row;
+      }
+      id = data.user.id;
+      insertedAuthIds.push(id);
+    } else {
+      id = overrides.id ?? crypto.randomUUID();
+    }
+    const row = {
+      id,
+      email: overrides.email ?? null,
+      role: overrides.role !== undefined ? overrides.role : "staff",
+    };
     await client.from("Users").insert(row as never);
     insertedIds.push(row.id);
     return row;
@@ -76,7 +138,7 @@ describe("getUsers (integration)", () => {
 
   describe("single user", () => {
     it("returns one user with admin role", async () => {
-      if (!canReadUsers) return;
+      if (!canReadUsers || !authAdminAvailable) return;
       const { id } = await insertUser({
         email: "TEST_User_Admin@example.com",
         role: "admin",
@@ -95,7 +157,7 @@ describe("getUsers (integration)", () => {
     });
 
     it("returns one user with staff role", async () => {
-      if (!canReadUsers) return;
+      if (!canReadUsers || !authAdminAvailable) return;
       const { id } = await insertUser({
         email: "TEST_User_Staff@example.com",
         role: "staff",
@@ -124,7 +186,7 @@ describe("getUsers (integration)", () => {
 
   describe("multiple users", () => {
     it("returns all test users", async () => {
-      if (!canReadUsers) return;
+      if (!canReadUsers || !authAdminAvailable) return;
       await insertUser({
         email: "TEST_User_Multi_1@example.com",
         role: "admin",
@@ -158,7 +220,7 @@ describe("getUsers (integration)", () => {
 
   describe("ordering", () => {
     it("returns users ordered by created_at descending", async () => {
-      if (!canReadUsers) return;
+      if (!canReadUsers || !authAdminAvailable) return;
       await insertUser({
         email: "TEST_User_First@example.com",
         role: "staff",
@@ -193,7 +255,7 @@ describe("getUsers (integration)", () => {
 
   describe("return value structure", () => {
     it("returns UserRow objects with correct properties", async () => {
-      if (!canReadUsers) return;
+      if (!canReadUsers || !authAdminAvailable) return;
       const { id } = await insertUser({
         email: "TEST_User_Structure@example.com",
         role: "admin",
@@ -241,10 +303,13 @@ describe("getUsers (integration)", () => {
 
     it("returns email null for user that exists only in public.Users", async () => {
       if (!canReadUsers) return;
-      const { id } = await insertUser({
-        email: "TEST_User_NoAuth@example.com",
-        role: "staff",
-      });
+      const { id } = await insertUser(
+        {
+          email: "TEST_User_NoAuth@example.com",
+          role: "staff",
+        },
+        { createAuthUser: false }
+      );
 
       const result = await getUsers();
       const row = result.find((r) => r.id === id);
