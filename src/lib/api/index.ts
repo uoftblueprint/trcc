@@ -17,3 +17,4 @@ export { createCohort } from "./createCohort";
 export { getCohorts } from "./getCohorts";
 export { removeCohort } from "./removeCohort";
 export { updateUser } from "./updateUser";
+export { import_csv } from "./import_csv";
