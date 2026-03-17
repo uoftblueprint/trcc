@@ -2,6 +2,8 @@ import { getUsers } from "@/lib/api";
 import type { StaffRow } from "../../../components/settings/ManageStaffTable";
 import { ManageStaffContent } from "../../../components/settings/ManageStaffContent";
 
+const EMAIL_NOT_FOUND_PLACEHOLDER = "—";
+
 function mapUserToStaffRow(user: {
   id: string;
   name?: string | null;
@@ -11,10 +13,14 @@ function mapUserToStaffRow(user: {
   const memberType: StaffRow["memberType"] =
     user.role === "admin" ? "Admin" : "Staff";
   const name = user.name ?? user.email ?? "";
+  const email =
+    typeof user.email === "string" && user.email !== ""
+      ? user.email
+      : EMAIL_NOT_FOUND_PLACEHOLDER;
   return {
     id: user.id,
     name,
-    email: typeof user.email === "string" ? user.email : "",
+    email,
     password: "",
     memberType,
   };
