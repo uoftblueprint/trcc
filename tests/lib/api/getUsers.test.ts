@@ -287,7 +287,9 @@ describe("getUsers (integration)", () => {
         const row = result.find((r) => r.id === authUserId);
 
         expect(row).toBeDefined();
-        expect(row!.email).toBe(testEmail);
+        // Auth stores email in lowercase; compare case-insensitively
+        expect(row!.email).toBeDefined();
+        expect(row!.email!.toLowerCase()).toBe(testEmail.toLowerCase());
       } finally {
         await adminClient.auth.admin.deleteUser(authUserId);
       }

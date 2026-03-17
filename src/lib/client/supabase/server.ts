@@ -61,8 +61,10 @@ export async function createClient(): Promise<SupabaseClient<Database>> {
 }
 
 export function createAdminClient(): SupabaseClient<Database> {
+  // Prefer SUPABASE_SERVICE_ROLE_KEY to avoid collisions with other tooling that
+  // may also define SERVICE_ROLE_KEY with a non-Supabase token.
   const serviceRoleKey =
-    process.env["SERVICE_ROLE_KEY"] ?? process.env["SUPABASE_SERVICE_ROLE_KEY"];
+    process.env["SUPABASE_SERVICE_ROLE_KEY"] ?? process.env["SERVICE_ROLE_KEY"];
 
   if (!process.env["API_URL"]) {
     throw new Error("Missing env var API_URL");
