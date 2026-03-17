@@ -231,6 +231,19 @@ export type Database = {
         };
         Returns: number;
       };
+      upsert_volunteer_with_roles_and_cohorts: {
+        Args: {
+          p_name: string | null;
+          p_pronouns: string | null;
+          p_email: string | null;
+          p_phone: string | null;
+          p_position: string | null;
+          p_cohort: Json | null;
+          p_roles: Json;
+          p_notes: string | null;
+        };
+        Returns: number;
+      };
     };
     Enums: {
       user_roles: "admin" | "staff";
