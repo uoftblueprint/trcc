@@ -6,43 +6,35 @@ import {
 } from "react";
 import styles from "./motion.module.css";
 
-type RevealProps<T extends ElementType = "div"> = {
+type StaggerProps<T extends ElementType = "div"> = {
   as?: T;
   children: React.ReactNode;
   className?: string;
   delayMs?: number;
-  distance?: number;
+  stepMs?: number;
   style?: CSSProperties;
-  variant?: "blur" | "fade" | "scale";
 } & Omit<
   ComponentPropsWithoutRef<T>,
   "as" | "children" | "className" | "style"
 >;
 
-export function Reveal<T extends ElementType = "div">({
+export function Stagger<T extends ElementType = "div">({
   as,
   children,
   className,
   delayMs = 0,
-  distance = 8,
+  stepMs = 36,
   style,
-  variant = "fade",
   ...props
-}: RevealProps<T>): React.JSX.Element {
+}: StaggerProps<T>): React.JSX.Element {
   const component = as ?? "div";
-  const variantClassName =
-    variant === "blur"
-      ? styles["revealBlur"]
-      : variant === "scale"
-        ? styles["revealScale"]
-        : styles["revealFade"];
-  const combinedClassName = [styles["reveal"], variantClassName, className]
+  const combinedClassName = [styles["stagger"], className]
     .filter(Boolean)
     .join(" ");
   const mergedStyle = {
     ...style,
     ["--motion-delay" as string]: `${delayMs}ms`,
-    ["--motion-distance" as string]: `${distance}px`,
+    ["--stagger-step" as string]: `${stepMs}ms`,
   };
 
   return createElement(

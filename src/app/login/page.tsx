@@ -4,7 +4,9 @@
 import { useState } from "react";
 import { AnimatedButton } from "@/components/ui/AnimatedButton";
 import { AnimatedInput } from "@/components/ui/AnimatedInput";
+import { InteractiveSurface } from "@/components/ui/InteractiveSurface";
 import { Reveal } from "@/components/ui/Reveal";
+import { Stagger } from "@/components/ui/Stagger";
 import { signInWithEmail, signUpWithEmail } from "@/lib/client/supabase/auth";
 
 export default function LoginPage(): React.JSX.Element {
@@ -46,67 +48,77 @@ export default function LoginPage(): React.JSX.Element {
 
   return (
     <main>
-      <Reveal as="h1">Sign In</Reveal>
-      <Reveal as="form" onSubmit={handleSignIn} delayMs={40}>
-        <label htmlFor="signin-email">Email</label>
-        <AnimatedInput
-          id="signin-email"
-          type="email"
-          value={signInEmail}
-          onChange={(event) => setSignInEmail(event.target.value)}
-          required
-        />
-
-        <label htmlFor="signin-password">Password</label>
-        <AnimatedInput
-          id="signin-password"
-          type="password"
-          value={signInPassword}
-          onChange={(event) => setSignInPassword(event.target.value)}
-          required
-        />
-
-        <AnimatedButton type="submit" disabled={loading}>
-          Sign In
-        </AnimatedButton>
+      <Reveal as="h1" variant="blur" distance={12}>
+        Sign In
       </Reveal>
+      <InteractiveSurface as="div">
+        <Stagger as="form" onSubmit={handleSignIn} delayMs={40} stepMs={44}>
+          <label htmlFor="signin-email">Email</label>
+          <AnimatedInput
+            id="signin-email"
+            type="email"
+            value={signInEmail}
+            onChange={(event) => setSignInEmail(event.target.value)}
+            required
+          />
 
-      <Reveal as="h1" delayMs={80}>
+          <label htmlFor="signin-password">Password</label>
+          <AnimatedInput
+            id="signin-password"
+            type="password"
+            value={signInPassword}
+            onChange={(event) => setSignInPassword(event.target.value)}
+            required
+          />
+
+          <AnimatedButton type="submit" disabled={loading}>
+            Sign In
+          </AnimatedButton>
+        </Stagger>
+      </InteractiveSurface>
+
+      <Reveal as="h1" delayMs={80} variant="blur" distance={12}>
         Sign Up
       </Reveal>
-      <Reveal as="form" onSubmit={handleSignUp} delayMs={120}>
-        <label htmlFor="signup-email">Email</label>
-        <AnimatedInput
-          id="signup-email"
-          type="email"
-          value={signUpEmail}
-          onChange={(event) => setSignUpEmail(event.target.value)}
-          required
-        />
+      <InteractiveSurface as="div">
+        <Stagger as="form" onSubmit={handleSignUp} delayMs={120} stepMs={44}>
+          <label htmlFor="signup-email">Email</label>
+          <AnimatedInput
+            id="signup-email"
+            type="email"
+            value={signUpEmail}
+            onChange={(event) => setSignUpEmail(event.target.value)}
+            required
+          />
 
-        <label htmlFor="signup-password">Password</label>
-        <AnimatedInput
-          id="signup-password"
-          type="password"
-          value={signUpPassword}
-          onChange={(event) => setSignUpPassword(event.target.value)}
-          required
-        />
+          <label htmlFor="signup-password">Password</label>
+          <AnimatedInput
+            id="signup-password"
+            type="password"
+            value={signUpPassword}
+            onChange={(event) => setSignUpPassword(event.target.value)}
+            required
+          />
 
-        <AnimatedButton type="submit" disabled={loading}>
-          Sign Up
-        </AnimatedButton>
-      </Reveal>
+          <AnimatedButton type="submit" disabled={loading}>
+            Sign Up
+          </AnimatedButton>
+        </Stagger>
+      </InteractiveSurface>
 
       {message ? (
-        <Reveal as="p" delayMs={160}>
-          {message}
-        </Reveal>
+        <InteractiveSurface as="div">
+          <Reveal as="p" delayMs={160} variant="scale" distance={10}>
+            {message}
+          </Reveal>
+        </InteractiveSurface>
       ) : null}
       {responseData ? (
-        <Reveal as="pre" delayMs={200}>
-          {JSON.stringify(responseData, null, 2)}
-        </Reveal>
+        <InteractiveSurface as="div">
+          <Reveal as="pre" delayMs={200} variant="scale" distance={10}>
+            {JSON.stringify(responseData, null, 2)}
+          </Reveal>
+        </InteractiveSurface>
       ) : null}
     </main>
   );
