@@ -11,7 +11,11 @@ function mapUserToStaffRow(user: {
   role: "admin" | "staff" | null;
 }): StaffRow {
   const memberType: StaffRow["memberType"] =
-    user.role === "admin" ? "Admin" : "Staff";
+    user.role === "admin"
+      ? "Admin"
+      : user.role === "staff"
+        ? "Staff"
+        : "No role";
   const name = user.name ?? user.email ?? "";
   const email =
     typeof user.email === "string" && user.email !== ""
