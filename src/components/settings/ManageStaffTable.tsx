@@ -14,7 +14,7 @@ export type StaffRow = {
   name: string;
   email: string;
   password: string;
-  memberType: "Admin" | "Staff";
+  memberType: "Admin" | "Staff" | "No role";
 };
 
 declare module "@tanstack/react-table" {
@@ -24,7 +24,7 @@ declare module "@tanstack/react-table" {
   }
 }
 
-const MEMBER_TYPES: StaffRow["memberType"][] = ["Admin", "Staff"];
+const MEMBER_TYPES: StaffRow["memberType"][] = ["Admin", "Staff", "No role"];
 
 const columnHelper = createColumnHelper<StaffRow>();
 
