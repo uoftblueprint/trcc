@@ -239,16 +239,16 @@ describe("createRole", () => {
     });
 
     it("enforces unique constraint on role name", async () => {
-      const duplicate = makeTestRoleInsert({ type: "current" });
+      const uniqueName = `TEST_UniqueConstraint_${Date.now()}_${Math.random().toString(36).slice(2)}`;
       const firstResult = await createRole({
-        name: duplicate.name,
+        name: uniqueName,
         type: "current",
       });
 
       expect(firstResult.success).toBe(true);
 
       const secondResult = await createRole({
-        name: duplicate.name,
+        name: uniqueName,
         type: "current",
       });
 

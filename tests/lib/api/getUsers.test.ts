@@ -20,6 +20,21 @@ type UserRowFromDb = UserRowWithEmail;
 
 const AUTH_TEST_PASSWORD = "TEST_password_12345";
 
+/** Auth often stores emails in lowercase; compare case-insensitively in tests. */
+function emailMatches(
+  received: string | null | undefined,
+  expected: string
+): boolean {
+  return (received ?? "").toLowerCase() === expected.toLowerCase();
+}
+
+function testUserFilter(
+  email: string | null | undefined,
+  prefix: string
+): boolean {
+  return (email ?? "").toLowerCase().startsWith(prefix.toLowerCase());
+}
+
 describe("getUsers (integration)", () => {
   const client = createServiceTestClient();
   const insertedIds: string[] = [];
@@ -129,8 +144,8 @@ describe("getUsers (integration)", () => {
   describe("empty results", () => {
     it("returns empty array when no users exist", async () => {
       const result = await getUsers();
-      const testResults = (result as UserRowFromDb[]).filter(
-        (row) => row.email?.startsWith("TEST_User_") ?? false
+      const testResults = (result as UserRowFromDb[]).filter((row) =>
+        testUserFilter(row.email, "TEST_User_")
       );
       expect(testResults).toEqual([]);
     });
@@ -148,9 +163,12 @@ describe("getUsers (integration)", () => {
       const testUser = (result as UserRowFromDb[]).find((row) => row.id === id);
 
       expect(testUser).toBeDefined();
-      expect(testUser!.email ?? (testUser as UserRowFromDb).name).toBe(
-        "TEST_User_Admin@example.com"
-      );
+      expect(
+        emailMatches(
+          testUser!.email ?? (testUser as UserRowFromDb).name ?? undefined,
+          "TEST_User_Admin@example.com"
+        )
+      ).toBe(true);
       expect(testUser!.role).toBe("admin");
       expect(testUser).toHaveProperty("id");
       expect(testUser).toHaveProperty("created_at");
@@ -201,20 +219,23 @@ describe("getUsers (integration)", () => {
       });
 
       const result = await getUsers();
-      const testUsers = (result as UserRowFromDb[]).filter(
-        (row) => row.email?.startsWith("TEST_User_Multi_") ?? false
+      const testUsers = (result as UserRowFromDb[]).filter((row) =>
+        testUserFilter(row.email, "TEST_User_Multi_")
       );
 
       expect(testUsers).toHaveLength(3);
       const emails = testUsers
         .map((u) => (u as UserRowFromDb).email ?? u.name)
         .filter(Boolean)
+        .map((e) => (e as string).toLowerCase())
         .sort();
-      expect(emails).toEqual([
-        "TEST_User_Multi_1@example.com",
-        "TEST_User_Multi_2@example.com",
-        "TEST_User_Multi_3@example.com",
-      ]);
+      expect(emails).toEqual(
+        [
+          "TEST_User_Multi_1@example.com",
+          "TEST_User_Multi_2@example.com",
+          "TEST_User_Multi_3@example.com",
+        ].map((e) => e.toLowerCase())
+      );
     });
   });
 
@@ -235,21 +256,30 @@ describe("getUsers (integration)", () => {
       });
 
       const result = await getUsers();
-      const testUsers = (result as UserRowFromDb[]).filter(
-        (row) => row.email?.startsWith("TEST_User_") ?? false
+      const testUsers = (result as UserRowFromDb[]).filter((row) =>
+        testUserFilter(row.email, "TEST_User_")
       );
 
       expect(testUsers).toHaveLength(3);
-      // Newest first: Third, Second, First
-      expect((testUsers[0] as UserRowFromDb).email ?? testUsers[0]!.name).toBe(
-        "TEST_User_Third@example.com"
-      );
-      expect((testUsers[1] as UserRowFromDb).email ?? testUsers[1]!.name).toBe(
-        "TEST_User_Second@example.com"
-      );
-      expect((testUsers[2] as UserRowFromDb).email ?? testUsers[2]!.name).toBe(
-        "TEST_User_First@example.com"
-      );
+      // Newest first: Third, Second, First (auth may return lowercase email)
+      expect(
+        emailMatches(
+          (testUsers[0] as UserRowFromDb).email ?? testUsers[0]!.name,
+          "TEST_User_Third@example.com"
+        )
+      ).toBe(true);
+      expect(
+        emailMatches(
+          (testUsers[1] as UserRowFromDb).email ?? testUsers[1]!.name,
+          "TEST_User_Second@example.com"
+        )
+      ).toBe(true);
+      expect(
+        emailMatches(
+          (testUsers[2] as UserRowFromDb).email ?? testUsers[2]!.name,
+          "TEST_User_First@example.com"
+        )
+      ).toBe(true);
     });
   });
 
@@ -267,9 +297,12 @@ describe("getUsers (integration)", () => {
       expect(testUser).toBeDefined();
       expect(testUser!).toHaveProperty("id");
       expect(testUser!).toHaveProperty("created_at");
-      expect((testUser as UserRowFromDb).email ?? testUser!.name).toBe(
-        "TEST_User_Structure@example.com"
-      );
+      expect(
+        emailMatches(
+          (testUser as UserRowFromDb).email ?? testUser!.name,
+          "TEST_User_Structure@example.com"
+        )
+      ).toBe(true);
       expect(testUser!).toHaveProperty("role", "admin");
     });
 
