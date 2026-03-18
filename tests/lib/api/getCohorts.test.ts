@@ -73,34 +73,22 @@ describe("getCohorts (integration)", () => {
   });
 
   it("includes cohorts of all valid terms", async () => {
-    const cohortFall = makeTestCohortInsert({ term: "Fall", year: TEST_YEAR });
-    const cohortSpring = makeTestCohortInsert({
-      term: "Spring",
-      year: TEST_YEAR,
-    });
-    const cohortSummer = makeTestCohortInsert({
-      term: "Summer",
-      year: TEST_YEAR,
-    });
-    const cohortWinter = makeTestCohortInsert({
-      term: "Winter",
-      year: TEST_YEAR,
-    });
+    const terms = ["Fall", "Spring", "Summer", "Winter"] as const;
+    const cohorts = terms.map((term) =>
+      makeTestCohortInsert({ term, year: TEST_YEAR })
+    );
 
-    await client.from("Cohorts").insert(cohortFall);
-    await client.from("Cohorts").insert(cohortSpring);
-    await client.from("Cohorts").insert(cohortSummer);
-    await client.from("Cohorts").insert(cohortWinter);
+    const { error } = await client.from("Cohorts").insert(cohorts);
+    expect(error).toBeNull();
 
     const result = await getCohorts();
     const testTerms = result
       .filter((c) => c.year === TEST_YEAR)
       .map((c) => c.term);
 
-    expect(testTerms).toContain("Fall");
-    expect(testTerms).toContain("Spring");
-    expect(testTerms).toContain("Summer");
-    expect(testTerms).toContain("Winter");
+    for (const term of terms) {
+      expect(testTerms).toContain(term);
+    }
   });
 
   it("includes both active and inactive cohorts", async () => {
