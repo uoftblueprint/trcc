@@ -16,7 +16,7 @@ CREATE OR REPLACE FUNCTION public.upsert_volunteer_with_roles_and_cohorts(
 	p_roles jsonb,
 	p_notes text
 )
-RETURNS bigint
+RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
@@ -32,6 +32,8 @@ DECLARE
 	v_term text;
 	v_cohort_id bigint;
 	v_link_role_id bigint;
+	v_role_ids jsonb := '[]'::jsonb;
+  	v_cohort_info jsonb := NULL;
 BEGIN
 	p_name := NULLIF(TRIM(p_name), '');
 	p_email := NULLIF(TRIM(p_email), '');

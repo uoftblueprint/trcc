@@ -34,12 +34,13 @@
     }
   },
   "include": [
+    ".lintstagedrc.mts",
     "next-env.d.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
     "tests/**/*.ts",
     "tests/**/*.tsx",
-    ".lintstagedrc.mts"
+    ".next/types/**/*.ts"
   ],
   "exclude": ["node_modules", ".next"]
 }

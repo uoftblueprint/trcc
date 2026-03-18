@@ -151,14 +151,11 @@ function parsePosition(position: string, result: ParsedVolunteer): boolean {
   return false;
 }
 
-function parseEmail(email: string, result: ParsedVolunteer): boolean {
+function validateEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
   if (emailRegex.test(email.trim())) {
-    result.email = email.trim();
     return true;
   }
-
   return false;
 }
 
@@ -255,7 +252,7 @@ function parseRow(
 
   const emailValue = normalizeNullable(rowData[RawCol.EMAIL]);
   if (emailValue) {
-    const isValidEmail = parseEmail(emailValue, result);
+    const isValidEmail = validateEmail(emailValue);
     if (!isValidEmail) {
       rowParseErrors.push({
         rowIndex,
@@ -263,6 +260,8 @@ function parseRow(
         value: emailValue,
         message: "Invalid email format.",
       });
+    } else {
+      result.email = emailValue;
     }
   }
 
@@ -438,7 +437,7 @@ export const __testables = {
   createEmptyVolunteer,
   normalizeNullable,
   parsePosition,
-  parseEmail,
+  validateEmail,
   parseCohort,
   parseRole,
   parseRow,
