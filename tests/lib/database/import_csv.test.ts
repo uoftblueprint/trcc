@@ -118,10 +118,10 @@
 //     // F2F "2. Prior" -> role F2F/prior
 //     // All other role columns are blank -> skip
 //     const volunteerName = `${TEST_NAME_PREFIX}_valid`;
-//     // const csv = [
-//     //   header,
-//     //   `${volunteerName},she/her,4. Staff,${TEST_YEAR} Fall,test_import_valid@example.com,555-0101,1. YES,1. Active,4. No,2. Prior,,,,,Integration note`,
-//     // ].join("\n");
+//     const csv = [
+//       header,
+//       `${volunteerName},she/her,4. Staff,${TEST_YEAR} Fall,test_import_valid@example.com,555-0101,1. YES,1. Active,4. No,2. Prior,,,,,Integration note`,
+//     ].join("\n");
 
 //     const volunteerData = {
 //       name: volunteerName,
@@ -142,8 +142,9 @@
 //       notes: "Integration note"
 //     };
 
-//     const csv = buildVolunteerCsvRow(volunteerData);
+//     // const csv = buildVolunteerCsvRow(volunteerData);
 //     const response = await import_csv(csv);
+//     console.log(response)
 
 //     expect(response.status).toBe("success");
 //     expect(response.summary.totalRows).toBe(1);
