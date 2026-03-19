@@ -336,6 +336,34 @@ function parseRows(rows: ParseRowsInput[]): ParseRowsResult {
   return { volunteers, rowErrors };
 }
 
+/**
+ * Attempts to import volunteers from a CSV string on a best-effort basis.
+ *
+ * There are two categories of errors that can occur during processing:
+ *
+ * 1. ParseError:
+ *    - Occurs when PapaParse fails to parse a CSV row, or when one or more values
+ *      in a row do not match the expected format from the Blank Membership List.
+ *    - These errors are reported in `summary.parseErrors`.
+ *
+ * 2. DbError:
+ *    - Occurs when a row fails to be upserted into one of the database tables:
+ *      Roles, Cohorts, Volunteers, VolunteerRoles, or VolunteerCohorts.
+ *    - This may be due to constraint violations (e.g., check constraints) or other
+ *      database-level errors.
+ *    - These errors are reported in `summary.dbErrors`.
+ *
+ * @param csv_string - Raw CSV string containing volunteer data.
+ *
+ * @returns A promise resolving to an {@link ImportCSVResponse} object containing:
+ * - Overall import status (`success`, `partial_success`, or `failed`)
+ * - Summary counts of parsed and inserted rows
+ * - Detailed parse and database errors
+ *
+ * @remarks
+ * - `rowIndex` in error objects corresponds to the row's index in the original CSV.
+ * - The header row is excluded; indexing starts from the first data row (index 0).
+ */
 export async function import_csv(
   csv_string: string
 ): Promise<ImportCSVResponse> {
