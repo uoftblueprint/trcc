@@ -193,15 +193,21 @@ describe("createVolunteer", () => {
   describe("integration (requires DB)", () => {
     const client = createServiceTestClient();
 
+    // Declare years used for inserting rows into Cohorts table first in order to delete them on cleanup
+    const cohortYear = 2097;
+    const nonexistentYear = 2098;
+
     beforeEach(async () => {
       await deleteWhere(client, "Volunteers", "name_org", "TEST_%");
       await deleteWhereGte(client, "Cohorts", "year", TEST_YEAR);
+      await deleteWhereGte(client, "Cohorts", "year", cohortYear);
       await deleteWhere(client, "Roles", "name", "TEST_%");
     });
 
     afterEach(async () => {
       await deleteWhere(client, "Volunteers", "name_org", "TEST_%");
       await deleteWhereGte(client, "Cohorts", "year", TEST_YEAR);
+      await deleteWhereGte(client, "Cohorts", "year", cohortYear);
       await deleteWhere(client, "Roles", "name", "TEST_%");
     });
 
@@ -273,7 +279,6 @@ describe("createVolunteer", () => {
 
     it("creates cohort when it does not exist", async () => {
       // Use a year within smallint range and distinct from TEST_YEAR (2099)
-      const nonexistentYear = 2098;
       const input: CreateVolunteerInput = {
         volunteer: {
           name_org: "TEST_Integration_Volunteer",
@@ -397,7 +402,6 @@ describe("createVolunteer", () => {
       });
 
       it("reuses existing cohort when creating second volunteer with same year and term", async () => {
-        const cohortYear = 2097;
         const cohortTerm = "Winter";
         const input1: CreateVolunteerInput = {
           volunteer: {
