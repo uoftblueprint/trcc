@@ -5,6 +5,9 @@ import {
   deleteWhere,
   deleteWhereGte,
 } from "../support/helpers";
+import fs from "fs/promises";
+import Papa from "papaparse";
+import path from "path";
 
 const header =
   "VOLUNTEER,PRONOUNS,POSITION,COHORT,EMAIL,PHONE,IZZY,ACCOMPANIMENT,CHAT,F2F,FRONT DESK,GRANTS,TRAINING TEAM,BOARD MEMBER,NOTES (copied from prior traning sheet)";
@@ -445,5 +448,175 @@ describe("db: import_csv (integration)", () => {
     expect(error).toBeNull();
     expect(volunteers).toHaveLength(1);
     expect(volunteers![0]?.name_org).toBe(`${TEST_NAME_PREFIX}_papa_valid`);
+  });
+
+  it("imports all rows from test_raw_csv.csv and verifies DB creation", async () => {
+    const csvPath = path.join("tests/test_data/test_raw_csv.csv");
+    const csvRaw = await fs.readFile(csvPath, "utf8");
+    const parsed = Papa.parse<Record<string, string>>(csvRaw, { header: true });
+    expect(parsed.errors).toHaveLength(0);
+
+    const expectedNames: string[] = [];
+    parsed.data.forEach((row) => {
+      if (row["VOLUNTEER"]) {
+        row["VOLUNTEER"] = `${TEST_NAME_PREFIX}_${row["VOLUNTEER"]}`;
+        expectedNames.push(row["VOLUNTEER"]);
+      }
+    });
+
+    const csvString = Papa.unparse(parsed.data);
+
+    // Run import_csv on the raw CSV string
+    const response = await import_csv(csvString);
+    expect(response.status).toContain(["partial_success"]);
+    expect(response.summary.totalRows).toBe(parsed.data.length);
+    expect(response.summary.parsedSucceeded).toBe(2);
+    expect(response.summary.parseFailed).toBe(1);
+    expect(response.summary.dbSucceeded).toBe(2);
+    expect(response.summary.dbFailed).toBe(0);
+    expect(response.parseErrors).toHaveLength(1);
+    expect(response.dbErrors).toHaveLength(0);
+
+    // 1. verify both volunteers were created correctly
+    // volunteer at row index 0 in original csv
+    const { data: v1, error: e1 } = await client
+      .from("Volunteers")
+      .select("id, name_org, pronouns, position, email, phone, notes")
+      .like("name_org", `${TEST_NAME_PREFIX}%TEST_IMPORT_VOLUNTEER1`)
+      .single();
+
+    expect(e1).toBeNull();
+    expect(v1).toBeTruthy();
+
+    expect(v1!.name_org).toContain("TEST_IMPORT_VOLUNTEER1");
+    expect(v1!.pronouns).toBe("she/her");
+    expect(v1!.email).toBe("TEST_IMPORT_VOLUNTEER1@gmail.com");
+    expect(v1!.phone).toBe("123");
+    expect(v1!.notes).toBe("TEST_VOLUNTEER1_NOTES");
+    expect(v1!.position).toBe("volunteer"); // contains CL → volunteer
+
+    // volunteer at row index 1 in original csv
+    const { data: v2, error: e2 } = await client
+      .from("Volunteers")
+      .select("id, name_org, pronouns, position, email, phone, notes")
+      .like("name_org", `${TEST_NAME_PREFIX}%TEST_IMPORT_VOLUNTEER2`)
+      .single();
+
+    expect(e2).toBeNull();
+    expect(v2).toBeTruthy();
+
+    expect(v2!.name_org).toContain("TEST_IMPORT_VOLUNTEER2");
+    expect(v2!.pronouns).toBe("he/him");
+    expect(v2!.email).toBe("TEST_IMPORT_VOLUNTEER2@gmail.com");
+    expect(v2!.phone).toBe("234");
+    expect(v2!.notes).toBe("TEST_VOLUNTEER2_NOTES");
+    expect(v2!.position).toBe("volunteer"); // "0. Training" → no match → null
+
+    // 2. VERIFY ROLES WERE CREATED FOR EACH TYPE
+    const roleNames = ["F2F", "Front Desk", "Accompaniment"];
+    const expectedTypes = ["current", "future_interest", "prior"];
+
+    const { data: roles, error } = await client
+      .from("Roles")
+      .select("id, name, type, is_active");
+    // .in("name", roleNames);
+
+    expect(error).toBeNull();
+    expect(roles).toBeTruthy();
+
+    // Group by role name
+    const roleMap = new Map<string, Set<string>>();
+
+    for (const r of roles!) {
+      if (!roleMap.has(r.name)) {
+        roleMap.set(r.name, new Set());
+      }
+      roleMap.get(r.name)!.add(r.type);
+
+      // also check is_active while we're here
+      expect(r.is_active).toBe(true);
+    }
+
+    // Assert each role has all 3 types
+    for (const name of roleNames) {
+      const types = roleMap.get(name);
+      expect(types).toBeTruthy();
+
+      expect(Array.from(types!)).toEqual(expect.arrayContaining(expectedTypes));
+    }
+
+    // 3. verify correct cohorts created
+    const { data: cohorts, error: cohortsError } = await client
+      .from("Cohorts")
+      .select("id, year, term")
+      .eq("year", 6769)
+      .in("term", ["Summer", "Fall"]);
+
+    expect(cohortsError).toBeNull();
+    expect(cohorts).toBeTruthy();
+    expect(cohorts).toHaveLength(2);
+
+    expect(cohorts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ year: 6769, term: "Summer" }),
+        expect.objectContaining({ year: 6769, term: "Fall" }),
+      ])
+    );
+
+    // 4. VERIFY COHORT AND ROLE JUNCTION TABLE ROWS
+
+    const roleId = (name: string, type: string): number =>
+      roles!.find((r) => r.name === name && r.type === type)!.id;
+
+    const clCurrentRoleId = roleId("Crisis Line Counsellor", "current");
+    const f2fPriorRoleId = roleId("F2F", "prior");
+    const frontDeskCurrentRoleId = roleId("Front Desk", "current");
+    const accompanimentFutureRoleId = roleId(
+      "Accompaniment",
+      "future_interest"
+    );
+
+    // 4.a Verify VolunteerRoles rows
+    const { data: volunteerRoles, error: volunteerRolesError } = await client
+      .from("VolunteerRoles")
+      .select("volunteer_id, role_id")
+      .in("volunteer_id", [v1!.id, v2!.id]);
+
+    expect(volunteerRolesError).toBeNull();
+    expect(volunteerRoles).toBeTruthy();
+
+    expect(volunteerRoles).toEqual(
+      expect.arrayContaining([
+        { volunteer_id: v1!.id, role_id: clCurrentRoleId! },
+        { volunteer_id: v2!.id, role_id: f2fPriorRoleId! },
+        { volunteer_id: v1!.id, role_id: frontDeskCurrentRoleId! },
+        { volunteer_id: v1!.id, role_id: accompanimentFutureRoleId! },
+      ])
+    );
+
+    // 4.b Verify volunteerCohorts rows
+
+    const { data: volunteerCohorts, error: volunteerCohortsError } =
+      await client
+        .from("VolunteerCohorts")
+        .select("volunteer_id, cohort_id")
+        .in("volunteer_id", [v1!.id, v2!.id]);
+
+    expect(volunteerCohortsError).toBeNull();
+    expect(volunteerCohorts).toBeTruthy();
+
+    const summerCohortId = cohorts!.find(
+      (c) => c.year === 6769 && c.term === "Summer"
+    )?.id;
+    const fallCohortId = cohorts!.find(
+      (c) => c.year === 6769 && c.term === "Fall"
+    )?.id;
+
+    expect(volunteerCohorts).toEqual(
+      expect.arrayContaining([
+        { volunteer_id: v1!.id, cohort_id: summerCohortId! },
+        { volunteer_id: v2!.id, cohort_id: fallCohortId! },
+      ])
+    );
   });
 });

@@ -146,6 +146,9 @@ function parsePosition(position: string, result: ParsedVolunteer): boolean {
   } else if (position.toLowerCase().includes("staff")) {
     result.position = "staff";
     return true;
+  } else if (position.toLowerCase().includes("training")) {
+    result.position = "volunteer";
+    return true;
   }
 
   return false;
