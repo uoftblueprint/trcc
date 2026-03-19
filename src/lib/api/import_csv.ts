@@ -440,7 +440,12 @@ export async function import_csv(
     dbSucceeded += 1;
   }
 
-  const parseFailed = papaParseErrors.length + rowParseErrors.length;
+  // Count unique row indices that failed parsing
+  const failedRowIndices = new Set<number>();
+  papaParseErrors.forEach((e) => failedRowIndices.add(e.rowIndex));
+  rowParseErrors.forEach((e) => failedRowIndices.add(e.rowIndex));
+
+  const parseFailed = failedRowIndices.size;
   const hasFailures = parseFailed > 0 || dbFailed > 0;
   const hasSuccesses = dbSucceeded > 0;
 

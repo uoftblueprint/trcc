@@ -333,7 +333,7 @@ describe("db: import_csv (integration)", () => {
     expect(response.status).toBe("failed");
     expect(response.summary.totalRows).toBe(1);
     expect(response.summary.parsedSucceeded).toBe(0);
-    expect(response.summary.parseFailed).toBeGreaterThan(0);
+    expect(response.summary.parseFailed).toBe(1);
     expect(response.summary.dbSucceeded).toBe(0);
     expect(response.summary.dbFailed).toBe(0);
     expect(response.parseErrors.every((e) => e.rowIndex === 0)).toBe(true);
