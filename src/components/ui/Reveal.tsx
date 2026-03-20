@@ -9,10 +9,10 @@ import styles from "./motion.module.css";
 type RevealProps<T extends ElementType = "div"> = {
   as?: T;
   children: React.ReactNode;
-  className?: string;
+  className?: string | undefined;
   delayMs?: number;
   distance?: number;
-  style?: CSSProperties;
+  style?: CSSProperties | undefined;
   variant?: "blur" | "fade" | "scale";
 } & Omit<
   ComponentPropsWithoutRef<T>,

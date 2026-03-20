@@ -8,7 +8,7 @@ import styles from "./motion.module.css";
 type InteractiveSurfaceProps<T extends ElementType = "div"> = {
   as?: T;
   children: React.ReactNode;
-  className?: string;
+  className?: string | undefined;
 } & Omit<ComponentPropsWithoutRef<T>, "as" | "children" | "className">;
 
 export function InteractiveSurface<T extends ElementType = "div">({

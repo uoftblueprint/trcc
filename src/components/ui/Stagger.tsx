@@ -9,10 +9,10 @@ import styles from "./motion.module.css";
 type StaggerProps<T extends ElementType = "div"> = {
   as?: T;
   children: React.ReactNode;
-  className?: string;
+  className?: string | undefined;
   delayMs?: number;
   stepMs?: number;
-  style?: CSSProperties;
+  style?: CSSProperties | undefined;
 } & Omit<
   ComponentPropsWithoutRef<T>,
   "as" | "children" | "className" | "style"
