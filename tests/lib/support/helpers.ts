@@ -30,6 +30,10 @@ export function getTestServiceRoleKey(): string {
   return requireEnv("SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY");
 }
 
+export function getTestSecretKey(): string {
+  return requireEnv("SECRET_KEY");
+}
+
 export function createAnonTestClient(): DbClient {
   // Disable auth to prevent Supabase from trying to parse the `Authorization` header as a JWT
   return createClient<Database>(getTestSupabaseUrl(), getTestAnonKey(), {
@@ -95,13 +99,8 @@ export async function deleteWhereGte<
 }
 
 export function createAdminTestClient(): DbClient {
-  const serviceRoleKey = getTestServiceRoleKey();
-  return createClient<Database>(getTestSupabaseUrl(), serviceRoleKey, {
-    global: {
-      headers: {
-        Authorization: `Bearer ${serviceRoleKey}`,
-      },
-    },
+  const secretKey = getTestSecretKey();
+  return createClient<Database>(getTestSupabaseUrl(), secretKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
