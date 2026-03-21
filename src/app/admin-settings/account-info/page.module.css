@@ -170,7 +170,7 @@
 }
 
 .errorText {
-  color: var(--color-tag-red);
+  color: #cc0000;
   font-size: 0.75rem;
   margin-top: 4px;
 }
