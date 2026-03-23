@@ -10,6 +10,7 @@ const {
   parseRole,
   parseRow,
   parseRows,
+  validateHeaders,
 } = __testables;
 
 describe("import_csv helper functions", () => {
@@ -238,6 +239,46 @@ describe("import_csv helper functions", () => {
       expect(out.volunteers[0]?.index).toBe(0);
       expect(out.rowErrors.length).toBeGreaterThan(0);
       expect(out.rowErrors.every((e) => e.rowIndex === 5)).toBe(true);
+    });
+  });
+
+  describe("validateHeaders", () => {
+    it("returns empty array when all required headers are present", () => {
+      const headers = [
+        "VOLUNTEER",
+        "PRONOUNS",
+        "POSITION",
+        "COHORT",
+        "EMAIL",
+        "PHONE",
+      ];
+      expect(validateHeaders(headers)).toEqual([]);
+    });
+
+    it("returns empty array with case-insensitive matching", () => {
+      const headers = ["Volunteer", "Email", "Position", "Cohort"];
+      expect(validateHeaders(headers)).toEqual([]);
+    });
+
+    it("returns missing headers when required ones are absent", () => {
+      const headers = ["PRONOUNS", "PHONE"];
+      const missing = validateHeaders(headers);
+      expect(missing).toEqual(
+        expect.arrayContaining(["volunteer", "email", "position", "cohort"])
+      );
+    });
+
+    it("returns only the specific missing headers", () => {
+      const headers = ["VOLUNTEER", "COHORT"];
+      const missing = validateHeaders(headers);
+      expect(missing).toContain("email");
+      expect(missing).toContain("position");
+      expect(missing).not.toContain("volunteer");
+      expect(missing).not.toContain("cohort");
+    });
+
+    it("returns all required headers for empty input", () => {
+      expect(validateHeaders([])).toHaveLength(4);
     });
   });
 });

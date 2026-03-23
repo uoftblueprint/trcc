@@ -53,6 +53,18 @@ const RAW_TO_VALID_ROLE_NAME: Record<string, string> = {
   [RawCol.BOARD_MEMBER]: "Board Member",
 };
 
+const REQUIRED_HEADERS: string[] = [
+  RawCol.VOLUNTEER,
+  RawCol.EMAIL,
+  RawCol.POSITION,
+  RawCol.COHORT,
+];
+
+function validateHeaders(fields: string[]): string[] {
+  const lowerFields = new Set(fields.map((f) => f.toLowerCase().trim()));
+  return REQUIRED_HEADERS.filter((h) => !lowerFields.has(h));
+}
+
 const VALID_COHORT_SEASONS = new Set(["Fall", "Winter", "Summer", "Spring"]);
 
 type ParsedVolunteerBase = Omit<
@@ -372,6 +384,29 @@ export async function import_csv(
       header: true,
     });
 
+  // Validate that required headers are present in the CSV
+  const csvHeaders = parsed_csv.meta.fields ?? [];
+  const missingHeaders = validateHeaders(csvHeaders);
+  if (missingHeaders.length > 0) {
+    return {
+      status: "failed",
+      summary: {
+        totalRows: 0,
+        parsedSucceeded: 0,
+        parseFailed: 0,
+        dbSucceeded: 0,
+        dbFailed: 0,
+      },
+      parseErrors: [
+        {
+          rowIndex: -1,
+          message: `CSV is missing required header(s): ${missingHeaders.join(", ")}`,
+        },
+      ],
+      dbErrors: [],
+    };
+  }
+
   // Collect Papa Parse errors (e.g., malformed CSV rows)
   const papaParseErrors: RowParseError[] = parsed_csv.errors.map((error) => ({
     rowIndex: error.row ?? -1, // row might be undefined for header errors
@@ -478,4 +513,5 @@ export const __testables = {
   parseRole,
   parseRow,
   parseRows,
+  validateHeaders,
 };

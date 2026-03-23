@@ -130,6 +130,20 @@ describe("db: import_csv (integration)", () => {
     await deleteWhereGte(client, "Cohorts", "year", TEST_YEAR);
   });
 
+  it("returns failed with header error when required headers are missing", async () => {
+    const csv = "NAME,PHONE\nJohn,555-0101";
+    const response = await import_csv(csv);
+
+    expect(response.status).toBe("failed");
+    expect(response.summary.totalRows).toBe(0);
+    expect(response.parseErrors).toHaveLength(1);
+    expect(response.parseErrors[0]?.rowIndex).toBe(-1);
+    expect(response.parseErrors[0]?.message).toContain(
+      "missing required header"
+    );
+    expect(response.dbErrors).toHaveLength(0);
+  });
+
   it("imports a Staff row with real role values and creates volunteer/cohort/role links", async () => {
     // Position "4. Staff" -> position=staff, no role from position column
     // Accompaniment "1. Active"  role Accompaniment/current
