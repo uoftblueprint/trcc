@@ -250,11 +250,7 @@ export const VolunteersTable = (): React.JSX.Element => {
         );
         if (!ignore) {
           if (filterResult.error) throw new Error(filterResult.error);
-          const filteredIds = new Set(
-            (filterResult.data || []).map((v) =>
-              typeof v === "number" ? v : v.id
-            )
-          );
+          const filteredIds = new Set(filterResult.data || []);
           setData(allVolunteers.filter((v) => filteredIds.has(v.id)));
         }
       } catch (error) {
