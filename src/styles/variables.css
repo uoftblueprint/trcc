@@ -1,43 +1,43 @@
 :root {
   /* Purple Palette */
-  --color-purple-900: #311D38;
-  --color-purple-800: #492A55;
-  --color-purple-700: #663D75;
-  --color-purple-600: #78468C;
-  --color-purple-500: #9D68B3;
-  --color-purple-400: #B487C4;
-  --color-purple-300: #C9A9D5;
-  --color-purple-200: #DECCE6;
-  --color-purple-100: #FAF8FB;
+  --color-purple-900: #311d38;
+  --color-purple-800: #492a55;
+  --color-purple-700: #663d75;
+  --color-purple-600: #78468c;
+  --color-purple-500: #9d68b3;
+  --color-purple-400: #b487c4;
+  --color-purple-300: #c9a9d5;
+  --color-purple-200: #decce6;
+  --color-purple-100: #faf8fb;
 
   /* Teal Palette */
-  --color-teal-900: #13353B;
-  --color-teal-800: #1F5861;
-  --color-teal-700: #2C7C88;
-  --color-teal-600: #379FAE;
-  --color-teal-500: #58BBCA;
-  --color-teal-400: #77C8D4;
-  --color-teal-300: #9ED8E1;
-  --color-teal-200: #C5E8ED;
-  --color-teal-100: #F0F5F7;
+  --color-teal-900: #13353b;
+  --color-teal-800: #1f5861;
+  --color-teal-700: #2c7c88;
+  --color-teal-600: #379fae;
+  --color-teal-500: #58bbca;
+  --color-teal-400: #77c8d4;
+  --color-teal-300: #9ed8e1;
+  --color-teal-200: #c5e8ed;
+  --color-teal-100: #f0f5f7;
 
   /* Neutral Palette */
-  --color-neutral-900: #1C2230;
-  --color-neutral-800: #272E40;
-  --color-neutral-700: #43516F;
-  --color-neutral-600: #56698F;
-  --color-neutral-500: #7082A8;
-  --color-neutral-400: #8F9DBC;
-  --color-neutral-300: #AFBACF;
-  --color-neutral-200: #D9DEE8;
-  --color-neutral-100: #F9F9FB;
+  --color-neutral-900: #1c2230;
+  --color-neutral-800: #272e40;
+  --color-neutral-700: #43516f;
+  --color-neutral-600: #56698f;
+  --color-neutral-500: #7082a8;
+  --color-neutral-400: #8f9dbc;
+  --color-neutral-300: #afbacf;
+  --color-neutral-200: #d9dee8;
+  --color-neutral-100: #f9f9fb;
 
   /* Borders / Strokes */
-  --color-border: #D4E3EE;
+  --color-border: #d4e3ee;
 
   /* Typography */
-  --font-family-primary: 'Manrope', sans-serif;
-  --font-family-secondary: 'Jost', sans-serif;
+  --font-family-primary: "Manrope", sans-serif;
+  --font-family-secondary: "Jost", sans-serif;
 
   /* Font Sizes */
   --font-size-h1: 48px;
@@ -52,7 +52,10 @@
   --font-weight-extrabold: 800;
 
   /* Pre-composed Typography defaults */
-  --font-heading-1: var(--font-weight-extrabold) var(--font-size-h1) var(--font-family-primary);
-  --font-heading-2: var(--font-weight-bold) var(--font-size-h2) var(--font-family-primary);
-  --font-body: var(--font-weight-regular) var(--font-size-body) var(--font-family-primary);
+  --font-heading-1: var(--font-weight-extrabold) var(--font-size-h1)
+    var(--font-family-primary);
+  --font-heading-2: var(--font-weight-bold) var(--font-size-h2)
+    var(--font-family-primary);
+  --font-body: var(--font-weight-regular) var(--font-size-body)
+    var(--font-family-primary);
 }
