@@ -28,7 +28,7 @@ export default function LoginPage(): JSX.Element {
         return;
       }
 
-      router.push("/");
+      router.push("/volunteers");
     } finally {
       setLoading(false);
     }
