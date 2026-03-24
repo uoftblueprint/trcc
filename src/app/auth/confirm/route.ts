@@ -20,5 +20,5 @@ export async function GET(request: NextRequest): Promise<void> {
     return redirect("/auth/auth-code-error");
   }
 
-  return redirect("/");
+  return redirect("/volunteers");
 }

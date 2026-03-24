@@ -4,15 +4,18 @@ import { NextResponse, type NextRequest } from "next/server";
 const publicPathPrefixes = ["/auth", "/animation-test", "/login"];
 
 function isPublicPath(pathname: string): boolean {
-  return (
-    pathname === "/" ||
-    publicPathPrefixes.some((path) => pathname.startsWith(path))
-  );
+  return publicPathPrefixes.some((path) => pathname.startsWith(path));
 }
 
 export async function updateSession(
   request: NextRequest
 ): Promise<NextResponse> {
+  if (request.nextUrl.pathname === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/volunteers";
+    return NextResponse.redirect(url);
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -50,6 +53,12 @@ export async function updateSession(
   // with the Supabase client, your users may be randomly logged out.
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
+
+  if (!user && request.nextUrl.pathname === "/volunteers") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
 
   if (!user && !isPublicPath(request.nextUrl.pathname)) {
     // no user, potentially respond by redirecting the user to the login page
