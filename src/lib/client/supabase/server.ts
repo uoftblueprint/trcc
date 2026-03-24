@@ -37,8 +37,7 @@ function getPublishableKey(preferLocal: boolean): string {
 export async function createClient(): Promise<SupabaseClient<Database>> {
   if (
     process.env.NODE_ENV === "test" ||
-    process.env["SUPABASE_TESTING"] === "1" ||
-    process.env.NODE_ENV === "development"
+    process.env["SUPABASE_TESTING"] === "1"
   ) {
     // In tests we connect to a local Supabase instance
     // and do not use SSR or cookies
