@@ -32,15 +32,13 @@ import {
 } from "@/lib/api/getVolunteersByMultipleColumns";
 import { getVolunteersTable } from "@/lib/api/getVolunteersTable";
 import { useDebounce } from "@/hooks/useDebounce";
-import { createClient } from "@/lib/client/supabase/client";
-import { useUser } from "@/lib/client/userContext";
+import { getCurrentUser } from "@/lib/api/getCurrentUser";
 
 export const VolunteersTable = (): React.JSX.Element => {
   const [data, setData] = useState<Volunteer[]>([]);
   const [allVolunteers, setAllVolunteers] = useState<Volunteer[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const isResizingRef = useRef(false);
-  const { user } = useUser();
   const [role, setRole] = useState<string | null>(null);
 
   const [filters, setFilters] = useState<FilterTuple[]>([]);
@@ -280,18 +278,16 @@ export const VolunteersTable = (): React.JSX.Element => {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
     const fetchRole = async (): Promise<void> => {
-      const client = createClient();
-      const { data } = await client
-        .from("Users")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-      setRole(data?.role ?? "staff"); //default to staff
+      try {
+        const user = await getCurrentUser();
+        setRole(user.role);
+      } catch (error) {
+        console.error("Failed to fetch user role:", error);
+      }
     };
     fetchRole();
-  }, [user]);
+  }, []);
 
   return (
     <div className="w-full flex flex-col gap-4 p-6 bg-white min-h-150">

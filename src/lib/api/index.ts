@@ -13,3 +13,4 @@ export { removeRole } from "./removeRole";
 export { updateUser } from "./updateUser";
 export { import_csv } from "./import_csv";
 export { getUsers } from "./getUsers";
+export { getCurrentUser } from "./getCurrentUser";
