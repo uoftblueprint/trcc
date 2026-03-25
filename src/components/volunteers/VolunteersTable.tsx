@@ -27,6 +27,46 @@ import { FilterBar } from "./FilterBar";
 import { FilterModal, filterModalAlignRight } from "./FilterModal";
 import { FILTERABLE_COLUMNS } from "./volunteerColumns";
 import {
+  getVolunteersTable,
+  VolunteerTableEntry,
+} from "@/lib/api/getVolunteersTable";
+import { getCurrentUser } from "@/lib/api/getCurrentUser";
+
+// TODO: Here for demonstration, remove later in favour of proper filtering
+const getMockVolunteers = async (filter?: string): Promise<Volunteer[]> => {
+  await new Promise<void>((resolve) => setTimeout(resolve, 800));
+
+  const baseData = Array(15)
+    .fill(null)
+    .map(
+      (_, i): Volunteer => ({
+        id: i,
+        name_org: `Volunteer ${i + 1}`,
+        pseudonym: `Pseudonym ${i + 1}`,
+        pronouns: i % 2 === 0 ? "She/Her" : "He/Him",
+        email: "volunteer@example.com",
+        phone: "123-456-7890",
+        position: "Member",
+        notes: "Notes...",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        opt_in_communication: true,
+        cohorts: ["2025 Fall", "2025 Summer", "2025 Spring"],
+        prior_roles: ["Crisis Line Counsellor"],
+        current_roles:
+          i % 2 !== 0 ? ["Emergency Back-up", "Chat Counsellor"] : [],
+        future_interests: i % 2 === 0 ? ["Chat Counsellor"] : [],
+      })
+    );
+
+  if (filter === "2024 Only") {
+    return baseData
+      .slice(0, 3)
+      .map((v) => ({ ...v, cohorts: ["2024 Spring"] }));
+  }
+
+  return baseData;
+};
   getVolunteersByMultipleColumns,
   FilterTuple,
 } from "@/lib/api/getVolunteersByMultipleColumns";
@@ -38,6 +78,7 @@ export const VolunteersTable = (): React.JSX.Element => {
   const [allVolunteers, setAllVolunteers] = useState<Volunteer[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const isResizingRef = useRef(false);
+  const [role, setRole] = useState<string | null>(null);
 
   const [filters, setFilters] = useState<FilterTuple[]>([]);
   const [globalOp, setGlobalOp] = useState<"AND" | "OR">("AND");
@@ -275,6 +316,18 @@ export const VolunteersTable = (): React.JSX.Element => {
     return (): void => window.removeEventListener("mouseup", handleMouseUp);
   }, []);
 
+  useEffect(() => {
+    const fetchRole = async (): Promise<void> => {
+      try {
+        const user = await getCurrentUser();
+        setRole(user.role);
+      } catch (error) {
+        console.error("Failed to fetch user role:", error);
+      }
+    };
+    fetchRole();
+  }, []);
+
   return (
     <div className="w-full flex flex-col gap-4 p-6 bg-white min-h-150">
       {/* Controls Section */}
@@ -330,16 +383,20 @@ export const VolunteersTable = (): React.JSX.Element => {
         </button>
 
         {/* New Volunteer Button */}
-        <button className="flex items-center gap-2 px-4 py-2 bg-accent-purple hover:bg-dark-accent-purple transition-colors rounded-lg text-sm font-medium text-white shadow-sm">
-          <Plus className="w-4 h-4 shrink-0" />
-          <span>New Volunteer</span>
-        </button>
+        {role === "admin" && (
+          <button className="flex items-center gap-2 px-4 py-2 bg-accent-purple hover:bg-dark-accent-purple transition-colors rounded-lg text-sm font-medium text-white shadow-sm">
+            <Plus className="w-4 h-4 shrink-0" />
+            <span>New Volunteer</span>
+          </button>
+        )}
 
         {/* Import CSV Button */}
-        <button className="flex items-center gap-2 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm font-medium text-gray-900">
-          <Import className="w-4 h-4 shrink-0" />
-          <span>Import from CSV</span>
-        </button>
+        {role === "admin" && (
+          <button className="flex items-center gap-2 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm font-medium text-gray-900">
+            <Import className="w-4 h-4 shrink-0" />
+            <span>Import from CSV</span>
+          </button>
+        )}
       </div>
 
       {/* Filter Bar */}
