@@ -11,6 +11,5 @@ export { createVolunteer } from "./createVolunteer";
 export { getVolunteersTable } from "./getVolunteersTable";
 export { removeRole } from "./removeRole";
 export { updateUser } from "./updateUser";
-export { getCurrentUser } from "./getCurrentUser";
 export { import_csv } from "./import_csv";
 export { getUsers } from "./getUsers";
