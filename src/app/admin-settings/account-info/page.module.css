@@ -42,7 +42,7 @@
   font-family: "Manrope", sans-serif;
   font-size: 14px;
   font-weight: 500;
-  background: var(--color-primary-purple);
+  background: var(--color-purple-200);
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 8px;
   padding: 6px 12px;
@@ -51,7 +51,7 @@
 }
 
 .editButton:hover {
-  background: var(--color-secondary-purple);
+  background: var(--color-purple-300);
 }
 
 .editIcon {
@@ -106,14 +106,14 @@
 }
 
 .valueInput:focus {
-  border-color: var(--color-accent-purple);
+  border-color: var(--color-purple-600);
 }
 
 .link {
   font-family: "Manrope", sans-serif;
   font-size: 16px;
   font-weight: 400;
-  color: var(--color-dark-accent-purple);
+  color: var(--color-purple-700);
   text-decoration: none;
   height: 24px;
   padding: 0;
@@ -139,7 +139,7 @@
 }
 
 .cancelButton {
-  background: var(--color-primary-purple);
+  background: var(--color-purple-200);
   border: none;
   padding: 12px 40px;
   border-radius: 8px;
@@ -150,11 +150,11 @@
 }
 
 .cancelButton:hover {
-  background: var(--color-secondary-purple);
+  background: var(--color-purple-300);
 }
 
 .saveButton {
-  background: var(--color-accent-purple);
+  background: var(--color-purple-600);
   color: white;
   border: none;
   padding: 12px 40px;
@@ -166,7 +166,7 @@
 }
 
 .saveButton:hover {
-  background: var(--color-dark-accent-purple);
+  background: var(--color-purple-700);
 }
 
 .errorText {
