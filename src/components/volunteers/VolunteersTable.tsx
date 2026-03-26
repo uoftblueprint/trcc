@@ -345,7 +345,7 @@ export const VolunteersTable = (): React.JSX.Element => {
 
         {/* New Volunteer Button */}
         {role === "admin" && (
-          <button className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 transition-colors rounded-lg text-sm font-medium text-white shadow-sm">
+          <button className="flex items-center gap-2 px-4 py-2 bg-accent-purple hover:bg-dark-accent-purple transition-colors rounded-lg text-sm font-medium text-white shadow-sm">
             <Plus className="w-4 h-4 shrink-0" />
             <span>New Volunteer</span>
           </button>
