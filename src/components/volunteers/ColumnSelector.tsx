@@ -44,7 +44,7 @@ export const ColumnSelector = ({
             }
           }
         }}
-        className="w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-purple"
+        className="w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
       />
       <div className="flex flex-col max-h-60 overflow-y-auto mt-2">
         {visibleColumns.length > 0 ? (

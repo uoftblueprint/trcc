@@ -130,7 +130,7 @@ export const SortModal = ({
             {availableColumns.length > 0 && (
               <button
                 onClick={() => setEditingIndex("NEW")}
-                className="flex items-center gap-2 text-sm font-medium text-accent-purple hover:text-dark-accent-purple mt-1 cursor-pointer"
+                className="flex items-center gap-2 text-sm font-medium text-purple-600 hover:text-purple-700 mt-1 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 Add Sort
