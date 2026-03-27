@@ -21,20 +21,13 @@ declare module "@tanstack/react-table" {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface TableMeta<TData extends RowData> {
     updateData?: (rowIndex: number, columnId: string, value: unknown) => void;
+    pendingEdits?: Record<string, Record<string, unknown>>;
   }
 }
 
 const MEMBER_TYPES: StaffRow["memberType"][] = ["Admin", "Staff", "No role"];
 
 const columnHelper = createColumnHelper<StaffRow>();
-
-// const defaultData: StaffRow[] = Array.from({ length: 6 }, (_, i) => ({
-//   id: `staff-${i + 1}`,
-//   name: "First Last Name",
-//   email: "alicesmith@gmail.com",
-//   password: "password",
-//   memberType: "Admin",
-// }));
 
 function EditableCell({
   getValue,
@@ -43,7 +36,7 @@ function EditableCell({
   table,
 }: {
   getValue: () => string;
-  row: { index: number };
+  row: { index: number; original: StaffRow };
   column: { id: string };
   table: {
     options: {
@@ -53,12 +46,17 @@ function EditableCell({
           columnId: string,
           value: unknown
         ) => void;
+        pendingEdits?: Record<string, Record<string, unknown>>;
       };
     };
   };
 }): React.JSX.Element {
-  const [value, setValue] = useState("");
+  const [inputValue, setValue] = useState("");
   const [editing, setEditing] = useState(false);
+
+  const isDirty =
+    table.options.meta?.pendingEdits?.[row.original.id]?.[column.id] !==
+    undefined;
 
   const startEditing = useCallback(() => {
     setValue(getValue());
@@ -67,26 +65,28 @@ function EditableCell({
 
   const onBlur = useCallback(() => {
     setEditing(false);
-    table.options.meta?.updateData?.(row.index, column.id, value);
-  }, [row.index, column.id, value, table.options.meta]);
+    table.options.meta?.updateData?.(row.index, column.id, inputValue);
+  }, [row.index, column.id, inputValue, table.options.meta]);
 
   if (editing) {
     return (
       <input
         type="text"
-        value={value}
+        value={inputValue}
         onChange={(e) => setValue(e.target.value)}
         onBlur={onBlur}
-        onKeyDown={(e) =>
-          e.key === "Enter" && (e.target as HTMLInputElement).blur()
-        }
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") setEditing(false);
+        }}
         autoFocus
         style={{
           width: "100%",
-          border: "1px solid #ccc",
+          border: "1px solid #a78bfa",
           borderRadius: "4px",
           padding: "4px 8px",
           fontSize: "inherit",
+          outline: "none",
         }}
       />
     );
@@ -98,9 +98,20 @@ function EditableCell({
       tabIndex={0}
       onClick={startEditing}
       onKeyDown={(e) => e.key === "Enter" && startEditing()}
-      style={{ cursor: "text", minHeight: "24px" }}
+      style={{
+        cursor: "text",
+        minHeight: "24px",
+        borderRadius: "4px",
+        padding: "2px 4px",
+        margin: "0 -4px",
+        backgroundColor: isDirty ? "#fefce8" : undefined,
+        outline: isDirty ? "1px solid #fde047" : undefined,
+      }}
+      title="Click to edit"
     >
-      {getValue() || " "}
+      {getValue() || (
+        <span style={{ color: "#9ca3af", fontStyle: "italic" }}>—</span>
+      )}
     </div>
   );
 }
@@ -112,7 +123,7 @@ function PasswordCell({
   table,
 }: {
   getValue: () => string;
-  row: { index: number };
+  row: { index: number; original: StaffRow };
   column: { id: string };
   table: {
     options: {
@@ -122,12 +133,17 @@ function PasswordCell({
           columnId: string,
           value: unknown
         ) => void;
+        pendingEdits?: Record<string, Record<string, unknown>>;
       };
     };
   };
 }): React.JSX.Element {
-  const [value, setValue] = useState("");
+  const [inputValue, setValue] = useState("");
   const [editing, setEditing] = useState(false);
+
+  const isDirty =
+    table.options.meta?.pendingEdits?.[row.original.id]?.[column.id] !==
+    undefined;
 
   const startEditing = useCallback(() => {
     setValue(getValue());
@@ -136,26 +152,32 @@ function PasswordCell({
 
   const onBlur = useCallback(() => {
     setEditing(false);
-    table.options.meta?.updateData?.(row.index, column.id, value);
-  }, [row.index, column.id, value, table.options.meta]);
+    // Only register pending edit if the user typed something
+    if (inputValue.trim() !== "") {
+      table.options.meta?.updateData?.(row.index, column.id, inputValue);
+    }
+  }, [row.index, column.id, inputValue, table.options.meta]);
 
   if (editing) {
     return (
       <input
         type="password"
-        value={value}
+        value={inputValue}
         onChange={(e) => setValue(e.target.value)}
         onBlur={onBlur}
-        onKeyDown={(e) =>
-          e.key === "Enter" && (e.target as HTMLInputElement).blur()
-        }
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") setEditing(false);
+        }}
         autoFocus
+        placeholder="New password (min 6 chars)"
         style={{
           width: "100%",
-          border: "1px solid #ccc",
+          border: "1px solid #a78bfa",
           borderRadius: "4px",
           padding: "4px 8px",
           fontSize: "inherit",
+          outline: "none",
         }}
       />
     );
@@ -167,9 +189,19 @@ function PasswordCell({
       tabIndex={0}
       onClick={startEditing}
       onKeyDown={(e) => e.key === "Enter" && startEditing()}
-      style={{ cursor: "text", minHeight: "24px", color: "#737373" }}
+      style={{
+        cursor: "text",
+        minHeight: "24px",
+        color: isDirty ? "#713f12" : "#737373",
+        borderRadius: "4px",
+        padding: "2px 4px",
+        margin: "0 -4px",
+        backgroundColor: isDirty ? "#fefce8" : undefined,
+        outline: isDirty ? "1px solid #fde047" : undefined,
+      }}
+      title="Click to change password"
     >
-      ****************
+      {isDirty ? "••••••••" : "****************"}
     </div>
   );
 }
@@ -181,7 +213,7 @@ function MemberTypeCell({
   table,
 }: {
   getValue: () => StaffRow["memberType"];
-  row: { index: number };
+  row: { index: number; original: StaffRow };
   column: { id: string };
   table: {
     options: {
@@ -191,11 +223,18 @@ function MemberTypeCell({
           columnId: string,
           value: unknown
         ) => void;
+        pendingEdits?: Record<string, Record<string, unknown>>;
       };
     };
   };
 }): React.JSX.Element {
-  const value = getValue();
+  const pendingVal =
+    table.options.meta?.pendingEdits?.[row.original.id]?.[column.id];
+  const value =
+    pendingVal !== undefined
+      ? (pendingVal as StaffRow["memberType"])
+      : getValue();
+  const isDirty = pendingVal !== undefined;
 
   const onChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -211,11 +250,11 @@ function MemberTypeCell({
       onChange={onChange}
       style={{
         width: "100%",
-        border: "1px solid #ccc",
+        border: isDirty ? "1px solid #fde047" : "1px solid #e5e7eb",
         borderRadius: "4px",
         padding: "4px 8px",
         fontSize: "inherit",
-        backgroundColor: "#fff",
+        backgroundColor: isDirty ? "#fefce8" : "#fff",
         cursor: "pointer",
       }}
     >
@@ -228,35 +267,17 @@ function MemberTypeCell({
   );
 }
 
-type ManageStaffTableProps = {
-  initialData?: StaffRow[];
-  /** When provided with onDataChange, table is controlled (e.g. for adding rows from a parent modal). */
-  data?: StaffRow[];
-  onDataChange?: (data: StaffRow[]) => void;
+export type ManageStaffTableProps = {
+  data: StaffRow[];
+  pendingEdits: Record<string, Record<string, unknown>>;
+  onCellEdit: (rowIndex: number, columnId: string, value: unknown) => void;
 };
 
 export function ManageStaffTable({
-  initialData,
-  data: controlledData,
-  onDataChange,
+  data,
+  pendingEdits,
+  onCellEdit,
 }: ManageStaffTableProps): React.JSX.Element {
-  const [internalData, setInternalData] = useState<StaffRow[]>(
-    () => initialData ?? []
-  );
-  const isControlled = controlledData != null && onDataChange != null;
-  const data = isControlled ? controlledData : internalData;
-
-  const updateData = useCallback(
-    (rowIndex: number, columnId: string, value: unknown) => {
-      const next = data.map((row, i) =>
-        i === rowIndex ? { ...row, [columnId]: value } : row
-      );
-      if (isControlled) onDataChange(next);
-      else setInternalData(next);
-    },
-    [data, isControlled, onDataChange]
-  );
-
   const table = useReactTable({
     data,
     columns: [
@@ -306,7 +327,7 @@ export function ManageStaffTable({
       }),
     ],
     getCoreRowModel: getCoreRowModel(),
-    meta: { updateData },
+    meta: { updateData: onCellEdit, pendingEdits },
   });
 
   return (

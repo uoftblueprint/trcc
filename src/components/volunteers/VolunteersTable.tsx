@@ -33,6 +33,7 @@ import {
 import { getVolunteersTable } from "@/lib/api/getVolunteersTable";
 import { useDebounce } from "@/hooks/useDebounce";
 import { getCurrentUser } from "@/lib/api/getCurrentUser";
+import { updateVolunteerAction } from "@/lib/api/actions";
 
 export const VolunteersTable = (): React.JSX.Element => {
   const [data, setData] = useState<Volunteer[]>([]);
@@ -51,6 +52,101 @@ export const VolunteersTable = (): React.JSX.Element => {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
+
+  // Pending edits: keyed by String(volunteerId) → { columnId: newValue }
+  const [pendingEdits, setPendingEdits] = useState<
+    Record<string, Record<string, unknown>>
+  >({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const hasPendingEdits = Object.keys(pendingEdits).length > 0;
+
+  const onCellEdit = useCallback(
+    (volunteerId: string, columnId: string, value: unknown) => {
+      setSaveError(null);
+      setPendingEdits((prev) => ({
+        ...prev,
+        [volunteerId]: {
+          ...(prev[volunteerId] ?? {}),
+          [columnId]: value,
+        },
+      }));
+    },
+    []
+  );
+
+  const handleCancel = useCallback(() => {
+    setPendingEdits({});
+    setSaveError(null);
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    if (!hasPendingEdits) return;
+    setIsSaving(true);
+    setSaveError(null);
+
+    const errors: string[] = [];
+
+    for (const [volunteerIdStr, changes] of Object.entries(pendingEdits)) {
+      const volunteerId = Number(volunteerIdStr);
+
+      // Build valid patch body - only include fields supported by updateVolunteer
+      const allowed = new Set([
+        "name_org",
+        "email",
+        "phone",
+        "pronouns",
+        "pseudonym",
+        "position",
+        "notes",
+        "opt_in_communication",
+      ]);
+      const body: Record<string, unknown> = {};
+      for (const [field, val] of Object.entries(changes)) {
+        if (allowed.has(field)) body[field] = val;
+      }
+
+      if (Object.keys(body).length === 0) continue;
+
+      // Validate name_org client-side before sending
+      if ("name_org" in body) {
+        const nameVal = body["name_org"];
+        if (typeof nameVal === "string" && nameVal.trim() === "") {
+          errors.push(`Volunteer ${volunteerIdStr}: Full Name cannot be empty`);
+          continue;
+        }
+      }
+
+      try {
+        const result = await updateVolunteerAction(volunteerId, body);
+        if (result.status !== 200) {
+          const errBody = result.body as { error?: string };
+          errors.push(
+            `Volunteer ${volunteerIdStr}: ${errBody.error ?? "Update failed"}`
+          );
+        } else {
+          // Update local data with saved values
+          const applyEdit = (v: Volunteer): Volunteer =>
+            v.id === volunteerId ? { ...v, ...body } : v;
+          setData((prev) => prev.map(applyEdit));
+          setAllVolunteers((prev) => prev.map(applyEdit));
+        }
+      } catch (err) {
+        errors.push(
+          `Volunteer ${volunteerIdStr}: ${err instanceof Error ? err.message : "Unknown error"}`
+        );
+      }
+    }
+
+    if (errors.length > 0) {
+      setSaveError(errors.join(" · "));
+    } else {
+      setPendingEdits({});
+    }
+
+    setIsSaving(false);
+  }, [hasPendingEdits, pendingEdits]);
 
   const columns = useMemo<ColumnDef<Volunteer>[]>(
     () => [
@@ -116,6 +212,7 @@ export const VolunteersTable = (): React.JSX.Element => {
         return String(value).toLowerCase().includes(lowerFilter);
       });
     },
+    meta: { onCellEdit, pendingEdits },
   });
 
   const {
@@ -561,6 +658,31 @@ export const VolunteersTable = (): React.JSX.Element => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Save / Cancel bar */}
+      {hasPendingEdits && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-white rounded-xl shadow-lg border border-gray-200 px-4 py-3">
+          {saveError && (
+            <span className="text-red-600 text-xs max-w-xs truncate">
+              {saveError}
+            </span>
+          )}
+          <button
+            onClick={handleCancel}
+            disabled={isSaving}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="px-4 py-2 text-sm font-medium text-white bg-accent-purple hover:bg-dark-accent-purple rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
+          >
+            {isSaving ? "Saving…" : "Save"}
+          </button>
         </div>
       )}
     </div>
