@@ -44,8 +44,9 @@ function randomToken(): string {
   return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
+let _idCounter = 0;
 function uniqueTestId(): number {
-  return Date.now() * 1000 + Math.floor(Math.random() * 1000);
+  return Date.now() * 10000 + (_idCounter++ % 10000);
 }
 
 // Cohorts Factory
