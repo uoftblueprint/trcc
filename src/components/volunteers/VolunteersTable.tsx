@@ -25,6 +25,8 @@ import { getBaseColumns } from "./volunteerColumns";
 import { Search, ListFilter, ArrowUpDown, Import, Plus } from "lucide-react";
 import { FilterBar } from "./FilterBar";
 import { FilterModal, filterModalAlignRight } from "./FilterModal";
+import { AddVolunteerModal } from "./AddVolunteerModal";
+import { ImportCSVModal } from "./ImportCSVModal";
 import { FILTERABLE_COLUMNS } from "./volunteerColumns";
 import {
   getVolunteersByMultipleColumns,
@@ -51,6 +53,9 @@ export const VolunteersTable = (): React.JSX.Element => {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
+
+  const [isAddVolunteerOpen, setIsAddVolunteerOpen] = useState(false);
+  const [isImportCSVOpen, setIsImportCSVOpen] = useState(false);
 
   const columns = useMemo<ColumnDef<Volunteer>[]>(
     () => [
@@ -345,7 +350,10 @@ export const VolunteersTable = (): React.JSX.Element => {
 
         {/* New Volunteer Button */}
         {role === "admin" && (
-          <button className="flex items-center gap-2 px-4 py-2 bg-accent-purple hover:bg-dark-accent-purple transition-colors rounded-lg text-sm font-medium text-white shadow-sm">
+          <button
+            onClick={() => setIsAddVolunteerOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-accent-purple hover:bg-dark-accent-purple transition-colors rounded-lg text-sm font-medium text-white shadow-sm"
+          >
             <Plus className="w-4 h-4 shrink-0" />
             <span>New Volunteer</span>
           </button>
@@ -353,7 +361,10 @@ export const VolunteersTable = (): React.JSX.Element => {
 
         {/* Import CSV Button */}
         {role === "admin" && (
-          <button className="flex items-center gap-2 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm font-medium text-gray-900">
+          <button
+            onClick={() => setIsImportCSVOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm font-medium text-gray-900"
+          >
             <Import className="w-4 h-4 shrink-0" />
             <span>Import from CSV</span>
           </button>
@@ -563,6 +574,24 @@ export const VolunteersTable = (): React.JSX.Element => {
           </div>
         </div>
       )}
+
+      <AddVolunteerModal
+        isOpen={isAddVolunteerOpen}
+        onClose={() => setIsAddVolunteerOpen(false)}
+        onSuccess={() => {
+          setLoading(true);
+          fetchInitialData();
+        }}
+      />
+
+      <ImportCSVModal
+        isOpen={isImportCSVOpen}
+        onClose={() => setIsImportCSVOpen(false)}
+        onSuccess={() => {
+          setLoading(true);
+          fetchInitialData();
+        }}
+      />
     </div>
   );
 };
