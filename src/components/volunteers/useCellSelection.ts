@@ -214,7 +214,6 @@ export const useCellSelection = (
           const rowId = id.slice(0, separatorIndex);
           const colId = id.slice(separatorIndex + 1);
 
-
           if (!rowId || !colId) return;
 
           const row = tableRows.find((r) => String(r.id) === rowId);
