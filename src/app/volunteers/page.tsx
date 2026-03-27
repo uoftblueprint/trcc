@@ -1,4 +1,4 @@
-import VolunteersTable from "@/components/volunteers/VolunteersTable";
+import { VolunteersTable } from "@/components/volunteers/VolunteersTable";
 
 export default function VolunteersPage(): React.JSX.Element {
   return (

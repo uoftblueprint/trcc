@@ -3,6 +3,7 @@ import { ColumnDef, CellContext } from "@tanstack/react-table";
 import { Volunteer } from "./types";
 import { VolunteerTag } from "./VolunteerTag";
 import { HeaderWithIcon } from "./HeaderWithIcon";
+import { EditableCell } from "./EditableCell";
 import {
   CaseSensitive,
   User,
@@ -169,17 +170,38 @@ export const FILTERABLE_COLUMNS = COLUMNS_CONFIG.filter(
   isMulti: col.isMulti ?? false,
 }));
 
-export const getBaseColumns = (): ColumnDef<Volunteer>[] => {
-  return COLUMNS_CONFIG.map(
-    (col): ColumnDef<Volunteer> => ({
-      id: col.id,
+export const getBaseColumns = (
+  isAdmin: boolean = false,
+  onEdit?: (rowId: number, colId: string, value: unknown) => void,
+  optionsData: Record<string, string[]> = {}
+): ColumnDef<Volunteer>[] => {
+  return COLUMNS_CONFIG.map((col): ColumnDef<Volunteer> => {
+    const isEditable = isAdmin && onEdit !== undefined;
+
+    return {
+      id: col.id as string,
       header: () => <HeaderWithIcon icon={col.icon} label={col.label} />,
       size: col.size,
       sortDescFirst: false,
       ...(col.accessorFn
         ? { accessorFn: col.accessorFn }
         : { accessorKey: col.id }),
-      ...(col.cell ? { cell: col.cell } : {}),
-    })
-  );
+
+      ...(isEditable && onEdit
+        ? {
+            cell: (info: CellContext<Volunteer, unknown>) => (
+              <EditableCell
+                info={info}
+                onEdit={onEdit}
+                type={col.filterType === "options" ? "options" : "text"}
+                isMulti={col.isMulti ?? false}
+                options={optionsData[col.id as string] || []}
+              />
+            ),
+          }
+        : col.cell
+          ? { cell: col.cell }
+          : {}),
+    } as ColumnDef<Volunteer>;
+  });
 };
