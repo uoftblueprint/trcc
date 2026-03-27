@@ -2,16 +2,30 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Settings, LogOut, ChevronDown } from "lucide-react";
+import { LogOut, MoreVertical, Settings, UserCircle } from "lucide-react";
 import { createClient } from "@/lib/client/supabase/client";
 import { useUser } from "@/lib/client/userContext";
+import { getCurrentUser } from "@/lib/api/getCurrentUser";
+import type { Database } from "@/lib/client/supabase/types";
+
+type UserRow = Database["public"]["Tables"]["Users"]["Row"];
 
 export function TopNavBar(): React.JSX.Element {
   const { user } = useUser();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<UserRow | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Fetch current user data (name, role) from Users table
+  useEffect(() => {
+    if (!user) return;
+    getCurrentUser()
+      .then(setCurrentUser)
+      .catch(() => {});
+  }, [user]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -47,8 +61,7 @@ export function TopNavBar(): React.JSX.Element {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        height: "64px",
-        padding: "0 24px",
+        padding: "20px 40px",
         backgroundColor: "#fff",
         borderBottom: "1px solid var(--color-border, #d4e3ee)",
         position: "sticky",
@@ -57,37 +70,18 @@ export function TopNavBar(): React.JSX.Element {
       }}
     >
       {/* Logo */}
-      <Link
-        href="/volunteers"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          textDecoration: "none",
-        }}
-      >
-        <span
-          style={{
-            fontSize: "1.25rem",
-            fontWeight: 800,
-            color: "var(--trcc-purple, #78468c)",
-            letterSpacing: "-0.02em",
-          }}
-        >
-          TRCC
-        </span>
-        <span
-          style={{
-            fontSize: "0.75rem",
-            fontWeight: 500,
-            color: "var(--color-neutral-500, #7082a8)",
-          }}
-        >
-          Dashboard
-        </span>
+      <Link href="/volunteers">
+        <Image
+          src="/trcc-logo.png"
+          alt="Toronto Rape Crisis Centre"
+          width={100}
+          height={40}
+          style={{ objectFit: "contain" }}
+          priority
+        />
       </Link>
 
-      {/* Settings menu */}
+      {/* User profile menu */}
       <div ref={menuRef} style={{ position: "relative" }}>
         <button
           type="button"
@@ -97,41 +91,54 @@ export function TopNavBar(): React.JSX.Element {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "8px",
+            gap: "10px",
             padding: "6px 12px",
-            borderRadius: "6px",
-            border: "1px solid transparent",
+            borderRadius: "8px",
+            border: "none",
             backgroundColor: menuOpen
               ? "var(--trcc-light-purple, #e9ddee)"
-              : "transparent",
+              : "var(--trcc-light-purple, #e9ddee)",
             cursor: "pointer",
-            fontSize: "0.875rem",
-            fontWeight: 500,
-            color: "var(--foreground, #171717)",
             transition: "background-color 0.15s ease",
           }}
         >
-          <Settings style={{ width: 18, height: 18 }} />
-          {user?.email && (
+          <UserCircle
+            style={{ width: 32, height: 32, color: "#737373" }}
+            strokeWidth={1.5}
+          />
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+            }}
+          >
             <span
               style={{
-                maxWidth: "160px",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                color: "#171717",
+                lineHeight: 1.3,
               }}
             >
-              {user.email}
+              {currentUser?.name || user?.email || "User"}
             </span>
-          )}
-          <ChevronDown
-            style={{
-              width: 14,
-              height: 14,
-              transform: menuOpen ? "rotate(180deg)" : "rotate(0deg)",
-              transition: "transform 0.15s ease",
-            }}
-          />
+            <span
+              style={{
+                fontSize: "0.75rem",
+                fontWeight: 400,
+                color: "#737373",
+                lineHeight: 1.3,
+              }}
+            >
+              {currentUser?.role === "admin"
+                ? "Administrator"
+                : currentUser?.role === "staff"
+                  ? "Staff"
+                  : ""}
+            </span>
+          </div>
+          <MoreVertical style={{ width: 18, height: 18, color: "#737373" }} />
         </button>
 
         {menuOpen && (
