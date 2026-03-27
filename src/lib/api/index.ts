@@ -2,6 +2,7 @@
 
 export { getExample } from "./getExample";
 export { createRole } from "./createRole";
+export { createUser } from "./createUser";
 export { getRoles } from "./getRoles";
 export { removeVolunteer } from "./removeVolunteer";
 export { getVolunteersByCohorts } from "./getVolunteersByCohorts";

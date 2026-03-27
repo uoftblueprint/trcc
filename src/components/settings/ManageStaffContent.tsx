@@ -3,6 +3,7 @@
 import React, { useCallback, useState } from "react";
 import { ManageStaffTable, type StaffRow } from "./ManageStaffTable";
 import { NewUserModal } from "./NewUserModal";
+import { createUser } from "@/lib/api/createUser";
 
 type ManageStaffContentProps = {
   initialData: StaffRow[];
@@ -15,11 +16,27 @@ export function ManageStaffContent({
 }: ManageStaffContentProps): React.JSX.Element {
   const [staffList, setStaffList] = useState<StaffRow[]>(initialData);
   const [modalOpen, setModalOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleAddUser = useCallback((user: Omit<StaffRow, "id">) => {
+  const handleAddUser = useCallback(async (user: Omit<StaffRow, "id">) => {
+    setError(null);
+
+    const role = user.memberType === "Admin" ? "admin" : "staff";
+    const result = await createUser({
+      email: user.email,
+      password: user.password,
+      name: user.name || undefined,
+      role,
+    });
+
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+
     const newRow: StaffRow = {
       ...user,
-      id: crypto.randomUUID(),
+      id: result.data!.id,
     };
     setStaffList((prev) => [...prev, newRow]);
   }, []);
@@ -64,7 +81,7 @@ export function ManageStaffContent({
           New User
         </button>
       </div>
-      {loadError && (
+      {(loadError || error) && (
         <div
           role="alert"
           style={{
@@ -76,7 +93,9 @@ export function ManageStaffContent({
             fontSize: "0.875rem",
           }}
         >
-          {"Error loading users: " + loadError}
+          {loadError
+            ? "Error loading users: " + loadError
+            : "Error creating user: " + error}
         </div>
       )}
       <ManageStaffTable data={staffList} onDataChange={setStaffList} />
