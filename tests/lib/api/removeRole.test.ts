@@ -148,13 +148,17 @@ describe("removeRole (integration)", () => {
     const result = await removeRole(role1Name, role1Type);
     expect(result.success).toBe(true);
 
-    const { data: roleSelectData } = await client.from("Roles").select("id");
+    const { data: roleSelectData } = await client
+      .from("Roles")
+      .select("id")
+      .like("name", "TEST_%");
     expect(roleSelectData).toHaveLength(1);
     expect(roleSelectData![0]!.id).toBe(role2Id);
 
     const { data: volunteerRoleSelectData } = await client
       .from("VolunteerRoles")
-      .select();
+      .select()
+      .in("role_id", [role1Id, role2Id]);
     expect(volunteerRoleSelectData).toHaveLength(1);
     expect(volunteerRoleSelectData![0]!.role_id).toBe(role2Id);
     expect(volunteerRoleSelectData![0]!.volunteer_id).toBe(volunteer3Id);

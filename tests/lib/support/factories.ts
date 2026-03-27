@@ -46,7 +46,9 @@ function randomToken(): string {
 
 let _idCounter = 0;
 function uniqueTestId(): number {
-  return Date.now() * 10000 + (_idCounter++ % 10000);
+  // Date.now() * 10000 overflows Number.MAX_SAFE_INTEGER (~9e15), causing collisions.
+  // Use modulo to keep values in safe range: max = 999999 * 100000 + 99999 ≈ 1e11, well within 9e15.
+  return (Date.now() % 1_000_000) * 100_000 + (_idCounter++ % 100_000);
 }
 
 // Cohorts Factory
