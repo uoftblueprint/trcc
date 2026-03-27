@@ -402,7 +402,6 @@ export const VolunteersTable = (): React.JSX.Element => {
         setSorting={setSorting}
       />
 
-
       {/* Table Content */}
       {loading ? (
         <div className="space-y-4 p-4 animate-pulse rounded-lg h-64 bg-gray-50">
