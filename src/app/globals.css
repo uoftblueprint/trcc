@@ -1,18 +1,20 @@
+@import "../styles/normalize.css";
 @import "../styles/variables.css";
 @import "tailwindcss";
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --trcc-purple: #78468c;
-  --trcc-light-purple: #e9ddee;
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* TRCC brand shortcuts (aliased from variables.css palette) */
+  --trcc-purple: var(--color-purple-600);
+  --trcc-light-purple: var(--color-purple-200);
+
+  /* Semantic color aliases used across components */
+  --color-primary-purple: var(--color-purple-200);
+  --color-secondary-purple: var(--color-purple-300);
+  --color-accent-purple: var(--color-purple-600);
+  --color-dark-accent-purple: var(--color-purple-700);
 }
 
 @layer base {
@@ -25,25 +27,8 @@
   body {
     color: var(--foreground);
     background: var(--background);
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: var(--font-family-primary), sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-  }
-
-  * {
-    box-sizing: border-box;
-    padding: 0;
-    margin: 0;
-  }
-
-  a {
-    color: inherit;
-    text-decoration: none;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
   }
 }
