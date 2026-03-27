@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+<<<<<<< HEAD
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { LogOut, MoreVertical, Settings, UserCircle } from "lucide-react";
@@ -11,11 +12,18 @@ import { getCurrentUser } from "@/lib/api/getCurrentUser";
 import type { Database } from "@/lib/client/supabase/types";
 
 type UserRow = Database["public"]["Tables"]["Users"]["Row"];
+=======
+import { usePathname } from "next/navigation";
+import { Settings, LogOut, ChevronDown } from "lucide-react";
+import { createClient } from "@/lib/client/supabase/client";
+import { useUser } from "@/lib/client/userContext";
+>>>>>>> f586944 (updated navbar)
 
 export function TopNavBar(): React.JSX.Element {
   const { user } = useUser();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+<<<<<<< HEAD
   const [currentUser, setCurrentUser] = useState<UserRow | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -27,6 +35,10 @@ export function TopNavBar(): React.JSX.Element {
       .catch(() => {});
   }, [user]);
 
+=======
+  const menuRef = useRef<HTMLDivElement>(null);
+
+>>>>>>> f586944 (updated navbar)
   // Close menu when clicking outside
   useEffect(() => {
     if (!menuOpen) return;
