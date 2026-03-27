@@ -1,12 +1,6 @@
 "use client";
 
-import React, {
-  useEffect,
-  useState,
-  useMemo,
-  useCallback,
-  useRef,
-} from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -15,14 +9,12 @@ import {
   getSortedRowModel,
   flexRender,
   ColumnDef,
-  SortingState,
-  RowSelectionState,
 } from "@tanstack/react-table";
 import clsx from "clsx";
-import type { Volunteer, CohortRow, RoleRow } from "./types";
+import type { Volunteer } from "./types";
 import { useCellSelection } from "./useCellSelection";
-import { getBaseColumns } from "./volunteerColumns";
-import { Search, ListFilter, ArrowUpDown, Import, Plus } from "lucide-react";
+import { getBaseColumns, FILTERABLE_COLUMNS } from "./volunteerColumns";
+import { AlertCircle } from "lucide-react";
 import { FilterBar } from "./FilterBar";
 import { FilterModal, filterModalAlignRight } from "./FilterModal";
 import { SortModal } from "./SortModal";
@@ -37,29 +29,111 @@ import { getVolunteersTable } from "@/lib/api/getVolunteersTable";
 import { useDebounce } from "@/hooks/useDebounce";
 import { getCurrentUser } from "@/lib/api/getCurrentUser";
 
-export const VolunteersTable = (): React.JSX.Element => {
-  const [data, setData] = useState<Volunteer[]>([]);
-  const [allVolunteers, setAllVolunteers] = useState<Volunteer[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
   const isResizingRef = useRef(false);
   const [role, setRole] = useState<string | null>(null);
 
-  const [filters, setFilters] = useState<FilterTuple[]>([
-    { field: "opt_in_communication", miniOp: "OR", values: ["Yes"] },
-  ]);
-  const [globalOp, setGlobalOp] = useState<"AND" | "OR">("AND");
-  const [isMainFilterOpen, setIsMainFilterOpen] = useState(false);
-  const [mainFilterAlignRight, setMainFilterAlignRight] = useState(false);
-  const debouncedFilters = useDebounce(filters);
-  const debouncedGlobalOp = useDebounce(globalOp);
+  const {
+    data,
+    setData,
+    allVolunteers,
+    allRoles,
+    allCohorts,
+    loading,
+    setLoading,
+    filters,
+    setFilters,
+    globalOp,
+    setGlobalOp,
+    globalFilter,
+    setGlobalFilter,
+    sorting,
+    setSorting,
+    rowSelection,
+    setRowSelection,
+    debouncedGlobalFilter,
+    fetchInitialData,
+    debouncedFilters,
+  } = useVolunteersData({ isAdmin, editedRowsRef });
 
-  const [isSortModalOpen, setIsSortModalOpen] = useState(false);
-  const [sortModalAlignRight, setSortModalAlignRight] = useState(false);
+  const {
+    isSaving,
+    saveErrors,
+    hasEdits,
+    handleCellEdit,
+    handleSaveEdits,
+    handleCancelEdits,
+  } = useVolunteerEdits({
+    editedRows,
+    setEditedRows,
+    allVolunteers,
+    allRoles,
+    allCohorts,
+    setData,
+    setLoading,
+    fetchInitialData,
+  });
 
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [globalFilter, setGlobalFilter] = useState("");
-  const debouncedGlobalFilter = useDebounce(globalFilter, 300);
+  const filterOptions = useMemo(() => {
+    const options: Record<string, Set<string>> = {};
+    FILTERABLE_COLUMNS.forEach((col) => {
+      if (col.type === "options") options[col.id] = new Set();
+    });
+
+    allCohorts.forEach((c) => options["cohorts"]?.add(`${c.term} ${c.year}`));
+    allRoles.forEach((r) => {
+      if (r.type === "current") options["current_roles"]?.add(r.name);
+      if (r.type === "prior") options["prior_roles"]?.add(r.name);
+      if (r.type === "future_interest")
+        options["future_interests"]?.add(r.name);
+    });
+
+    PRONOUN_OPTIONS.forEach((p) => options["pronouns"]?.add(p));
+    OPT_IN_OPTIONS.forEach((o) => options["opt_in_communication"]?.add(o));
+
+    allVolunteers.forEach((volunteer) => {
+      FILTERABLE_COLUMNS.forEach((col) => {
+        if (col.type === "options") {
+          const value = volunteer[col.id as keyof Volunteer];
+          if (Array.isArray(value)) {
+            value.forEach((v) => {
+              if (v) options[col.id]?.add(String(v));
+            });
+          } else if (value != null) {
+            if (col.id === "opt_in_communication")
+              options[col.id]?.add(value ? "Yes" : "No");
+            else options[col.id]?.add(String(value));
+          }
+        }
+      });
+    });
+
+    const PREDEFINED_ORDERS: Record<string, string[]> = {
+      pronouns: PRONOUN_OPTIONS,
+      opt_in_communication: OPT_IN_OPTIONS,
+    };
+
+    const result: Record<string, string[]> = {};
+    for (const key in options) {
+      const arr = Array.from(options[key] || []);
+      const orderArray = PREDEFINED_ORDERS[key];
+
+      if (orderArray) {
+        result[key] = arr.sort((a, b) => {
+          const idxA = orderArray.indexOf(a);
+          const idxB = orderArray.indexOf(b);
+          if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+          if (idxA === -1) return 1;
+          if (idxB === -1) return -1;
+          return idxA - idxB;
+        });
+      } else if (key === "cohorts") {
+        result[key] = arr.sort(sortCohorts);
+      } else {
+        result[key] = arr.sort(sortRoles);
+      }
+    }
+    return result;
+  }, [allVolunteers, allRoles, allCohorts]);
 
   const [isAddVolunteerOpen, setIsAddVolunteerOpen] = useState(false);
   const [isImportCSVOpen, setIsImportCSVOpen] = useState(false);
@@ -97,9 +171,9 @@ export const VolunteersTable = (): React.JSX.Element => {
         enableSorting: false,
         enableResizing: false,
       },
-      ...getBaseColumns(),
+      ...getBaseColumns(isAdmin, handleCellEdit, filterOptions),
     ],
-    []
+    [isAdmin, handleCellEdit, filterOptions]
   );
 
   const table = useReactTable({
@@ -219,68 +293,8 @@ export const VolunteersTable = (): React.JSX.Element => {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-  }, [filters, globalOp]);
-
-  useEffect(() => {
-    fetchInitialData();
-  }, [fetchInitialData]);
-
-  useEffect(() => {
-    let ignore = false;
-    const applyFilters = async (): Promise<void> => {
-      if (!allVolunteers || allVolunteers.length === 0) return;
-      setGlobalFilter("");
-      setSorting([]);
-      setRowSelection({});
-      if (debouncedFilters.length === 0) {
-        setData(allVolunteers);
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      if (resetSelection) resetSelection();
-      try {
-        const formattedFilters: FilterTuple[] = debouncedFilters.map((f) => {
-          if (f.field === "cohorts") {
-            return {
-              ...f,
-              values: (f.values as string[]).map((v) => {
-                const [term, year] = v.split(" ");
-                return [term, year] as [string, string];
-              }),
-            };
-          }
-          if (f.field === "opt_in_communication") {
-            return {
-              ...f,
-              values: (f.values as string[]).map((v) =>
-                String(v).toLowerCase() === "yes" ? "true" : "false"
-              ),
-            };
-          }
-          return f;
-        });
-        const filterResult = await getVolunteersByMultipleColumns(
-          formattedFilters,
-          debouncedGlobalOp
-        );
-        if (!ignore) {
-          if (filterResult.error) throw new Error(filterResult.error);
-          const filteredIds = new Set(filterResult.data || []);
-          setData(allVolunteers.filter((v) => filteredIds.has(v.id)));
-        }
-      } catch (error) {
-        if (!ignore) console.error("Error applying filters:", error);
-      } finally {
-        if (!ignore) setLoading(false);
-      }
-    };
-    applyFilters();
-    return (): void => {
-      ignore = true;
-    };
-  }, [debouncedFilters, debouncedGlobalOp, allVolunteers, resetSelection]);
+    resetSelection();
+  }, [debouncedFilters, debouncedGlobalFilter, resetSelection]);
 
   useEffect(() => {
     const handleMouseUp = (): void => {
@@ -306,12 +320,30 @@ export const VolunteersTable = (): React.JSX.Element => {
 
   return (
     <div className="w-full flex flex-col gap-4 p-6 bg-white min-h-150">
-      {/* Controls Section */}
-      <div className="flex flex-wrap items-center justify-end gap-3 mb-2">
-        {/* Search Bar */}
-        <div className="relative w-full max-w-96">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-800">
-            <Search className="w-4 h-4 shrink-0" />
+      <TableToolbar
+        globalFilter={globalFilter}
+        setGlobalFilter={setGlobalFilter}
+        filters={filters}
+        setFilters={setFilters}
+        sorting={sorting}
+        setSorting={setSorting}
+        filterOptions={filterOptions}
+      />
+
+      {saveErrors.length > 0 && (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg mt-2 mb-2">
+          <div className="flex items-start">
+            <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">
+                Errors occurred while saving your changes:
+              </h3>
+              <ul className="mt-2 text-sm text-red-700 list-disc pl-5">
+                {saveErrors.map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+              </ul>
+            </div>
           </div>
           <input
             type="text"
@@ -484,9 +516,7 @@ export const VolunteersTable = (): React.JSX.Element => {
                               e.stopPropagation();
                             }}
                             className={clsx(
-                              "absolute top-0 h-full w-1 cursor-col-resize select-none touch-none",
-                              "hover:bg-blue-400 opacity-0 group-hover:opacity-100 transition-opacity",
-                              "-right-0.5 z-10",
+                              "absolute top-0 h-full w-1 cursor-col-resize select-none touch-none hover:bg-blue-400 opacity-0 group-hover:opacity-100 transition-opacity -right-0.5 z-10",
                               header.column.getIsResizing() &&
                                 "bg-blue-600 opacity-100"
                             )}
@@ -497,7 +527,8 @@ export const VolunteersTable = (): React.JSX.Element => {
                   </tr>
                 ))}
               </thead>
-              <tbody className="">
+
+              <tbody>
                 {((): React.JSX.Element[] => {
                   const rows = table.getRowModel().rows;
                   const visibleCols = table.getVisibleLeafColumns();
@@ -507,10 +538,8 @@ export const VolunteersTable = (): React.JSX.Element => {
                       key={row.id}
                       data-state={row.getIsSelected() ? "selected" : undefined}
                       className={clsx(
-                        "group transition-colors border-b border-gray-100 bg-white",
-                        "hover:bg-gray-50",
-                        "data-[state=selected]:bg-blue-100/30",
-                        "data-[state=selected]:hover:bg-blue-100/50"
+                        "group transition-colors border-b border-gray-100 bg-white hover:bg-gray-50",
+                        "data-[state=selected]:bg-blue-100/30 data-[state=selected]:hover:bg-blue-100/50"
                       )}
                     >
                       {row.getVisibleCells().map((cell, colIndex) => {
@@ -519,6 +548,11 @@ export const VolunteersTable = (): React.JSX.Element => {
                           cell.column.id
                         );
                         const isSelectColumn = cell.column.id === "select";
+                        const isModified =
+                          editedRows[row.original.id]?.[
+                            cell.column.id as keyof Volunteer
+                          ] !== undefined;
+
                         const topRow = rows[rowIndex - 1];
                         const bottomRow = rows[rowIndex + 1];
                         const leftCol = visibleCols[colIndex - 1];
@@ -550,11 +584,14 @@ export const VolunteersTable = (): React.JSX.Element => {
                             className={clsx(
                               "relative px-4 py-3 text-gray-900 font-normal",
                               isSelectColumn && "cursor-pointer",
-                              cellSelected && "bg-blue-100/50"
+                              cellSelected && "bg-blue-100/50",
+                              !cellSelected &&
+                                isModified &&
+                                "bg-amber-50 transition-colors duration-300"
                             )}
                             style={{ width: cell.column.getSize() }}
                           >
-                            <div className="truncate w-full h-full">
+                            <div className="w-full h-full overflow-hidden">
                               {flexRender(
                                 cell.column.columnDef.cell,
                                 cell.getContext()
@@ -582,29 +619,13 @@ export const VolunteersTable = (): React.JSX.Element => {
             </table>
           </div>
 
-          {/* Pagination */}
-          <div className="flex items-center justify-between py-4 border-t border-gray-200 mt-4">
-            <span className="text-sm text-gray-600">
-              Page {table.getState().pagination.pageIndex + 1} of{" "}
-              {table.getPageCount()}
-            </span>
-            <div className="flex gap-2">
-              <button
-                className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-              >
-                Previous
-              </button>
-              <button
-                className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-              >
-                Next
-              </button>
-            </div>
-          </div>
+          <TablePagination
+            table={table}
+            hasEdits={hasEdits}
+            isSaving={isSaving}
+            onSave={handleSaveEdits}
+            onCancel={handleCancelEdits}
+          />
         </div>
       )}
 
