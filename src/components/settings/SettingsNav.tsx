@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
-  { href: "/settings/manage", label: "Add/Manage Staff" },
+  { href: "/settings/account", label: "Account" },
+  { href: "/settings/manage", label: "Manage Staff" },
 ] as const;
 
 export function SettingsNav(): React.JSX.Element {
@@ -32,7 +33,10 @@ export function SettingsNav(): React.JSX.Element {
         Settings
       </h2>
       {NAV_ITEMS.map(({ href, label }) => {
-        const isActive = pathname === href || pathname.startsWith(href + "/");
+        const isActive =
+          pathname === href ||
+          pathname.startsWith(href + "/") ||
+          (href === "/settings/account" && pathname === "/settings");
         return (
           <Link
             key={href}
