@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
 import EditIcon from "../../../components/icons/editIcon";
+import { createClient } from "@/lib/client/supabase/client";
+import { useUser } from "@/lib/client/userContext";
 
 type FormErrors = {
   name?: string;
@@ -17,6 +20,10 @@ type AccountForm = {
 };
 
 export default function Page(): React.JSX.Element {
+  const { user, loading: userLoading } = useUser();
+  const [role, setRole] = useState<string | null>(null);
+  const [roleLoading, setRoleLoading] = useState(true);
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -32,6 +39,33 @@ export default function Page(): React.JSX.Element {
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
+
+  useEffect(() => {
+    if (userLoading) return;
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+    const fetchRole = async (): Promise<void> => {
+      const client = createClient();
+      const { data } = await client
+        .from("Users")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      const userRole = data?.role ?? "staff";
+      setRole(userRole);
+      setRoleLoading(false);
+      if (userRole !== "admin") {
+        router.replace("/volunteers");
+      }
+    };
+    fetchRole();
+  }, [user, userLoading, router]);
+
+  if (userLoading || roleLoading || role !== "admin") {
+    return <div></div>;
+  }
 
   return (
     <div className={styles["container"]}>

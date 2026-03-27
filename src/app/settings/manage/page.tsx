@@ -1,6 +1,8 @@
+import { redirect } from "next/navigation";
 import { getUsers } from "@/lib/api";
 import type { StaffRow } from "../../../components/settings/ManageStaffTable";
 import { ManageStaffContent } from "../../../components/settings/ManageStaffContent";
+import { getCurrentUserServer } from "@/lib/api/getCurrentUserServer";
 
 const EMAIL_NOT_FOUND_PLACEHOLDER = "—";
 
@@ -31,6 +33,11 @@ function mapUserToStaffRow(user: {
 }
 
 export default async function ManageStaffPage(): Promise<React.JSX.Element> {
+  const currentUser = await getCurrentUserServer();
+  if (!currentUser || currentUser.role !== "admin") {
+    redirect("/volunteers");
+  }
+
   let initialData: StaffRow[] = [];
   let loadError: string | null = null;
 
