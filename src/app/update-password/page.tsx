@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, ReactElement } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { createClient } from "@/lib/client/supabase/client";
+import styles from "@/styles/login.module.css";
 
 export default function Page(): ReactElement {
   const supabase = createClient();
@@ -10,7 +11,6 @@ export default function Page(): ReactElement {
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
 
-  // run when page loads
   useEffect((): (() => void) => {
     const supabase = createClient();
 
@@ -25,7 +25,6 @@ export default function Page(): ReactElement {
     return () => subscription.unsubscribe();
   }, []);
 
-  //when user clicks update
   const update = async (): Promise<void> => {
     const { error } = await supabase.auth.updateUser({ password });
 
@@ -33,23 +32,66 @@ export default function Page(): ReactElement {
     else setMsg("Password updated.");
   };
 
-  // if not in recovery, wait
-  if (!ready) return <p>Waiting for recovery session</p>;
+  if (!ready) {
+    return (
+      <main className={styles["container"]}>
+        <div className={styles["content"]}>
+          <h1 className={styles["title"]}>Update Password</h1>
+          <div className={styles["formCard"]}>
+            <p
+              style={{ textAlign: "center", color: "var(--color-neutral-600)" }}
+            >
+              Waiting for recovery session...
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <div>
-      <h1>Set new password</h1>
+    <main className={styles["container"]}>
+      <div className={styles["content"]}>
+        <h1 className={styles["title"]}>Set new password</h1>
 
-      <input
-        type="password"
-        placeholder="new password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
+        <div className={styles["formCard"]}>
+          <div className={styles["inputGroup"]}>
+            <label htmlFor="new-password" className={styles["label"]}>
+              New Password
+            </label>
+            <input
+              id="new-password"
+              type="password"
+              placeholder="Enter your new password"
+              className={styles["input"]}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
 
-      <button onClick={update}>Update</button>
+          <button
+            type="button"
+            onClick={update}
+            className={styles["submitButton"]}
+          >
+            Update Password
+          </button>
+        </div>
 
-      <p>{msg}</p>
-    </div>
+        {msg ? (
+          <p
+            role="alert"
+            className={styles["error"]}
+            style={
+              msg === "Password updated."
+                ? { color: "var(--color-teal-700)" }
+                : undefined
+            }
+          >
+            {msg}
+          </p>
+        ) : null}
+      </div>
+    </main>
   );
 }
