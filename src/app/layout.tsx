@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 // import { Geist, Geist_Mono } from "next/font/google";
 import { UserProvider } from "@/lib/client/userContext";
+import { TopNavBar } from "@/components/ui/TopNavBar";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -26,7 +27,10 @@ export default function RootLayout({
         className={`${manrope.variable} font-sans`}
         suppressHydrationWarning
       >
-        <UserProvider>{children}</UserProvider>
+        <UserProvider>
+          <TopNavBar />
+          {children}
+        </UserProvider>
       </body>
     </html>
   );
