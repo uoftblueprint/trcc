@@ -52,7 +52,7 @@ export default function Page(): React.JSX.Element {
     <div className={styles["container"]}>
       <div className={styles["wrapper"]}>
         <div className={styles["titleRow"]}>
-          <h1 className={styles["title"]}>Account information</h1>
+          <h1 className={styles["title"]}>Account Info</h1>
           {!isEditing && (
             <button
               className={styles["editButton"]}

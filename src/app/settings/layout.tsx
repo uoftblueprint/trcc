@@ -1,6 +1,7 @@
 import { SettingsNav } from "@/components/settings/SettingsNav";
 
 const panelShadow = "0 1px 3px rgba(0,0,0,0.2)";
+const NAVBAR_HEIGHT = "105px";
 
 export default function SettingsLayout({
   children,
@@ -8,7 +9,7 @@ export default function SettingsLayout({
   return (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight: `calc(100vh - ${NAVBAR_HEIGHT})`,
         display: "flex",
         flexDirection: "row",
         backgroundColor: "#e8e8e8",
@@ -18,11 +19,16 @@ export default function SettingsLayout({
         style={{
           width: "260px",
           flexShrink: 0,
-          minHeight: "100vh",
+          height: `calc(100vh - ${NAVBAR_HEIGHT})`,
           backgroundColor: "#fff",
           boxShadow: panelShadow,
           display: "flex",
           flexDirection: "column",
+          position: "sticky",
+          top: NAVBAR_HEIGHT,
+          paddingTop: "1rem",
+          paddingBottom: "1rem",
+          overflowY: "auto",
         }}
       >
         <SettingsNav />
@@ -30,7 +36,7 @@ export default function SettingsLayout({
       <main
         style={{
           flex: 1,
-          minHeight: "100vh",
+          height: `calc(100vh - ${NAVBAR_HEIGHT})`,
           backgroundColor: "#fff",
           boxShadow: panelShadow,
           padding: "2rem",

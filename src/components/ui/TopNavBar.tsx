@@ -157,7 +157,7 @@ export function TopNavBar(): React.JSX.Element {
             }}
           >
             <Link
-              href="/settings/manage"
+              href="/settings/account"
               onClick={() => setMenuOpen(false)}
               style={{
                 display: "flex",
