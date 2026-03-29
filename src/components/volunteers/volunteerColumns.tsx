@@ -6,6 +6,7 @@ import { HeaderWithIcon } from "./HeaderWithIcon";
 import { EditableCell } from "./EditableCell";
 import {
   CaseSensitive,
+  Hash,
   User,
   AtSign,
   Phone,
@@ -55,6 +56,17 @@ const renderSingleTag = (
 };
 
 export const COLUMNS_CONFIG: ColumnConfig[] = [
+  {
+    id: "volunteer_id" as keyof Volunteer,
+    label: "ID",
+    icon: Hash,
+    filterType: null,
+    size: 60,
+    accessorFn: (row: Volunteer): number => row.id,
+    cell: (info: CellContext<Volunteer, unknown>): React.JSX.Element => (
+      <span className="text-gray-500 text-xs">{String(info.getValue())}</span>
+    ),
+  },
   {
     id: "name_org",
     label: "Full Name",
@@ -167,7 +179,10 @@ export const getBaseColumns = (
   optionsData: Record<string, string[]> = {}
 ): ColumnDef<Volunteer>[] => {
   return COLUMNS_CONFIG.map((col): ColumnDef<Volunteer> => {
-    const isEditable = isAdmin && onEdit !== undefined;
+    const isEditable =
+      isAdmin &&
+      onEdit !== undefined &&
+      col.id !== ("volunteer_id" as keyof Volunteer);
 
     return {
       id: col.id as string,

@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "../client/supabase/server";
+import { createAdminClient } from "../client/supabase/server";
 import type { Tables, TablesUpdate } from "../client/supabase/types";
 
 const ROLE_TYPES = ["prior", "current", "future_interest"] as const;
@@ -277,7 +277,7 @@ export async function updateVolunteer(
     };
   }
 
-  const client = await createClient();
+  const client = createAdminClient();
   const timestamp = new Date().toISOString();
 
   let roleRow: { id: number } | null = null;

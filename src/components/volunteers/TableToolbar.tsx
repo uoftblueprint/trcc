@@ -1,6 +1,13 @@
 import React, { useState } from "react";
 import clsx from "clsx";
-import { Search, ListFilter, ArrowUpDown, Import, Plus } from "lucide-react";
+import {
+  Search,
+  ListFilter,
+  ArrowUpDown,
+  Import,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { FilterTuple } from "@/lib/api/getVolunteersByMultipleColumns";
 import { FilterModal, filterModalAlignRight } from "./FilterModal";
 import { SortModal } from "./SortModal";
@@ -15,6 +22,9 @@ interface TableToolbarProps {
   setSorting: React.Dispatch<React.SetStateAction<SortingState>>;
   filterOptions: Record<string, string[]>;
   role: string | null;
+  selectedCount: number;
+  isDeleting: boolean;
+  onDelete: () => void;
   onOpenAddVolunteer: () => void;
   onOpenImportCSV: () => void;
 }
@@ -28,6 +38,9 @@ export const TableToolbar = ({
   setSorting,
   filterOptions,
   role,
+  selectedCount,
+  isDeleting,
+  onDelete,
   onOpenAddVolunteer,
   onOpenImportCSV,
 }: TableToolbarProps): React.JSX.Element => {
@@ -48,7 +61,7 @@ export const TableToolbar = ({
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-3 mb-2">
+    <div className="flex items-center justify-end gap-3 mb-2">
       <div className="relative w-full max-w-96">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-800">
           <Search className="w-4 h-4 shrink-0" />
@@ -116,6 +129,19 @@ export const TableToolbar = ({
           alignRight={sortModalAlignRight}
         />
       </div>
+
+      {role === "admin" && selectedCount > 0 && (
+        <button
+          onClick={onDelete}
+          disabled={isDeleting}
+          className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 transition-colors rounded-lg text-sm font-medium text-white shadow-sm disabled:opacity-50"
+        >
+          <Trash2 className="w-4 h-4 shrink-0" />
+          <span>
+            {isDeleting ? "Deleting..." : `Delete (${selectedCount})`}
+          </span>
+        </button>
+      )}
 
       {role === "admin" && (
         <button

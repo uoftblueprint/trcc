@@ -123,6 +123,12 @@ export const EditableCell = ({
     };
   }, [isEditing, type, handleSave]);
 
+  const handleDelete = useCallback((): void => {
+    const cleared = isMulti ? [] : type === "options" ? null : "";
+    setValue(cleared);
+    onEdit(info.row.original.id, info.column.id, cleared);
+  }, [isMulti, type, info.row.original.id, info.column.id, onEdit]);
+
   const applyValue = (val: string): void => {
     if (isMulti) {
       if (!Array.isArray(value)) {
@@ -162,7 +168,14 @@ export const EditableCell = ({
     return (
       <div className="relative w-full h-full flex items-center min-h-6 gap-1 flex-wrap overflow-hidden">
         {currentArray.map((v, i) => (
-          <VolunteerTag key={i} label={v} />
+          <VolunteerTag
+            key={i}
+            label={v}
+            onRemove={() => {
+              const updated = currentArray.filter((_, idx) => idx !== i);
+              setValue(updated);
+            }}
+          />
         ))}
 
         <div
@@ -290,6 +303,10 @@ export const EditableCell = ({
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             handleDoubleClick(e);
+          }
+          if (e.key === "Delete" || e.key === "Backspace") {
+            e.preventDefault();
+            handleDelete();
           }
         }}
         tabIndex={0}
