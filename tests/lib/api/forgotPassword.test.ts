@@ -96,7 +96,7 @@ describe("Forgot Password Route", () => {
       expect(mockResetPasswordForEmail).toHaveBeenCalledWith(
         "admin@example.com",
         expect.objectContaining({
-          redirectTo: expect.stringContaining("/update-password"),
+          redirectTo: expect.stringContaining("/forgot-password"),
         })
       );
     });
@@ -149,7 +149,7 @@ describe("Forgot Password Route", () => {
         const { error } = await regularClient.auth.resetPasswordForEmail(
           `test-unknown-${Date.now()}@example.com`,
           {
-            redirectTo: `${process.env["NEXT_PUBLIC_SITE_URL"] ?? "http://localhost:3000"}/update-password`,
+            redirectTo: `${process.env["NEXT_PUBLIC_SITE_URL"] ?? "http://localhost:3000"}/forgot-password`,
           }
         );
 
@@ -172,7 +172,7 @@ describe("Forgot Password Route", () => {
         try {
           const { error: resetError } =
             await regularClient.auth.resetPasswordForEmail(testEmail, {
-              redirectTo: `${process.env["NEXT_PUBLIC_SITE_URL"] ?? "http://localhost:3000"}/update-password`,
+              redirectTo: `${process.env["NEXT_PUBLIC_SITE_URL"] ?? "http://localhost:3000"}/forgot-password`,
             });
 
           expect(resetError).toBeNull();
