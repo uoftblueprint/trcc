@@ -16,21 +16,40 @@ import { useCellSelection } from "./useCellSelection";
 import { getBaseColumns, FILTERABLE_COLUMNS } from "./volunteerColumns";
 import { AlertCircle } from "lucide-react";
 import { FilterBar } from "./FilterBar";
-import { FilterModal, filterModalAlignRight } from "./FilterModal";
-import { SortModal } from "./SortModal";
+import { TableToolbar } from "./TableToolbar";
+import { TablePagination } from "./TablePagination";
 import { AddVolunteerModal } from "./AddVolunteerModal";
 import { ImportCSVModal } from "./ImportCSVModal";
-import { FILTERABLE_COLUMNS } from "./volunteerColumns";
-import {
-  getVolunteersByMultipleColumns,
-  FilterTuple,
-} from "@/lib/api/getVolunteersByMultipleColumns";
-import { getVolunteersTable } from "@/lib/api/getVolunteersTable";
-import { useDebounce } from "@/hooks/useDebounce";
 import { getCurrentUser } from "@/lib/api/getCurrentUser";
+import {
+  PRONOUN_OPTIONS,
+  OPT_IN_OPTIONS,
+  sortCohorts,
+  sortRoles,
+} from "./utils";
+import { useVolunteersData } from "./useVolunteersData";
+import { useVolunteerEdits } from "./useVolunteerEdits";
+
+const VolunteersTableContent = ({
+  role,
+}: {
+  role: string | null;
+}): React.JSX.Element => {
+  const [editedRows, setEditedRows] = useState<
+    Record<number, Partial<Volunteer>>
+  >({});
+  const editedRowsRef = useRef(editedRows);
+
+  useEffect(() => {
+    editedRowsRef.current = editedRows;
+  }, [editedRows]);
 
   const isResizingRef = useRef(false);
-  const [role, setRole] = useState<string | null>(null);
+
+  const isAdmin = role === "admin";
+
+  const [isAddVolunteerOpen, setIsAddVolunteerOpen] = useState(false);
+  const [isImportCSVOpen, setIsImportCSVOpen] = useState(false);
 
   const {
     data,
@@ -135,9 +154,6 @@ import { getCurrentUser } from "@/lib/api/getCurrentUser";
     return result;
   }, [allVolunteers, allRoles, allCohorts]);
 
-  const [isAddVolunteerOpen, setIsAddVolunteerOpen] = useState(false);
-  const [isImportCSVOpen, setIsImportCSVOpen] = useState(false);
-
   const columns = useMemo<ColumnDef<Volunteer>[]>(
     () => [
       {
@@ -211,87 +227,6 @@ import { getCurrentUser } from "@/lib/api/getCurrentUser";
     resetSelection,
   } = useCellSelection(table);
 
-  const filterOptions = useMemo(() => {
-    if (!allVolunteers) return {};
-    const options: Record<string, Set<string>> = {};
-    FILTERABLE_COLUMNS.forEach((col) => {
-      if (col.type === "options") {
-        options[col.id] = new Set<string>();
-      }
-    });
-    allVolunteers.forEach((volunteer) => {
-      FILTERABLE_COLUMNS.forEach((col) => {
-        if (col.type === "options") {
-          const value = volunteer[col.id as keyof Volunteer];
-          if (Array.isArray(value)) {
-            value.forEach((v) => {
-              if (v) options[col.id]?.add(v);
-            });
-          } else if (value != null) {
-            if (col.id === "opt_in_communication") {
-              options[col.id]?.add(value ? "Yes" : "No");
-            } else {
-              options[col.id]?.add(String(value));
-            }
-          }
-        }
-      });
-    });
-    const result: Record<string, string[]> = {};
-    Object.keys(options).forEach((key) => {
-      result[key] = Array.from(options[key]!).sort();
-    });
-    return result;
-  }, [allVolunteers]);
-
-  const handleOpenMainFilter = (e: React.MouseEvent): void => {
-    if (isMainFilterOpen) {
-      setIsMainFilterOpen(false);
-      return;
-    }
-    setMainFilterAlignRight(
-      filterModalAlignRight(e.currentTarget as HTMLElement)
-    );
-    setIsMainFilterOpen(true);
-  };
-
-  const fetchInitialData = useCallback(async () => {
-    try {
-      const volunteerData = await getVolunteersTable();
-
-      const formattedAll: Volunteer[] = volunteerData.map((entry) => {
-        const formatTag = (item: CohortRow | RoleRow): string => {
-          if ("term" in item && "year" in item && item.term && item.year) {
-            return `${item.term} ${item.year}`;
-          }
-          if ("name" in item && item.name) {
-            return item.name;
-          }
-          return String(item.id) || "";
-        };
-
-        return {
-          ...entry.volunteer,
-          cohorts: entry.cohorts.map(formatTag),
-          current_roles: entry.roles
-            .filter((r) => r.type === "current")
-            .map(formatTag),
-          prior_roles: entry.roles
-            .filter((r) => r.type === "prior")
-            .map(formatTag),
-          future_interests: entry.roles
-            .filter((r) => r.type === "future_interest")
-            .map(formatTag),
-        };
-      });
-      setAllVolunteers(formattedAll);
-    } catch (error) {
-      console.error("Error fetching volunteer data:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     resetSelection();
   }, [debouncedFilters, debouncedGlobalFilter, resetSelection]);
@@ -306,18 +241,6 @@ import { getCurrentUser } from "@/lib/api/getCurrentUser";
     return (): void => window.removeEventListener("mouseup", handleMouseUp);
   }, []);
 
-  useEffect(() => {
-    const fetchRole = async (): Promise<void> => {
-      try {
-        const user = await getCurrentUser();
-        setRole(user.role);
-      } catch (error) {
-        console.error("Failed to fetch user role:", error);
-      }
-    };
-    fetchRole();
-  }, []);
-
   return (
     <div className="w-full flex flex-col gap-4 p-6 bg-white min-h-150">
       <TableToolbar
@@ -328,6 +251,9 @@ import { getCurrentUser } from "@/lib/api/getCurrentUser";
         sorting={sorting}
         setSorting={setSorting}
         filterOptions={filterOptions}
+        role={role}
+        onOpenAddVolunteer={() => setIsAddVolunteerOpen(true)}
+        onOpenImportCSV={() => setIsImportCSVOpen(true)}
       />
 
       {saveErrors.length > 0 && (
@@ -345,94 +271,8 @@ import { getCurrentUser } from "@/lib/api/getCurrentUser";
               </ul>
             </div>
           </div>
-          <input
-            type="text"
-            placeholder="Search volunteers..."
-            aria-label="Search volunteers"
-            value={globalFilter ?? ""}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            className="w-full pl-10 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm text-gray-900 placeholder-gray-500 border-none focus:outline-none focus:ring-2 focus:ring-purple-300"
-          />
         </div>
-
-        {/* Filter Button + Modal */}
-        <div className={clsx("relative", isMainFilterOpen ? "z-50" : "z-10")}>
-          <button
-            onClick={handleOpenMainFilter}
-            className={clsx(
-              "flex items-center justify-center gap-2 w-28 py-2 transition-colors rounded-lg text-sm font-medium cursor-pointer",
-              filters.length > 0
-                ? "bg-secondary-purple text-accent-purple"
-                : "bg-primary-purple hover:bg-secondary-purple text-gray-900"
-            )}
-          >
-            <ListFilter className="w-4 h-4 shrink-0" />
-            <span>Filter {filters.length > 0 && `(${filters.length})`}</span>
-          </button>
-
-          <FilterModal
-            isOpen={isMainFilterOpen}
-            onClose={() => setIsMainFilterOpen(false)}
-            onApply={(newFilter) => {
-              if (newFilter) setFilters((prev) => [...prev, newFilter]);
-              setIsMainFilterOpen(false);
-            }}
-            optionsData={filterOptions}
-            alignRight={mainFilterAlignRight}
-          />
-        </div>
-
-        {/* Sort Button + Modal */}
-        <div className={clsx("relative", isSortModalOpen ? "z-50" : "z-10")}>
-          <button
-            onClick={(e) => {
-              setSortModalAlignRight(
-                filterModalAlignRight(e.currentTarget as HTMLElement)
-              );
-              setIsSortModalOpen(!isSortModalOpen);
-            }}
-            className={clsx(
-              "flex items-center justify-center gap-2 w-24 py-2 transition-colors rounded-lg text-sm font-medium cursor-pointer",
-              sorting.length > 0
-                ? "bg-secondary-purple text-accent-purple"
-                : "bg-primary-purple hover:bg-secondary-purple text-gray-900"
-            )}
-          >
-            <ArrowUpDown className="w-4 h-4 shrink-0" />
-            <span>Sort {sorting.length > 0 && `(${sorting.length})`}</span>
-          </button>
-
-          <SortModal
-            isOpen={isSortModalOpen}
-            onClose={() => setIsSortModalOpen(false)}
-            sorting={sorting}
-            setSorting={setSorting}
-            alignRight={sortModalAlignRight}
-          />
-        </div>
-
-        {/* New Volunteer Button */}
-        {role === "admin" && (
-          <button
-            onClick={() => setIsAddVolunteerOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-accent-purple hover:bg-dark-accent-purple transition-colors rounded-lg text-sm font-medium text-white shadow-sm"
-          >
-            <Plus className="w-4 h-4 shrink-0" />
-            <span>New Volunteer</span>
-          </button>
-        )}
-
-        {/* Import CSV Button */}
-        {role === "admin" && (
-          <button
-            onClick={() => setIsImportCSVOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm font-medium text-gray-900"
-          >
-            <Import className="w-4 h-4 shrink-0" />
-            <span>Import from CSV</span>
-          </button>
-        )}
-      </div>
+      )}
 
       {/* Filter Bar */}
       <FilterBar
@@ -648,6 +488,39 @@ import { getCurrentUser } from "@/lib/api/getCurrentUser";
       />
     </div>
   );
+};
+
+export const VolunteersTable = (): React.JSX.Element => {
+  const [role, setRole] = useState<string | null>(null);
+  const [isRoleFetched, setIsRoleFetched] = useState(false);
+
+  useEffect(() => {
+    const fetchRole = async (): Promise<void> => {
+      try {
+        const user = await getCurrentUser();
+        setRole(user.role);
+      } catch (error) {
+        console.error("Failed to fetch user role:", error);
+      } finally {
+        setIsRoleFetched(true);
+      }
+    };
+    fetchRole();
+  }, []);
+
+  if (!isRoleFetched) {
+    return (
+      <div className="w-full flex flex-col gap-4 p-6 bg-white min-h-150">
+        <div className="space-y-4 p-4 animate-pulse rounded-lg h-64 bg-gray-50">
+          <div className="h-10 bg-gray-200 rounded w-full"></div>
+          <div className="h-8 bg-gray-200 rounded w-full"></div>
+          <div className="h-8 bg-gray-200 rounded w-full"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return <VolunteersTableContent role={role} />;
 };
 
 export default VolunteersTable;

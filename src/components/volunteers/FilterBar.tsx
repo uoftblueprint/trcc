@@ -135,7 +135,7 @@ export const FilterBar = ({
           >
             <button
               onClick={(e) => handleEditClick(e, index)}
-              className="bg-primary-purple text-gray-900 hover:bg-secondary-purple rounded-lg px-3 py-1.5 text-sm font-medium flex items-center gap-2 transition-colors cursor-pointer"
+              className="bg-purple-200 text-gray-900 hover:bg-purple-300 rounded-lg px-3 py-1.5 text-sm font-medium flex items-center gap-2 transition-colors cursor-pointer"
             >
               {Icon && <Icon className="w-3.5 h-3.5 opacity-70" />}
               {colDef?.label}
@@ -158,7 +158,7 @@ export const FilterBar = ({
       <div className={clsx("relative", isAddingNew ? "z-50" : "z-10")}>
         <button
           onClick={handleAddNewClick}
-          className="bg-primary-purple hover:bg-secondary-purple text-gray-900 rounded-lg px-3 py-1.5 text-sm font-medium flex items-center gap-2 transition-colors cursor-pointer"
+          className="bg-purple-200 hover:bg-purple-300 text-gray-900 rounded-lg px-3 py-1.5 text-sm font-medium flex items-center gap-2 transition-colors cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           New Filter

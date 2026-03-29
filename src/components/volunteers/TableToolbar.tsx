@@ -14,6 +14,9 @@ interface TableToolbarProps {
   sorting: SortingState;
   setSorting: React.Dispatch<React.SetStateAction<SortingState>>;
   filterOptions: Record<string, string[]>;
+  role: string | null;
+  onOpenAddVolunteer: () => void;
+  onOpenImportCSV: () => void;
 }
 
 export const TableToolbar = ({
@@ -24,6 +27,9 @@ export const TableToolbar = ({
   sorting,
   setSorting,
   filterOptions,
+  role,
+  onOpenAddVolunteer,
+  onOpenImportCSV,
 }: TableToolbarProps): React.JSX.Element => {
   const [isMainFilterOpen, setIsMainFilterOpen] = useState(false);
   const [mainFilterAlignRight, setMainFilterAlignRight] = useState(false);
@@ -63,8 +69,8 @@ export const TableToolbar = ({
           className={clsx(
             "flex items-center justify-center gap-2 w-28 py-2 transition-colors rounded-lg text-sm font-medium cursor-pointer",
             filters.length > 0
-              ? "bg-purple-300 text-purple-600"
-              : "bg-purple-200 hover:bg-purple-300 text-gray-900"
+              ? "bg-secondary-purple text-accent-purple"
+              : "bg-primary-purple hover:bg-secondary-purple text-gray-900"
           )}
         >
           <ListFilter className="w-4 h-4 shrink-0" />
@@ -94,8 +100,8 @@ export const TableToolbar = ({
           className={clsx(
             "flex items-center justify-center gap-2 w-24 py-2 transition-colors rounded-lg text-sm font-medium cursor-pointer",
             sorting.length > 0
-              ? "bg-purple-300 text-purple-600"
-              : "bg-purple-200 hover:bg-purple-300 text-gray-900"
+              ? "bg-secondary-purple text-accent-purple"
+              : "bg-primary-purple hover:bg-secondary-purple text-gray-900"
           )}
         >
           <ArrowUpDown className="w-4 h-4 shrink-0" />
@@ -111,15 +117,25 @@ export const TableToolbar = ({
         />
       </div>
 
-      <button className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 transition-colors rounded-lg text-sm font-medium text-white shadow-sm cursor-pointer">
-        <Plus className="w-4 h-4 shrink-0" />
-        <span>New Volunteer</span>
-      </button>
+      {role === "admin" && (
+        <button
+          onClick={onOpenAddVolunteer}
+          className="flex items-center gap-2 px-4 py-2 bg-accent-purple hover:bg-dark-accent-purple transition-colors rounded-lg text-sm font-medium text-white shadow-sm"
+        >
+          <Plus className="w-4 h-4 shrink-0" />
+          <span>New Volunteer</span>
+        </button>
+      )}
 
-      <button className="flex items-center gap-2 px-4 py-2 bg-purple-200 hover:bg-purple-300 transition-colors rounded-lg text-sm font-medium text-gray-900 cursor-pointer">
-        <Import className="w-4 h-4 shrink-0" />
-        <span>Import from CSV</span>
-      </button>
+      {role === "admin" && (
+        <button
+          onClick={onOpenImportCSV}
+          className="flex items-center gap-2 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm font-medium text-gray-900"
+        >
+          <Import className="w-4 h-4 shrink-0" />
+          <span>Import from CSV</span>
+        </button>
+      )}
     </div>
   );
 };
