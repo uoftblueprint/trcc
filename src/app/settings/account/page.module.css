@@ -32,7 +32,7 @@
   background: var(--background);
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 8px;
-  padding: 30px 27px;
+  padding: 30px 0px 0px 30px;
 }
 
 .editButton {
@@ -130,7 +130,7 @@
   display: flex;
   justify-content: flex-end;
   gap: 16px;
-  margin-top: 40px;
+  margin-top: 20px;
   font-family: "Manrope", sans-serif;
   font-size: 14px;
   font-weight: 500;

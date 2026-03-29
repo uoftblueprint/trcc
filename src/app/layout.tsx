@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 // import { Geist, Geist_Mono } from "next/font/google";
 import { UserProvider } from "@/lib/client/userContext";
+import { AppToaster } from "@/components/ui/AppToaster";
 import { TopNavBar } from "@/components/ui/TopNavBar";
 import "./globals.css";
 
@@ -30,6 +31,7 @@ export default function RootLayout({
         <UserProvider>
           <TopNavBar />
           {children}
+          <AppToaster />
         </UserProvider>
       </body>
     </html>
