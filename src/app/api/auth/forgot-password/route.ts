@@ -20,9 +20,13 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const supabase = await createClient();
+    const baseUrl =
+      process.env["NEXT_PUBLIC_SITE_URL"] ??
+      request.headers.get("origin") ??
+      "http://localhost:3000";
 
     const { error } = await supabase.auth.resetPasswordForEmail(body.email, {
-      redirectTo: `${process.env["NEXT_PUBLIC_SITE_URL"]}/update-password`,
+      redirectTo: `${baseUrl.replace(/\/$/, "")}/forgot-password`,
     });
 
     if (error) {

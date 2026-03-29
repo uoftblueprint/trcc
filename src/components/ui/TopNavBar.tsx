@@ -44,7 +44,7 @@ export function TopNavBar(): React.JSX.Element {
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/auth") ||
-    pathname.startsWith("/update-password")
+    pathname.startsWith("/forgot-password")
   ) {
     return <></>;
   }

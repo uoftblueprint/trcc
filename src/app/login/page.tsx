@@ -74,12 +74,6 @@ export default function LoginPage(): JSX.Element {
             />
           </div>
 
-          <div className={styles["forgotPasswordContainer"]}>
-            <Link href="/forgot-password" className={styles["forgotPassword"]}>
-              Forgot password?
-            </Link>
-          </div>
-
           <button
             type="submit"
             disabled={loading}
@@ -88,6 +82,12 @@ export default function LoginPage(): JSX.Element {
             {loading ? "Logging in…" : "Log in"}
           </button>
         </form>
+
+        <div className={styles["forgotPasswordContainer"]}>
+          <Link href="/forgot-password" className={styles["forgotPassword"]}>
+            Forgot password?
+          </Link>
+        </div>
 
         {error ? (
           <p role="alert" className={styles["error"]}>

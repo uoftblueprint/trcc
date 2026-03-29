@@ -75,7 +75,9 @@
 
 .forgotPasswordContainer {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
 }
 
 .forgotPassword {
@@ -86,6 +88,12 @@
 
 .forgotPassword:hover {
   text-decoration: underline;
+}
+
+.forgotPasswordBlurb {
+  font: var(--login-font-caption);
+  color: var(--color-neutral-600);
+  text-align: left;
 }
 
 .submitButton {
