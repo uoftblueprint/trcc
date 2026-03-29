@@ -156,9 +156,17 @@ export const ImportCSVModal = ({
                   <span className="font-medium text-gray-900">
                     {result.summary.totalRows}
                   </span>
-                  <span>Imported</span>
-                  <span className="font-medium text-gray-900">
-                    {result.summary.dbSucceeded}
+                  <span>New volunteers</span>
+                  <span className="font-medium text-green-700">
+                    {result.summary.dbInserted}
+                  </span>
+                  <span>Updated (with changes)</span>
+                  <span className="font-medium text-blue-700">
+                    {result.summary.dbUpdated}
+                  </span>
+                  <span>Duplicates (no changes)</span>
+                  <span className="font-medium text-gray-400">
+                    {result.summary.dbDuplicates}
                   </span>
                   <span>Parse errors</span>
                   <span className="font-medium text-gray-900">

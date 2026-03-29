@@ -44,6 +44,43 @@ type VolunteerWithRelations = VolunteerRow & {
 export async function getVolunteersTable(): Promise<VolunteerTableEntry[]> {
   const client = await createClient();
 
+  // Log connection and auth state to help debug RLS issues
+  console.log(
+    "[getVolunteersTable] NEXT_PUBLIC_SUPABASE_URL:",
+    process.env["NEXT_PUBLIC_SUPABASE_URL"] ?? "NOT SET"
+  );
+  console.log(
+    "[getVolunteersTable] API_URL:",
+    process.env["API_URL"] ?? "NOT SET"
+  );
+  console.log(
+    "[getVolunteersTable] NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:",
+    process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"]?.slice(0, 20) + "..." ||
+      "NOT SET"
+  );
+  console.log(
+    "[getVolunteersTable] PUBLISHABLE_KEY:",
+    process.env["PUBLISHABLE_KEY"]?.slice(0, 20) + "..." || "NOT SET"
+  );
+  const {
+    data: { user: authUser },
+    error: authError,
+  } = await client.auth.getUser();
+  console.log("[getVolunteersTable] auth user id:", authUser?.id ?? "NONE");
+  console.log("[getVolunteersTable] auth user role:", authUser?.role ?? "NONE");
+  console.log("[getVolunteersTable] auth error:", authError?.message ?? "none");
+
+  // Check RLS policies directly - query a simple count to isolate the issue
+  const { count, error: countError } = await client
+    .from("Volunteers")
+    .select("*", { count: "exact", head: true });
+  console.log(
+    "[getVolunteersTable] count query result:",
+    count,
+    "error:",
+    countError ? JSON.stringify(countError) : "none"
+  );
+
   // Single query with nested selects - type assertion for proper array inference
   const { data, error } = (await client
     .from("Volunteers")
@@ -59,11 +96,20 @@ export async function getVolunteersTable(): Promise<VolunteerTableEntry[]> {
     error: PostgrestError | null;
   };
 
+  console.log(
+    "[getVolunteersTable] query error:",
+    error ? JSON.stringify(error) : "none"
+  );
+  console.log("[getVolunteersTable] row count:", data?.length ?? 0);
+
   if (error) {
     throw new Error(error.message || JSON.stringify(error));
   }
 
   if (!data || data.length === 0) {
+    console.log(
+      "[getVolunteersTable] No data returned — possible RLS issue if rows exist in the table"
+    );
     return [];
   }
 
