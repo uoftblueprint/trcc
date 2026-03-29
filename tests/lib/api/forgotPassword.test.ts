@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { POST } from "@/app/api/auth/forgot-password/route";
+import { POST } from "@/app/auth/forgot-password/route";
 import {
   createServiceTestClient,
   createAdminTestClient,
@@ -14,11 +14,18 @@ vi.mock("@/lib/client/supabase/server", () => ({
 import { createClient } from "@/lib/client/supabase/server";
 
 const mockResetPasswordForEmail = vi.fn();
+const mockRpc = vi.fn();
 
 beforeEach(() => {
   vi.clearAllMocks();
 
+  mockRpc.mockResolvedValue({
+    data: [{ email: "admin@example.com", role: "admin" }],
+    error: null,
+  });
+
   (createClient as ReturnType<typeof vi.fn>).mockResolvedValue({
+    rpc: mockRpc,
     auth: {
       resetPasswordForEmail: mockResetPasswordForEmail,
     },
@@ -96,7 +103,7 @@ describe("Forgot Password Route", () => {
       expect(mockResetPasswordForEmail).toHaveBeenCalledWith(
         "admin@example.com",
         expect.objectContaining({
-          redirectTo: expect.stringContaining("/forgot-password"),
+          redirectTo: expect.stringContaining("/auth/confirm"),
         })
       );
     });
