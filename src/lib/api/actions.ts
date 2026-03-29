@@ -95,8 +95,11 @@ export async function updateAccountSettingsAction(
     name: patch.name.trim(),
     email: patch.email.trim(),
   };
-  if (patch.password !== undefined && patch.password.trim() !== "") {
-    body["password"] = patch.password;
+  if (patch.password !== undefined) {
+    const trimmedPassword = patch.password.trim();
+    if (trimmedPassword !== "") {
+      body["password"] = trimmedPassword;
+    }
   }
 
   const result = await updateCurrentUserAccount(client, body);
