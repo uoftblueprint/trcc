@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 import styles from "./page.module.css";
 import EditIcon from "../../../components/icons/editIcon";
 import { useUser } from "@/lib/client/userContext";
@@ -30,7 +31,6 @@ export default function Page(): React.JSX.Element {
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
 
   const [savedProfile, setSavedProfile] = useState<ProfileFields>({
     name: "",
@@ -105,10 +105,10 @@ export default function Page(): React.JSX.Element {
     const validationErrors = validateForm(formData);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
+      toast.error("Please fix the errors in the form.");
       return;
     }
     setErrors({});
-    setSaveError(null);
     setSaving(true);
     const result = await updateAccountSettingsAction({
       name: formData.name,
@@ -123,7 +123,7 @@ export default function Page(): React.JSX.Element {
         result.validationErrors && result.validationErrors.length > 0
           ? result.validationErrors.map((v) => v.message).join(" ")
           : result.error;
-      setSaveError(msg);
+      toast.error(msg);
       return;
     }
     const next: ProfileFields = {
@@ -134,6 +134,7 @@ export default function Page(): React.JSX.Element {
     setFormData({ ...next, password: "" });
     setIsEditing(false);
     router.refresh();
+    toast.success("Account information saved.");
   };
 
   return (
@@ -147,7 +148,6 @@ export default function Page(): React.JSX.Element {
               className={styles["editButton"]}
               onClick={() => {
                 setFormData({ ...savedProfile, password: "" });
-                setSaveError(null);
                 setErrors({});
                 setIsEditing(true);
               }}
@@ -157,12 +157,6 @@ export default function Page(): React.JSX.Element {
             </button>
           )}
         </div>
-
-        {saveError && (
-          <p className={styles["errorText"]} role="alert">
-            {saveError}
-          </p>
-        )}
 
         <div className={styles["card"]}>
           {isEditing ? (
@@ -183,7 +177,6 @@ export default function Page(): React.JSX.Element {
               className={styles["cancelButton"]}
               onClick={() => {
                 setErrors({});
-                setSaveError(null);
                 setFormData({ ...savedProfile, password: "" });
                 setIsEditing(false);
               }}
