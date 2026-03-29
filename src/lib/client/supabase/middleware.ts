@@ -6,6 +6,7 @@ const publicPathPrefixes = [
   "/animation-test",
   "/login",
   "/forgot-password",
+  "/reset-password",
 ];
 
 function isPublicPath(pathname: string): boolean {

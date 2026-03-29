@@ -21,7 +21,7 @@ export async function GET(request: NextRequest): Promise<void> {
   }
 
   if (type === "recovery") {
-    return redirect("/forgot-password?reset=true");
+    return redirect("/reset-password");
   }
 
   return redirect("/volunteers");

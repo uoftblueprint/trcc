@@ -1,23 +1,15 @@
 "use client";
 
-import { Suspense, useState, type ReactElement } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, type ReactElement } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/client/supabase/client";
 import styles from "@/styles/login.module.css";
 
 type AlertState = { type: "success" | "error"; message: string } | null;
 
-function ForgotPasswordForm(): ReactElement {
-  const supabase = createClient();
-  const searchParams = useSearchParams();
-  const ready = searchParams.get("reset") === "true";
-
+export default function Page(): ReactElement {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [alert, setAlert] = useState<AlertState>(null);
   const [sending, setSending] = useState(false);
-  const [updating, setUpdating] = useState(false);
 
   const requestReset = async (
     event: React.FormEvent<HTMLFormElement>
@@ -57,118 +49,51 @@ function ForgotPasswordForm(): ReactElement {
     }
   };
 
-  const updatePassword = async (
-    event: React.FormEvent<HTMLFormElement>
-  ): Promise<void> => {
-    event.preventDefault();
-
-    if (!password.trim()) {
-      setAlert({ type: "error", message: "Please enter a new password." });
-      return;
-    }
-
-    setUpdating(true);
-    setAlert(null);
-
-    try {
-      const { error } = await supabase.auth.updateUser({ password });
-
-      if (error) throw error;
-
-      setAlert({
-        type: "success",
-        message: "Password updated. You can now log in with your new password.",
-      });
-    } catch (error) {
-      setAlert({
-        type: "error",
-        message:
-          error instanceof Error ? error.message : "Unable to update password.",
-      });
-    } finally {
-      setUpdating(false);
-    }
-  };
-
   return (
     <main className={styles["container"]}>
       <div className={styles["content"]}>
-        <h1 className={styles["title"]}>
-          {ready ? "Set new password" : "Forgot password?"}
-        </h1>
+        <h1 className={styles["title"]}>Forgot password?</h1>
 
-        {ready ? (
-          <form onSubmit={updatePassword} className={styles["formCard"]}>
-            <div className={styles["inputGroup"]}>
-              <label htmlFor="new-password" className={styles["label"]}>
-                New Password
-              </label>
-              <input
-                id="new-password"
-                type="password"
-                placeholder="Enter your new password"
-                className={styles["input"]}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </div>
+        <p className={styles["forgotPasswordBlurb"]}>
+          <b>If you are a Staff Member, please contact the Administrator.</b>
+          <br />
+          <br />
+          If you are an Administrator, please enter the email you used to
+          register your account, we will send an email to reset your password.
+        </p>
 
-            <button
-              type="submit"
-              disabled={updating}
-              className={styles["submitButton"]}
-            >
-              {updating ? "Updating…" : "Update password"}
-            </button>
-          </form>
-        ) : (
-          <>
-            <p className={styles["forgotPasswordBlurb"]}>
-              <b>
-                If you are a Staff Member, please contact the Administrator.
-              </b>
-              <br /> <br />
-              If you are an Administrator, please enter the email you used to
-              register your account, we will send an email to reset your
-              password.
-            </p>
-            <form onSubmit={requestReset} className={styles["formCard"]}>
-              <div className={styles["inputGroup"]}>
-                <label
-                  htmlFor="forgot-password-email"
-                  className={styles["label"]}
-                >
-                  Email
-                </label>
-                <input
-                  id="forgot-password-email"
-                  name="email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  placeholder="Email"
-                  className={styles["input"]}
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                />
-              </div>
+        <form onSubmit={requestReset} className={styles["formCard"]}>
+          <div className={styles["inputGroup"]}>
+            <label htmlFor="forgot-password-email" className={styles["label"]}>
+              Email
+            </label>
+            <input
+              id="forgot-password-email"
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="Email"
+              className={styles["input"]}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </div>
 
-              <button
-                type="submit"
-                disabled={sending}
-                className={styles["submitButton"]}
-              >
-                {sending ? "Sending link…" : "Send"}
-              </button>
-            </form>
+          <button
+            type="submit"
+            disabled={sending}
+            className={styles["submitButton"]}
+          >
+            {sending ? "Sending link…" : "Send"}
+          </button>
+        </form>
 
-            <div className={styles["forgotPasswordContainer"]}>
-              <Link href="/login" className={styles["forgotPassword"]}>
-                Back to login
-              </Link>
-            </div>
-          </>
-        )}
+        <div className={styles["forgotPasswordContainer"]}>
+          <Link href="/login" className={styles["forgotPassword"]}>
+            Back to login
+          </Link>
+        </div>
 
         {alert ? (
           <p
@@ -185,13 +110,5 @@ function ForgotPasswordForm(): ReactElement {
         ) : null}
       </div>
     </main>
-  );
-}
-
-export default function Page(): ReactElement {
-  return (
-    <Suspense>
-      <ForgotPasswordForm />
-    </Suspense>
   );
 }
