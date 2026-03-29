@@ -21,6 +21,7 @@ import { TablePagination } from "./TablePagination";
 import { AddVolunteerModal } from "./AddVolunteerModal";
 import { ImportCSVModal } from "./ImportCSVModal";
 import { getCurrentUser } from "@/lib/api/getCurrentUser";
+import { removeVolunteersAction } from "@/lib/api/actions";
 import {
   PRONOUN_OPTIONS,
   OPT_IN_OPTIONS,
@@ -50,6 +51,7 @@ const VolunteersTableContent = ({
 
   const [isAddVolunteerOpen, setIsAddVolunteerOpen] = useState(false);
   const [isImportCSVOpen, setIsImportCSVOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const {
     data,
@@ -231,6 +233,56 @@ const VolunteersTableContent = ({
     resetSelection();
   }, [debouncedFilters, debouncedGlobalFilter, resetSelection]);
 
+  const selectedRowIds = useMemo(() => {
+    return Object.keys(rowSelection)
+      .filter((key) => rowSelection[key])
+      .map((key) => {
+        const row = table.getRowModel().rows.find((r) => r.id === key);
+        return row?.original.id;
+      })
+      .filter((id): id is number => id !== undefined);
+  }, [rowSelection, table]);
+
+  const handleDeleteSelected = async (): Promise<void> => {
+    if (selectedRowIds.length === 0) return;
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${selectedRowIds.length} volunteer(s)? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      const result = await removeVolunteersAction(selectedRowIds);
+      if (result.failed > 0) {
+        console.error("[VolunteersTable] Delete errors:", result.errors);
+      }
+      if (result.succeeded > 0) {
+        setRowSelection({});
+        setLoading(true);
+        fetchInitialData();
+      }
+    } catch (error) {
+      console.error("[VolunteersTable] Delete failed:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAdmin || selectedRowIds.length === 0) return;
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        handleDeleteSelected();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return (): void => window.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, selectedRowIds]);
+
   useEffect(() => {
     const handleMouseUp = (): void => {
       setTimeout(() => {
@@ -252,6 +304,9 @@ const VolunteersTableContent = ({
         setSorting={setSorting}
         filterOptions={filterOptions}
         role={role}
+        selectedCount={selectedRowIds.length}
+        isDeleting={isDeleting}
+        onDelete={handleDeleteSelected}
         onOpenAddVolunteer={() => setIsAddVolunteerOpen(true)}
         onOpenImportCSV={() => setIsImportCSVOpen(true)}
       />
