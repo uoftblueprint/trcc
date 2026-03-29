@@ -20,5 +20,9 @@ export async function GET(request: NextRequest): Promise<void> {
     return redirect("/auth/auth-code-error");
   }
 
+  if (type === "recovery") {
+    return redirect("/forgot-password?reset=true");
+  }
+
   return redirect("/volunteers");
 }

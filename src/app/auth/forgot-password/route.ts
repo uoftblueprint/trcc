@@ -18,15 +18,41 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  const supabase = await createClient();
+
   try {
-    const supabase = await createClient();
+    const { data: users, error: rpcError } = await supabase.rpc(
+      "get_users_with_email"
+    );
+
+    if (rpcError) {
+      console.error("Failed to fetch users:", rpcError);
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
+    }
+
+    const match = users?.find(
+      (u: { email: string | null }) => u.email === body.email
+    );
+
+    if (!match || match.role !== "admin") {
+      return NextResponse.json(
+        { error: "Only administrators can reset their password." },
+        { status: 403 }
+      );
+    }
+  } catch (err) {
+    console.error("Role check error:", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+
+  try {
     const baseUrl =
       process.env["NEXT_PUBLIC_SITE_URL"] ??
       request.headers.get("origin") ??
       "http://localhost:3000";
 
     const { error } = await supabase.auth.resetPasswordForEmail(body.email, {
-      redirectTo: `${baseUrl.replace(/\/$/, "")}/forgot-password`,
+      redirectTo: `${baseUrl.replace(/\/$/, "")}/auth/confirm`,
     });
 
     if (error) {
