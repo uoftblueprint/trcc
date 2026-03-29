@@ -103,8 +103,6 @@ export const useVolunteersData = ({
       }
     } catch (error) {
       console.error("Error fetching volunteer data:", error);
-    } finally {
-      setLoading(false);
     }
   }, [isAdmin]);
 
