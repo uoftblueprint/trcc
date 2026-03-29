@@ -5,6 +5,15 @@ import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
 import EditIcon from "../../../components/icons/editIcon";
 import { useUser } from "@/lib/client/userContext";
+import { getCurrentUser } from "@/lib/api/getCurrentUser";
+import { updateAccountSettingsAction } from "@/lib/api/actions";
+
+const PASSWORD_MASK = "••••••••";
+
+type ProfileFields = {
+  name: string;
+  email: string;
+};
 
 type FormErrors = {
   name?: string;
@@ -12,30 +21,60 @@ type FormErrors = {
   password?: string;
 };
 
-type AccountForm = {
-  name: string;
-  email: string;
-  password: string;
-};
+type AccountForm = ProfileFields & { password: string };
 
 export default function Page(): React.JSX.Element {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState({
-    name: "Jane Doe",
-    email: "administratoremail@trcc.admin",
-    password: "password",
+  const [savedProfile, setSavedProfile] = useState<ProfileFields>({
+    name: "",
+    email: "",
   });
 
-  const [savedData, setSavedData] = useState({
-    name: "Jane Doe",
-    email: "administratoremail@trcc.admin",
-    password: "password",
+  const [formData, setFormData] = useState<AccountForm>({
+    name: "",
+    email: "",
+    password: "",
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
+
+  useEffect(() => {
+    if (userLoading || !user) return;
+
+    let cancelled = false;
+    setProfileLoading(true);
+    setProfileError(null);
+
+    getCurrentUser()
+      .then((row) => {
+        if (cancelled) return;
+        const name = row.name?.trim() ?? "";
+        const email = user.email?.trim() ?? "";
+        const next: ProfileFields = { name, email };
+        setSavedProfile(next);
+        setFormData({ ...next, password: "" });
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        setProfileError(
+          e instanceof Error ? e.message : "Could not load profile"
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setProfileLoading(false);
+      });
+
+    return (): void => {
+      cancelled = true;
+    };
+  }, [user, userLoading]);
 
   useEffect(() => {
     if (userLoading) return;
@@ -48,6 +87,55 @@ export default function Page(): React.JSX.Element {
     return <div></div>;
   }
 
+  if (profileLoading) {
+    return <div></div>;
+  }
+
+  if (profileError) {
+    return (
+      <div className={styles["container"]}>
+        <p className={styles["errorText"]} role="alert">
+          {profileError}
+        </p>
+      </div>
+    );
+  }
+
+  const handleSave = async (): Promise<void> => {
+    const validationErrors = validateForm(formData);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+    setErrors({});
+    setSaveError(null);
+    setSaving(true);
+    const result = await updateAccountSettingsAction({
+      name: formData.name,
+      email: formData.email,
+      ...(formData.password.trim() !== ""
+        ? { password: formData.password }
+        : {}),
+    });
+    setSaving(false);
+    if (!result.ok) {
+      const msg =
+        result.validationErrors && result.validationErrors.length > 0
+          ? result.validationErrors.map((v) => v.message).join(" ")
+          : result.error;
+      setSaveError(msg);
+      return;
+    }
+    const next: ProfileFields = {
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+    };
+    setSavedProfile(next);
+    setFormData({ ...next, password: "" });
+    setIsEditing(false);
+    router.refresh();
+  };
+
   return (
     <div className={styles["container"]}>
       <div className={styles["wrapper"]}>
@@ -55,9 +143,12 @@ export default function Page(): React.JSX.Element {
           <h1 className={styles["title"]}>Account Info</h1>
           {!isEditing && (
             <button
+              type="button"
               className={styles["editButton"]}
               onClick={() => {
-                setFormData(savedData);
+                setFormData({ ...savedProfile, password: "" });
+                setSaveError(null);
+                setErrors({});
                 setIsEditing(true);
               }}
             >
@@ -67,33 +158,10 @@ export default function Page(): React.JSX.Element {
           )}
         </div>
 
-        {isEditing && (
-          <div className={styles["cancelSave"]}>
-            <button
-              className={styles["cancelButton"]}
-              onClick={() => {
-                setErrors({});
-                setIsEditing(false);
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              className={styles["saveButton"]}
-              onClick={() => {
-                const validationErrors = validateForm(formData);
-                if (Object.keys(validationErrors).length > 0) {
-                  setErrors(validationErrors);
-                  return;
-                }
-                setErrors({});
-                setSavedData(formData);
-                setIsEditing(false);
-              }}
-            >
-              Save
-            </button>
-          </div>
+        {saveError && (
+          <p className={styles["errorText"]} role="alert">
+            {saveError}
+          </p>
         )}
 
         <div className={styles["card"]}>
@@ -104,9 +172,36 @@ export default function Page(): React.JSX.Element {
               errors={errors}
             />
           ) : (
-            <ReadOnlyView savedData={savedData} />
+            <ReadOnlyView profile={savedProfile} />
           )}
         </div>
+
+        {isEditing && (
+          <div className={styles["cancelSave"]}>
+            <button
+              type="button"
+              className={styles["cancelButton"]}
+              onClick={() => {
+                setErrors({});
+                setSaveError(null);
+                setFormData({ ...savedProfile, password: "" });
+                setIsEditing(false);
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={styles["saveButton"]}
+              disabled={saving}
+              onClick={() => {
+                void handleSave();
+              }}
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -114,48 +209,43 @@ export default function Page(): React.JSX.Element {
 
 function validateForm(formData: AccountForm): FormErrors {
   const errors: FormErrors = {};
-  if (formData.name == "") {
+  if (formData.name.trim() === "") {
     errors.name = "Name is required";
   }
-  if (formData.email == "") {
+  if (formData.email.trim() === "") {
     errors.email = "Email is required";
   } else if (!formData.email.includes("@") || !formData.email.includes(".")) {
     errors.email = "Invalid email format";
   }
-  if (formData.password == "") {
-    errors.password = "Password is required";
-  } else if (formData.password.length < 12) {
-    errors.password = "Password must have at least 12 characters";
+  const pwd = formData.password.trim();
+  if (pwd !== "" && pwd.length < 6) {
+    errors.password = "Password must be at least 6 characters";
   }
   return errors;
 }
 
 function ReadOnlyView({
-  savedData,
+  profile,
 }: {
-  savedData: {
-    name: string;
-    email: string;
-    password: string;
-  };
+  profile: ProfileFields;
 }): React.JSX.Element {
   return (
     <>
       <div className={styles["field"]}>
         <div className={styles["label"]}>Name</div>
-        <div className={styles["value"]}>{savedData.name}</div>
+        <div className={styles["value"]}>{profile.name || "—"}</div>
       </div>
 
       <div className={styles["field"]}>
         <div className={styles["label"]}>Email</div>
-        <a className={styles["link"]} href={`mailto:${savedData.email}`}>
-          {savedData.email}
+        <a className={styles["link"]} href={`mailto:${profile.email}`}>
+          {profile.email || "—"}
         </a>
       </div>
 
       <div className={styles["field"]}>
         <div className={styles["label"]}>Password</div>
-        <div className={styles["value"]}>{savedData.password}</div>
+        <div className={styles["value"]}>{PASSWORD_MASK}</div>
       </div>
     </>
   );
@@ -166,11 +256,7 @@ function EditView({
   setFormData,
   errors,
 }: {
-  formData: {
-    name: string;
-    email: string;
-    password: string;
-  };
+  formData: AccountForm;
   setFormData: React.Dispatch<React.SetStateAction<AccountForm>>;
   errors: FormErrors;
 }): React.JSX.Element {
@@ -194,6 +280,7 @@ function EditView({
         <div className={styles["label"]}>Email</div>
         <div className={styles["inputWrapper"]}>
           <input
+            type="email"
             className={styles["valueInput"]}
             value={formData.email}
             onChange={(e) =>
@@ -210,8 +297,11 @@ function EditView({
         <div className={styles["label"]}>Password</div>
         <div className={styles["inputWrapper"]}>
           <input
+            type="password"
             className={styles["valueInput"]}
             value={formData.password}
+            placeholder="Leave blank to keep current password"
+            autoComplete="new-password"
             onChange={(e) =>
               setFormData((prev) => ({ ...prev, password: e.target.value }))
             }

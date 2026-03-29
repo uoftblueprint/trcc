@@ -1,4 +1,7 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "../client/supabase/server";
+import type { Database } from "../client/supabase/types";
+
 const ALLOWED_USER_ROLES = ["admin", "staff"];
 
 type UserPatch = {
@@ -103,6 +106,16 @@ function validateUserUpdateBody(body: unknown): {
   return { cleanedPatch, errors };
 }
 
+/**
+ * Updates a user in the database.
+ * @param _userId - The ID of the user to update.
+ * @param body - The body of the request.
+ * @param body.name - The name of the user.
+ * @param body.email - The email of the user.
+ * @param body.password - The password of the user.
+ * @param body.role - The role of the user.
+ * @returns The response from the API.
+ */
 export async function updateUser(
   _userId: string,
   body: unknown
@@ -200,6 +213,121 @@ export async function updateUser(
           .from("Users")
           .update(rollbackUserTablePayload)
           .eq("id", _userId)
+          .select("id")
+          .single();
+
+        if (rollbackError) {
+          return {
+            error: `Auth update failed: ${error.message}. Rollback failed: ${rollbackError.message}`,
+          };
+        }
+      }
+
+      return { error: error.message };
+    }
+  }
+
+  return { data: cleanedPatch };
+}
+
+/**
+ * Updates the **currently signed-in** user using the session Supabase client
+ * (publishable key + cookies). Use this for self-service account settings so
+ * `SUPABASE_SERVICE_ROLE_KEY` is not required. Admin-only flows should keep
+ * using {@link updateUser} with the service role.
+ */
+export async function updateCurrentUserAccount(
+  sessionClient: SupabaseClient<Database>,
+  body: unknown
+): Promise<UpdateUserResponse> {
+  const { cleanedPatch, errors } = validateUserUpdateBody(body);
+
+  if (errors.length > 0 || !cleanedPatch) {
+    return {
+      error: "Invalid request body",
+      validationErrors: errors,
+    };
+  }
+
+  if (cleanedPatch.role !== undefined) {
+    return { error: "Role cannot be changed from account settings" };
+  }
+
+  const {
+    data: { user },
+    error: authError,
+  } = await sessionClient.auth.getUser();
+
+  if (authError || !user) {
+    return { error: "Not signed in" };
+  }
+
+  const authUpdatePayload: { email?: string; password?: string } = {};
+  const currentEmail = (user.email ?? "").trim();
+  if (cleanedPatch.email && cleanedPatch.email !== currentEmail) {
+    authUpdatePayload.email = cleanedPatch.email;
+  }
+  if (cleanedPatch.password) {
+    authUpdatePayload.password = cleanedPatch.password;
+  }
+
+  const userTableUpdatePayload: Record<string, string> = {};
+  if (cleanedPatch.name) {
+    userTableUpdatePayload["name"] = cleanedPatch.name;
+  }
+
+  const hasTableUpdates = Object.keys(userTableUpdatePayload).length > 0;
+  const hasAuthUpdates = Object.keys(authUpdatePayload).length > 0;
+
+  if (!hasTableUpdates && !hasAuthUpdates) {
+    return { data: cleanedPatch };
+  }
+
+  const rollbackUserTablePayload: Record<string, string | null> = {};
+
+  if (hasTableUpdates && hasAuthUpdates) {
+    const { data: existingUser, error: existingUserError } = await sessionClient
+      .from("Users")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
+    if (existingUserError) {
+      return { error: existingUserError.message };
+    }
+
+    const existingUserRecord = existingUser as Record<string, unknown>;
+
+    if ("name" in userTableUpdatePayload) {
+      rollbackUserTablePayload["name"] =
+        typeof existingUserRecord["name"] === "string"
+          ? existingUserRecord["name"]
+          : null;
+    }
+  }
+
+  if (hasTableUpdates) {
+    const { error: userTableError } = await sessionClient
+      .from("Users")
+      .update(userTableUpdatePayload)
+      .eq("id", user.id)
+      .select("id")
+      .single();
+
+    if (userTableError) {
+      return { error: userTableError.message };
+    }
+  }
+
+  if (hasAuthUpdates) {
+    const { error } = await sessionClient.auth.updateUser(authUpdatePayload);
+
+    if (error) {
+      if (hasTableUpdates && Object.keys(rollbackUserTablePayload).length > 0) {
+        const { error: rollbackError } = await sessionClient
+          .from("Users")
+          .update(rollbackUserTablePayload)
+          .eq("id", user.id)
           .select("id")
           .single();
 
