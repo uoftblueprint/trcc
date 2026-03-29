@@ -205,7 +205,7 @@ export const FilterModal = ({
                     handleApplyFilter();
                   }
                 }}
-                className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-purple"
+                className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
               />
             ) : (
               <>
@@ -221,7 +221,7 @@ export const FilterModal = ({
                       handleApplyFilter();
                     }
                   }}
-                  className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-purple"
+                  className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
                 />
                 <div className="flex flex-col gap-2 max-h-48 overflow-y-auto mt-2">
                   {availableOptions
@@ -244,7 +244,7 @@ export const FilterModal = ({
                                 p.filter((o) => o !== opt)
                               );
                           }}
-                          className="rounded border-gray-300 text-accent-purple focus:ring-accent-purple cursor-pointer"
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-600 cursor-pointer"
                         />
                         <VolunteerTag label={opt} />
                       </label>
