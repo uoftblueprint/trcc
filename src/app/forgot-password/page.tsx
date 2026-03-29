@@ -1,36 +1,23 @@
 "use client";
 
-import { useEffect, useState, type ReactElement } from "react";
+import { Suspense, useState, type ReactElement } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/client/supabase/client";
 import styles from "@/styles/login.module.css";
 
 type AlertState = { type: "success" | "error"; message: string } | null;
 
-export default function Page(): ReactElement {
+function ForgotPasswordForm(): ReactElement {
   const supabase = createClient();
+  const searchParams = useSearchParams();
+  const ready = searchParams.get("reset") === "true";
 
-  const [ready, setReady] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [alert, setAlert] = useState<AlertState>(null);
   const [sending, setSending] = useState(false);
   const [updating, setUpdating] = useState(false);
-
-  useEffect((): (() => void) => {
-    const browserClient = createClient();
-
-    const {
-      data: { subscription },
-    } = browserClient.auth.onAuthStateChange((event: string) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setReady(true);
-        setAlert(null);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   const requestReset = async (
     event: React.FormEvent<HTMLFormElement>
@@ -40,7 +27,7 @@ export default function Page(): ReactElement {
     setAlert(null);
 
     try {
-      const response = await fetch("/api/auth/forgot-password", {
+      const response = await fetch("/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -198,5 +185,13 @@ export default function Page(): ReactElement {
         ) : null}
       </div>
     </main>
+  );
+}
+
+export default function Page(): ReactElement {
+  return (
+    <Suspense>
+      <ForgotPasswordForm />
+    </Suspense>
   );
 }
