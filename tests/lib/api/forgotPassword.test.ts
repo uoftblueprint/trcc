@@ -1,4 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
+
+const hasIntegrationEnv = Boolean(process.env["SECRET_KEY"]);
 import { POST } from "@/app/auth/forgot-password/route";
 import {
   createServiceTestClient,
@@ -115,7 +117,7 @@ describe("Forgot Password Route", () => {
 
       const request = new Request("http://localhost/api/auth/forgot-password", {
         method: "POST",
-        body: JSON.stringify({ email: "unknown@example.com" }),
+        body: JSON.stringify({ email: "admin@example.com" }),
       });
 
       const response = await POST(request);
@@ -143,145 +145,153 @@ describe("Forgot Password Route", () => {
 
   //  Integration Tests (real Supabase)
 
-  describe("Forgot password + update password (integration)", () => {
-    // adminClient: passes Bearer token — required for auth.admin.* calls
-    // (createUser, deleteUser, updateUserById)
-    const adminClient = createAdminTestClient();
+  describe.skipIf(!hasIntegrationEnv)(
+    "Forgot password + update password (integration)",
+    () => {
+      // adminClient: passes Bearer token — required for auth.admin.* calls
+      // (createUser, deleteUser, updateUserById)
+      let adminClient: ReturnType<typeof createAdminTestClient>;
 
-    // regularClient: for resetPasswordForEmail and signInWithPassword which don't need admin privileges
-    const regularClient = createServiceTestClient();
+      // regularClient: for resetPasswordForEmail and signInWithPassword which don't need admin privileges
+      let regularClient: ReturnType<typeof createServiceTestClient>;
 
-    describe("resetPasswordForEmail", () => {
-      it("succeeds without error for an unknown email", async () => {
-        const { error } = await regularClient.auth.resetPasswordForEmail(
-          `test-unknown-${Date.now()}@example.com`,
-          {
-            redirectTo: `${process.env["NEXT_PUBLIC_SITE_URL"] ?? "http://localhost:3000"}/forgot-password`,
-          }
-        );
-
-        expect(error).toBeNull();
+      beforeAll(() => {
+        adminClient = createAdminTestClient();
+        regularClient = createServiceTestClient();
       });
 
-      it("succeeds without error for a known user email", async () => {
-        const testEmail = `test-reset-${Date.now()}@example.com`;
-
-        const { data: created, error: createError } =
-          await adminClient.auth.admin.createUser({
-            email: testEmail,
-            password: "InitialPassword123!",
-            email_confirm: true,
-          });
-
-        expect(createError).toBeNull();
-        const userId = created.user!.id;
-
-        try {
-          const { error: resetError } =
-            await regularClient.auth.resetPasswordForEmail(testEmail, {
+      describe("resetPasswordForEmail", () => {
+        it("succeeds without error for an unknown email", async () => {
+          const { error } = await regularClient.auth.resetPasswordForEmail(
+            `test-unknown-${Date.now()}@example.com`,
+            {
               redirectTo: `${process.env["NEXT_PUBLIC_SITE_URL"] ?? "http://localhost:3000"}/forgot-password`,
+            }
+          );
+
+          expect(error).toBeNull();
+        });
+
+        it("succeeds without error for a known user email", async () => {
+          const testEmail = `test-reset-${Date.now()}@example.com`;
+
+          const { data: created, error: createError } =
+            await adminClient.auth.admin.createUser({
+              email: testEmail,
+              password: "InitialPassword123!",
+              email_confirm: true,
             });
 
-          expect(resetError).toBeNull();
-        } finally {
-          await adminClient.auth.admin.deleteUser(userId);
-        }
+          expect(createError).toBeNull();
+          const userId = created.user!.id;
+
+          try {
+            const { error: resetError } =
+              await regularClient.auth.resetPasswordForEmail(testEmail, {
+                redirectTo: `${process.env["NEXT_PUBLIC_SITE_URL"] ?? "http://localhost:3000"}/forgot-password`,
+              });
+
+            expect(resetError).toBeNull();
+          } finally {
+            await adminClient.auth.admin.deleteUser(userId);
+          }
+        });
       });
-    });
 
-    describe("updateUser (password change)", () => {
-      it("successfully updates a user's password", async () => {
-        const testEmail = `test-update-${Date.now()}@example.com`;
-        const initialPassword = "InitialPassword123!";
-        const newPassword = "UpdatedPassword456!";
+      describe("updateUser (password change)", () => {
+        it("successfully updates a user's password", async () => {
+          const testEmail = `test-update-${Date.now()}@example.com`;
+          const initialPassword = "InitialPassword123!";
+          const newPassword = "UpdatedPassword456!";
 
-        const { data: created, error: createError } =
-          await adminClient.auth.admin.createUser({
-            email: testEmail,
-            password: initialPassword,
-            email_confirm: true,
-          });
+          const { data: created, error: createError } =
+            await adminClient.auth.admin.createUser({
+              email: testEmail,
+              password: initialPassword,
+              email_confirm: true,
+            });
 
-        expect(createError).toBeNull();
-        const userId = created.user!.id;
+          expect(createError).toBeNull();
+          const userId = created.user!.id;
 
-        try {
-          const { error: updateError } =
+          try {
+            const { error: updateError } =
+              await adminClient.auth.admin.updateUserById(userId, {
+                password: newPassword,
+              });
+
+            expect(updateError).toBeNull();
+          } finally {
+            await adminClient.auth.admin.deleteUser(userId);
+          }
+        });
+
+        it("new password works for sign-in after update", async () => {
+          const testEmail = `test-signin-${Date.now()}@example.com`;
+          const initialPassword = "InitialPassword123!";
+          const newPassword = "UpdatedPassword456!";
+
+          const { data: created, error: createError } =
+            await adminClient.auth.admin.createUser({
+              email: testEmail,
+              password: initialPassword,
+              email_confirm: true,
+            });
+
+          expect(createError).toBeNull();
+          const userId = created.user!.id;
+
+          try {
             await adminClient.auth.admin.updateUserById(userId, {
               password: newPassword,
             });
 
-          expect(updateError).toBeNull();
-        } finally {
-          await adminClient.auth.admin.deleteUser(userId);
-        }
-      });
+            const { data: signIn, error: signInError } =
+              await regularClient.auth.signInWithPassword({
+                email: testEmail,
+                password: newPassword,
+              });
 
-      it("new password works for sign-in after update", async () => {
-        const testEmail = `test-signin-${Date.now()}@example.com`;
-        const initialPassword = "InitialPassword123!";
-        const newPassword = "UpdatedPassword456!";
+            expect(signInError).toBeNull();
+            expect(signIn.user).toBeTruthy();
+            expect(signIn.user!.email).toBe(testEmail);
+          } finally {
+            await adminClient.auth.admin.deleteUser(userId);
+          }
+        });
 
-        const { data: created, error: createError } =
-          await adminClient.auth.admin.createUser({
-            email: testEmail,
-            password: initialPassword,
-            email_confirm: true,
-          });
+        it("old password is rejected after update", async () => {
+          const testEmail = `test-old-pw-${Date.now()}@example.com`;
+          const initialPassword = "InitialPassword123!";
+          const newPassword = "UpdatedPassword456!";
 
-        expect(createError).toBeNull();
-        const userId = created.user!.id;
-
-        try {
-          await adminClient.auth.admin.updateUserById(userId, {
-            password: newPassword,
-          });
-
-          const { data: signIn, error: signInError } =
-            await regularClient.auth.signInWithPassword({
+          const { data: created, error: createError } =
+            await adminClient.auth.admin.createUser({
               email: testEmail,
+              password: initialPassword,
+              email_confirm: true,
+            });
+
+          expect(createError).toBeNull();
+          const userId = created.user!.id;
+
+          try {
+            await adminClient.auth.admin.updateUserById(userId, {
               password: newPassword,
             });
 
-          expect(signInError).toBeNull();
-          expect(signIn.user).toBeTruthy();
-          expect(signIn.user!.email).toBe(testEmail);
-        } finally {
-          await adminClient.auth.admin.deleteUser(userId);
-        }
+            const { error: oldPasswordError } =
+              await regularClient.auth.signInWithPassword({
+                email: testEmail,
+                password: initialPassword,
+              });
+
+            expect(oldPasswordError).not.toBeNull();
+          } finally {
+            await adminClient.auth.admin.deleteUser(userId);
+          }
+        });
       });
-
-      it("old password is rejected after update", async () => {
-        const testEmail = `test-old-pw-${Date.now()}@example.com`;
-        const initialPassword = "InitialPassword123!";
-        const newPassword = "UpdatedPassword456!";
-
-        const { data: created, error: createError } =
-          await adminClient.auth.admin.createUser({
-            email: testEmail,
-            password: initialPassword,
-            email_confirm: true,
-          });
-
-        expect(createError).toBeNull();
-        const userId = created.user!.id;
-
-        try {
-          await adminClient.auth.admin.updateUserById(userId, {
-            password: newPassword,
-          });
-
-          const { error: oldPasswordError } =
-            await regularClient.auth.signInWithPassword({
-              email: testEmail,
-              password: initialPassword,
-            });
-
-          expect(oldPasswordError).not.toBeNull();
-        } finally {
-          await adminClient.auth.admin.deleteUser(userId);
-        }
-      });
-    });
-  });
+    }
+  );
 });
