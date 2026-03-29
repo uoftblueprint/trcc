@@ -77,115 +77,155 @@ export const useVolunteerEdits = ({
     const currentErrors: string[] = [];
     const remainingEdits = { ...editedRows };
 
-    const results = await Promise.allSettled(
-      Object.entries(editedRows).map(async ([idStr, updates]) => {
-        const id = Number(idStr);
-        const payload: Record<string, unknown> = { ...updates };
-        const volunteer = allVolunteers.find((v) => v.id === id);
+    try {
+      const knownCohortTerms = new Set(
+        allCohorts.map((c) => `${c.term.toLowerCase()} ${c.year}`)
+      );
+      const knownRoles = new Set(
+        allRoles.map((r) => `${r.name.toLowerCase()}|${r.type}`)
+      );
 
-        if (!volunteer) throw new Error(`Volunteer ID ${id} not found`);
-        const volunteerName = volunteer.name_org || `ID ${id}`;
-
-        if (updates.cohorts !== undefined) {
-          const knownTerms = allCohorts.map((c) => `${c.term} ${c.year}`);
+      for (const updates of Object.values(editedRows)) {
+        if (updates.cohorts) {
           for (const cName of updates.cohorts) {
-            if (!knownTerms.includes(cName)) {
-              const [term, year] = cName.split(" ");
-              if (!term || !year)
-                throw new Error(
-                  `Invalid cohort format "${cName}". Use 'Term Year'`
-                );
-              try {
-                await createCohort({
-                  term,
-                  year: Number(year),
-                  is_active: true,
-                });
-              } catch (e: unknown) {
-                const errMsg = e instanceof Error ? e.message : String(e);
-                throw new Error(`Failed to create cohort ${cName}: ${errMsg}`);
-              }
+            const [term, year] = cName.trim().split(/\s+/);
+            if (!term || !year)
+              throw new Error(
+                `Invalid cohort format "${cName}". Use 'Term Year'`
+              );
+            const normalizedTerm =
+              term.charAt(0).toUpperCase() + term.slice(1).toLowerCase();
+            const cohortKey = `${normalizedTerm.toLowerCase()} ${year}`;
+            if (!knownCohortTerms.has(cohortKey)) {
+              await createCohort({
+                term: normalizedTerm,
+                year: Number(year),
+                is_active: true,
+              });
+              knownCohortTerms.add(cohortKey);
             }
           }
-          payload["cohorts"] = (updates.cohorts as string[]).map(
-            (cName: string) => {
-              const [term, year] = cName.split(" ");
-              return { term, year: Number(year) };
-            }
-          );
         }
 
-        if (
-          updates.current_roles !== undefined ||
-          updates.prior_roles !== undefined ||
-          updates.future_interests !== undefined
-        ) {
-          const currentRoles =
-            updates.current_roles !== undefined
-              ? (updates.current_roles as string[])
-              : volunteer.current_roles;
-          const priorRoles =
-            updates.prior_roles !== undefined
-              ? (updates.prior_roles as string[])
-              : volunteer.prior_roles;
-          const futureInterests =
-            updates.future_interests !== undefined
-              ? (updates.future_interests as string[])
-              : volunteer.future_interests;
+        const checkAndCreateRoles = async (
+          roleArray: string[] | undefined,
+          type: string
+        ): Promise<void> => {
+          if (!roleArray) return;
+          for (const rName of roleArray) {
+            const cleanName = rName.trim();
+            const roleKey = `${cleanName.toLowerCase()}|${type}`;
+            if (!knownRoles.has(roleKey)) {
+              const res = await createRole({ name: cleanName, type });
+              if (!res.success)
+                throw new Error(
+                  `Failed to create role ${cleanName}: ${res.error}`
+                );
+              knownRoles.add(roleKey);
+            }
+          }
+        };
 
-          const mergedRoles: { name: string; type: string }[] = [];
+        await checkAndCreateRoles(
+          updates.current_roles as string[] | undefined,
+          "current"
+        );
+        await checkAndCreateRoles(
+          updates.prior_roles as string[] | undefined,
+          "prior"
+        );
+        await checkAndCreateRoles(
+          updates.future_interests as string[] | undefined,
+          "future_interest"
+        );
+      }
 
-          const processRoles = async (
-            roleArray: string[],
-            type: "current" | "prior" | "future_interest"
-          ): Promise<void> => {
-            const knownRoles = allRoles
-              .filter((r) => r.type === type)
-              .map((r) => r.name);
-            for (const rName of roleArray) {
-              if (!knownRoles.includes(rName)) {
-                const roleRes = await createRole({ name: rName, type });
-                if (!roleRes.success)
-                  throw new Error(
-                    `Failed to create role ${rName}: ${roleRes.error}`
-                  );
+      const results = await Promise.allSettled(
+        Object.entries(editedRows).map(async ([idStr, updates]) => {
+          const id = Number(idStr);
+          const payload: Record<string, unknown> = { ...updates };
+          const volunteer = allVolunteers.find((v) => v.id === id);
+
+          if (!volunteer) throw new Error(`Volunteer ID ${id} not found`);
+
+          if (updates.cohorts !== undefined) {
+            payload["cohorts"] = (updates.cohorts as string[]).map(
+              (cName: string) => {
+                const [term, year] = cName.trim().split(/\s+/);
+                const safeTerm = term || "";
+                const normalizedTerm =
+                  safeTerm.charAt(0).toUpperCase() +
+                  safeTerm.slice(1).toLowerCase();
+                return { term: normalizedTerm, year: Number(year) };
               }
-              mergedRoles.push({ name: rName, type });
-            }
-          };
-
-          await processRoles(currentRoles, "current");
-          await processRoles(priorRoles, "prior");
-          await processRoles(futureInterests, "future_interest");
-
-          payload["roles"] = mergedRoles;
-          delete payload["current_roles"];
-          delete payload["prior_roles"];
-          delete payload["future_interests"];
-        }
-
-        if (Object.keys(payload).length > 0) {
-          const res = await updateVolunteer(id, payload);
-          if (res.status !== 200)
-            throw new Error(
-              `Failed to update ${volunteerName}: ${res.body?.error || "Unknown error"}`
             );
-        }
+          }
 
-        delete remainingEdits[id];
-      })
-    );
+          if (
+            updates.current_roles !== undefined ||
+            updates.prior_roles !== undefined ||
+            updates.future_interests !== undefined
+          ) {
+            const mergedRoles: { name: string; type: string }[] = [];
+            const appendRoles = (
+              roleArray: string[] | undefined,
+              fallback: string[],
+              type: string
+            ): void => {
+              const source = roleArray !== undefined ? roleArray : fallback;
+              source.forEach((rName) =>
+                mergedRoles.push({ name: rName.trim(), type })
+              );
+            };
 
-    results.forEach((res) => {
-      if (res.status === "rejected") currentErrors.push(res.reason.message);
-    });
+            appendRoles(
+              updates.current_roles as string[] | undefined,
+              volunteer.current_roles,
+              "current"
+            );
+            appendRoles(
+              updates.prior_roles as string[] | undefined,
+              volunteer.prior_roles,
+              "prior"
+            );
+            appendRoles(
+              updates.future_interests as string[] | undefined,
+              volunteer.future_interests,
+              "future_interest"
+            );
+
+            payload["roles"] = mergedRoles;
+            delete payload["current_roles"];
+            delete payload["prior_roles"];
+            delete payload["future_interests"];
+          }
+
+          if (Object.keys(payload).length > 0) {
+            const res = await updateVolunteer(id, payload);
+            if (res.status !== 200)
+              throw new Error(
+                `Failed to update ID ${id}: ${res.body?.error || "Unknown error"}`
+              );
+          }
+
+          delete remainingEdits[id];
+        })
+      );
+
+      results.forEach((res) => {
+        if (res.status === "rejected") currentErrors.push(res.reason.message);
+      });
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "A fatal error occurred during tag creation.";
+      currentErrors.push(errorMessage);
+    }
 
     setEditedRows(remainingEdits);
-    if (currentErrors.length > 0) {
-      setSaveErrors(currentErrors);
-    } else {
-      setSaveErrors([]);
-    }
+    if (currentErrors.length > 0) setSaveErrors(currentErrors);
+    else setSaveErrors([]);
 
     await fetchInitialData();
     setIsSaving(false);

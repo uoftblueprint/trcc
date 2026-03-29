@@ -48,7 +48,7 @@ export const EditableCell = ({
     setValue(initialValue);
   }, [initialValue]);
 
-  const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>): void => {
+  const handleDoubleClick = (e: React.SyntheticEvent<HTMLDivElement>): void => {
     e.stopPropagation();
 
     const target = e.currentTarget as HTMLElement;
@@ -284,9 +284,16 @@ export const EditableCell = ({
   return (
     <>
       <div
-        className="absolute inset-0 z-0 cursor-text"
+        className="absolute inset-0 z-0 cursor-text focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-400"
         onDoubleClick={handleDoubleClick}
-        title="Double-click to edit"
+        onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleDoubleClick(e);
+          }
+        }}
+        tabIndex={0}
+        title="Double-click or press Enter to edit"
       />
       <div className="relative z-10 w-full h-full min-h-6 cursor-text flex items-center gap-1 flex-wrap overflow-hidden pointer-events-none">
         {renderReadOnlyTags()}

@@ -295,7 +295,10 @@ export async function updateVolunteer(
     }
 
     if (!data) {
-      return { status: 400, body: { error: "Role not found" } };
+      return {
+        status: 400,
+        body: { error: `Role not found: ${name} (${type})` },
+      };
     }
 
     roleRow = data;
@@ -316,10 +319,56 @@ export async function updateVolunteer(
     }
 
     if (!data) {
-      return { status: 400, body: { error: "Cohort not found" } };
+      return {
+        status: 400,
+        body: { error: `Cohort not found: ${term} ${year}` },
+      };
     }
 
     cohortRow = data;
+  }
+
+  let roleIds: number[] = [];
+  if (validation.roles !== undefined && validation.roles.length > 0) {
+    const { data: foundRoles, error: rolesError } = await client
+      .from("Roles")
+      .select("id, name, type");
+    if (rolesError) return { status: 500, body: { error: rolesError.message } };
+
+    for (const r of validation.roles) {
+      const match = foundRoles?.find(
+        (fr) =>
+          fr.name.toLowerCase() === r.name.toLowerCase() && fr.type === r.type
+      );
+      if (match) roleIds.push(match.id);
+      else
+        return {
+          status: 400,
+          body: { error: `Role not found: ${r.name} (${r.type})` },
+        };
+    }
+  }
+
+  let cohortIds: number[] = [];
+  if (validation.cohorts !== undefined && validation.cohorts.length > 0) {
+    const { data: foundCohorts, error: cohortsError } = await client
+      .from("Cohorts")
+      .select("id, term, year");
+    if (cohortsError)
+      return { status: 500, body: { error: cohortsError.message } };
+
+    for (const c of validation.cohorts) {
+      const match = foundCohorts?.find(
+        (fc) =>
+          fc.term.toLowerCase() === c.term.toLowerCase() && fc.year === c.year
+      );
+      if (match) cohortIds.push(match.id);
+      else
+        return {
+          status: 400,
+          body: { error: `Cohort not found: ${c.term} ${c.year}` },
+        };
+    }
   }
 
   const { data: volunteer, error: volunteerError } = await client
@@ -392,24 +441,6 @@ export async function updateVolunteer(
   }
 
   if (validation.roles !== undefined) {
-    let roleIds: number[] = [];
-    if (validation.roles.length > 0) {
-      const { data: foundRoles, error: rolesError } = await client
-        .from("Roles")
-        .select("id, name, type");
-      if (rolesError)
-        return { status: 500, body: { error: rolesError.message } };
-
-      for (const r of validation.roles) {
-        const match = foundRoles?.find(
-          (fr) => fr.name === r.name && fr.type === r.type
-        );
-        if (match) roleIds.push(match.id);
-        else
-          return { status: 400, body: { error: `Role not found: ${r.name}` } };
-      }
-    }
-
     const { error: delError } = await client
       .from("VolunteerRoles")
       .delete()
@@ -431,28 +462,6 @@ export async function updateVolunteer(
   }
 
   if (validation.cohorts !== undefined) {
-    let cohortIds: number[] = [];
-    if (validation.cohorts.length > 0) {
-      const { data: foundCohorts, error: cohortsError } = await client
-        .from("Cohorts")
-        .select("id, term, year");
-      if (cohortsError)
-        return { status: 500, body: { error: cohortsError.message } };
-
-      for (const c of validation.cohorts) {
-        const match = foundCohorts?.find(
-          (fc) =>
-            fc.term.toLowerCase() === c.term.toLowerCase() && fc.year === c.year
-        );
-        if (match) cohortIds.push(match.id);
-        else
-          return {
-            status: 400,
-            body: { error: `Cohort not found: ${c.term} ${c.year}` },
-          };
-      }
-    }
-
     const { error: delError } = await client
       .from("VolunteerCohorts")
       .delete()
