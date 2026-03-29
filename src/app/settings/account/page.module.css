@@ -1,5 +1,5 @@
 .container {
-  min-height: 100vh;
+  max-height: 100vh;
   padding: 80px 40px;
   background: var(--background);
   display: flex;
@@ -14,17 +14,17 @@
 
 .title {
   font-family: "Manrope", sans-serif;
-  font-size: 48px;
+  font-size: 24px;
   font-weight: 800;
   line-height: 100%;
-  margin-bottom: 40px;
+  margin-left: 10px;
 }
 
 .titleRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 40px;
+  margin-bottom: 20px;
 }
 
 .card {
@@ -46,6 +46,7 @@
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 8px;
   padding: 6px 12px;
+  margin-right: 10px;
   cursor: pointer;
   transition: background 0.2s ease;
 }
@@ -130,9 +131,6 @@
   justify-content: flex-end;
   gap: 16px;
   margin-top: 40px;
-  position: absolute;
-  bottom: 40px;
-  right: 40px;
   font-family: "Manrope", sans-serif;
   font-size: 14px;
   font-weight: 500;

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/client/supabase/server";
 import { import_csv } from "./import_csv";
 import {
   createVolunteer,
@@ -9,6 +10,7 @@ import {
 } from "./createVolunteer";
 import { removeVolunteer } from "./removeVolunteer";
 import { getCurrentUserServer } from "./getCurrentUserServer";
+import { updateCurrentUserAccount, type ValidationError } from "./updateUser";
 
 type ImportCSVResponse = Awaited<ReturnType<typeof import_csv>>;
 
@@ -64,4 +66,52 @@ export async function removeVolunteersAction(
   }
 
   return { succeeded, failed, errors };
+}
+
+export type UpdateAccountSettingsPatch = {
+  name: string;
+  email: string;
+  password?: string;
+};
+
+export type UpdateAccountSettingsResult =
+  | { ok: true }
+  | {
+      ok: false;
+      error: string;
+      validationErrors?: ValidationError[];
+    };
+
+/**
+ * Updates the signed-in user’s `Users` row and/or auth email & password using
+ * the session client (no service role key).
+ */
+export async function updateAccountSettingsAction(
+  patch: UpdateAccountSettingsPatch
+): Promise<UpdateAccountSettingsResult> {
+  const client = await createClient();
+
+  const body: Record<string, string> = {
+    name: patch.name.trim(),
+    email: patch.email.trim(),
+  };
+  if (patch.password !== undefined && patch.password.trim() !== "") {
+    body["password"] = patch.password;
+  }
+
+  const result = await updateCurrentUserAccount(client, body);
+
+  if ("error" in result && result.error) {
+    const err: UpdateAccountSettingsResult = {
+      ok: false,
+      error: result.error,
+    };
+    if (result.validationErrors !== undefined) {
+      err.validationErrors = result.validationErrors;
+    }
+    return err;
+  }
+
+  revalidatePath("/settings/account");
+  return { ok: true };
 }
