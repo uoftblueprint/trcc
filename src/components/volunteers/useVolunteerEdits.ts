@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
+import toast from "react-hot-toast";
 import { Volunteer, RoleRow, CohortRow } from "./types";
 import { updateVolunteer } from "@/lib/api/updateVolunteer";
 import { createRole } from "@/lib/api/createRole";
@@ -18,6 +19,12 @@ interface UseVolunteerEditsProps {
   fetchInitialData: () => Promise<void>;
 }
 
+interface EditAction {
+  rowId: number;
+  colId: string;
+  oldValue: unknown;
+}
+
 export interface UseVolunteerEditsReturn {
   isSaving: boolean;
   saveErrors: string[];
@@ -25,7 +32,31 @@ export interface UseVolunteerEditsReturn {
   handleCellEdit: (rowId: number, colId: string, value: unknown) => void;
   handleSaveEdits: () => Promise<void>;
   handleCancelEdits: () => Promise<void>;
+  canUndo: boolean;
+  canRedo: boolean;
+  undo: () => void;
+  redo: () => void;
 }
+
+const MAX_HISTORY = 100;
+
+const normalizeValue = (colId: string, value: unknown): unknown => {
+  if (colId === "opt_in_communication") {
+    if (value === "Yes") return true;
+    if (value === "No") return false;
+    return null;
+  }
+  if (colId === "cohorts" && Array.isArray(value)) {
+    return [...(value as string[])].sort(sortCohorts);
+  }
+  if (
+    ["current_roles", "prior_roles", "future_interests"].includes(colId) &&
+    Array.isArray(value)
+  ) {
+    return [...(value as string[])].sort(sortRoles);
+  }
+  return value;
+};
 
 export const useVolunteerEdits = ({
   editedRows,
@@ -40,40 +71,145 @@ export const useVolunteerEdits = ({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveErrors, setSaveErrors] = useState<string[]>([]);
   const hasEdits: boolean = Object.keys(editedRows).length > 0;
+  const hadEditsRef = useRef(false);
 
-  const handleCellEdit = useCallback(
-    (rowId: number, colId: string, value: unknown): void => {
-      let finalValue = value;
+  const undoStackRef = useRef<EditAction[]>([]);
+  const redoStackRef = useRef<EditAction[]>([]);
+  const isUndoRedoRef = useRef(false);
+  const editedRowsRef = useRef(editedRows);
+  editedRowsRef.current = editedRows;
+  const [historyTick, setHistoryTick] = useState(0);
 
-      if (colId === "opt_in_communication") {
-        if (value === "Yes") finalValue = true;
-        else if (value === "No") finalValue = false;
-        else finalValue = null;
-      } else if (colId === "cohorts" && Array.isArray(value)) {
-        finalValue = [...(value as string[])].sort(sortCohorts);
-      } else if (
-        ["current_roles", "prior_roles", "future_interests"].includes(colId) &&
-        Array.isArray(value)
-      ) {
-        finalValue = [...(value as string[])].sort(sortRoles);
+  const canUndo = undoStackRef.current.length > 0;
+  const canRedo = redoStackRef.current.length > 0;
+
+  const getCellValue = useCallback(
+    (rowId: number, colId: string): unknown => {
+      const edited = editedRowsRef.current[rowId];
+      if (edited && colId in edited)
+        return (edited as Record<string, unknown>)[colId];
+      return allVolunteers.find((v) => v.id === rowId)?.[
+        colId as keyof Volunteer
+      ];
+    },
+    [allVolunteers]
+  );
+
+  const applyEdit = useCallback(
+    (rowId: number, colId: string, finalValue: unknown): void => {
+      const originalRow = allVolunteers.find((v) => v.id === rowId);
+      const originalValue = originalRow
+        ? originalRow[colId as keyof Volunteer]
+        : undefined;
+
+      let matchesOriginal = false;
+      if (Array.isArray(finalValue) && Array.isArray(originalValue)) {
+        matchesOriginal =
+          JSON.stringify([...(finalValue as string[])].sort()) ===
+          JSON.stringify([...(originalValue as string[])].sort());
+      } else if (Array.isArray(finalValue) || Array.isArray(originalValue)) {
+        matchesOriginal = false;
+      } else {
+        const norm = (v: unknown): string =>
+          v === null || v === undefined ? "" : String(v);
+        matchesOriginal = norm(finalValue) === norm(originalValue);
       }
 
-      setEditedRows((prev) => ({
-        ...prev,
-        [rowId]: { ...(prev[rowId] || {}), [colId]: finalValue },
-      }));
+      setEditedRows((prev) => {
+        const next = { ...prev };
+        if (matchesOriginal) {
+          if (next[rowId]) {
+            const { [colId]: _removed, ...rest } = next[rowId] as Record<
+              string,
+              unknown
+            >;
+            if (Object.keys(rest).length === 0) {
+              delete next[rowId];
+            } else {
+              next[rowId] = rest as Partial<Volunteer>;
+            }
+          }
+        } else {
+          next[rowId] = { ...(next[rowId] || {}), [colId]: finalValue };
+        }
+
+        const willHaveEdits = Object.keys(next).length > 0;
+        if (willHaveEdits && !hadEditsRef.current) {
+          toast("Tracking changes — save when ready", {
+            icon: "✏️",
+            id: "tracking-edits",
+          });
+        }
+        hadEditsRef.current = willHaveEdits;
+
+        return next;
+      });
 
       setData((prev) =>
         prev.map((r) => (r.id === rowId ? { ...r, [colId]: finalValue } : r))
       );
     },
-    [setData, setEditedRows]
+    [setData, setEditedRows, allVolunteers]
   );
+
+  const handleCellEdit = useCallback(
+    (rowId: number, colId: string, value: unknown): void => {
+      const finalValue = normalizeValue(colId, value);
+
+      if (!isUndoRedoRef.current) {
+        const oldValue = getCellValue(rowId, colId);
+        undoStackRef.current = [
+          ...undoStackRef.current.slice(-(MAX_HISTORY - 1)),
+          { rowId, colId, oldValue },
+        ];
+        redoStackRef.current = [];
+      }
+
+      applyEdit(rowId, colId, finalValue);
+      setHistoryTick((t) => t + 1);
+    },
+    [getCellValue, applyEdit]
+  );
+
+  const undo = useCallback((): void => {
+    const action = undoStackRef.current.pop();
+    if (!action) return;
+
+    const currentValue = getCellValue(action.rowId, action.colId);
+    redoStackRef.current.push({
+      rowId: action.rowId,
+      colId: action.colId,
+      oldValue: currentValue,
+    });
+
+    isUndoRedoRef.current = true;
+    applyEdit(action.rowId, action.colId, action.oldValue);
+    isUndoRedoRef.current = false;
+    setHistoryTick((t) => t + 1);
+  }, [getCellValue, applyEdit]);
+
+  const redo = useCallback((): void => {
+    const action = redoStackRef.current.pop();
+    if (!action) return;
+
+    const currentValue = getCellValue(action.rowId, action.colId);
+    undoStackRef.current.push({
+      rowId: action.rowId,
+      colId: action.colId,
+      oldValue: currentValue,
+    });
+
+    isUndoRedoRef.current = true;
+    applyEdit(action.rowId, action.colId, action.oldValue);
+    isUndoRedoRef.current = false;
+    setHistoryTick((t) => t + 1);
+  }, [getCellValue, applyEdit]);
 
   const handleSaveEdits = async (): Promise<void> => {
     setIsSaving(true);
     setLoading(true);
     setSaveErrors([]);
+    const savingToast = toast.loading("Saving changes...");
     const currentErrors: string[] = [];
     const remainingEdits = { ...editedRows };
 
@@ -229,14 +365,33 @@ export const useVolunteerEdits = ({
 
     await fetchInitialData();
     setIsSaving(false);
+    hadEditsRef.current = Object.keys(remainingEdits).length > 0;
+    undoStackRef.current = [];
+    redoStackRef.current = [];
+    setHistoryTick((t) => t + 1);
+
+    if (currentErrors.length > 0) {
+      toast.error(`${currentErrors.length} update(s) failed`, {
+        id: savingToast,
+      });
+    } else {
+      toast.success("All changes saved", { id: savingToast });
+    }
   };
 
   const handleCancelEdits = async (): Promise<void> => {
     setLoading(true);
     setEditedRows({});
     setSaveErrors([]);
+    hadEditsRef.current = false;
+    undoStackRef.current = [];
+    redoStackRef.current = [];
+    setHistoryTick((t) => t + 1);
+    toast("Changes discarded", { icon: "↩️" });
     await fetchInitialData();
   };
+
+  void historyTick;
 
   return {
     isSaving,
@@ -245,5 +400,9 @@ export const useVolunteerEdits = ({
     handleCellEdit,
     handleSaveEdits,
     handleCancelEdits,
+    canUndo,
+    canRedo,
+    undo,
+    redo,
   };
 };

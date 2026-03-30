@@ -3,8 +3,8 @@ import { CellContext } from "@tanstack/react-table";
 import { Volunteer } from "./types";
 import { VolunteerTag } from "./VolunteerTag";
 import { ArrowRight } from "lucide-react";
+import { NotesDisplay } from "./NotesDisplay";
 
-const POPOVER_WIDTH_PX = 256;
 const SCREEN_EDGE_PADDING_PX = 16;
 const POPOVER_VERTICAL_OFFSET_PX = 4;
 
@@ -24,18 +24,24 @@ export const EditableCell = ({
   type = "text",
 }: EditableCellProps): React.JSX.Element => {
   const initialValue = info.getValue();
+  const isNotes = info.column.id === "notes";
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [isNotesExpanded, setIsNotesExpanded] = useState<boolean>(false);
   const [value, setValue] = useState<unknown>(initialValue);
   const [inputValue, setInputValue] = useState<string>("");
 
-  const [modalCoords, setModalCoords] = useState<{ top: number; left: number }>(
-    {
-      top: 0,
-      left: 0,
-    }
-  );
+  const [modalCoords, setModalCoords] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  }>({
+    top: 0,
+    left: 0,
+    width: 0,
+  });
 
   const popoverRef = useRef<HTMLDivElement>(null);
+  const cellRef = useRef<HTMLDivElement>(null);
 
   const allowAdd: boolean = [
     "cohorts",
@@ -48,22 +54,25 @@ export const EditableCell = ({
     setValue(initialValue);
   }, [initialValue]);
 
-  const handleDoubleClick = (e: React.SyntheticEvent<HTMLDivElement>): void => {
-    e.stopPropagation();
+  const enterEditMode = (e: React.SyntheticEvent<HTMLDivElement>): void => {
+    e.preventDefault();
 
     const target = e.currentTarget as HTMLElement;
     const td = target.closest("td");
     const rect = (td || target).getBoundingClientRect();
+    const cellWidth = rect.width;
     let leftPos = rect.left;
-    if (leftPos + POPOVER_WIDTH_PX > window.innerWidth) {
-      leftPos = window.innerWidth - POPOVER_WIDTH_PX - SCREEN_EDGE_PADDING_PX;
+    if (leftPos + cellWidth > window.innerWidth) {
+      leftPos = window.innerWidth - cellWidth - SCREEN_EDGE_PADDING_PX;
     }
 
     setModalCoords({
       top: rect.bottom + POPOVER_VERTICAL_OFFSET_PX,
       left: leftPos,
+      width: cellWidth,
     });
 
+    setInputValue("");
     setIsEditing(true);
   };
 
@@ -108,17 +117,17 @@ export const EditableCell = ({
     if (!isEditing || type === "text") return;
 
     const handleOutsideInteraction = (e: Event): void => {
-      if (popoverRef.current && popoverRef.current.contains(e.target as Node)) {
-        return;
-      }
+      const target = e.target as Node;
+      if (popoverRef.current?.contains(target)) return;
+      if (cellRef.current?.contains(target)) return;
       handleSave();
     };
 
-    document.addEventListener("mousedown", handleOutsideInteraction);
+    document.addEventListener("mousedown", handleOutsideInteraction, true);
     window.addEventListener("scroll", handleOutsideInteraction, true);
 
     return (): void => {
-      document.removeEventListener("mousedown", handleOutsideInteraction);
+      document.removeEventListener("mousedown", handleOutsideInteraction, true);
       window.removeEventListener("scroll", handleOutsideInteraction, true);
     };
   }, [isEditing, type, handleSave]);
@@ -166,7 +175,10 @@ export const EditableCell = ({
         : [];
 
     return (
-      <div className="relative w-full h-full flex items-center min-h-6 gap-1 flex-wrap overflow-hidden">
+      <div
+        ref={cellRef}
+        className="relative w-full h-full flex items-center min-h-6 gap-1 flex-wrap overflow-hidden"
+      >
         {currentArray.map((v, i) => (
           <VolunteerTag
             key={i}
@@ -174,6 +186,7 @@ export const EditableCell = ({
             onRemove={() => {
               const updated = currentArray.filter((_, idx) => idx !== i);
               setValue(updated);
+              onEdit(info.row.original.id, info.column.id, updated);
             }}
           />
         ))}
@@ -184,7 +197,7 @@ export const EditableCell = ({
             position: "fixed",
             top: `${modalCoords.top}px`,
             left: `${modalCoords.left}px`,
-            width: "256px",
+            width: `${modalCoords.width}px`,
             zIndex: 99999,
           }}
           className="bg-white rounded-xl shadow-xl border border-gray-100 p-3 flex flex-col gap-2"
@@ -236,11 +249,11 @@ export const EditableCell = ({
                       e: React.ChangeEvent<HTMLInputElement>
                     ): void => {
                       if (isMulti) {
-                        if (e.target.checked) {
-                          setValue([...currentArray, opt]);
-                        } else {
-                          setValue(currentArray.filter((o) => o !== opt));
-                        }
+                        const updated = e.target.checked
+                          ? [...currentArray, opt]
+                          : currentArray.filter((o) => o !== opt);
+                        setValue(updated);
+                        onEdit(info.row.original.id, info.column.id, updated);
                       } else {
                         applyValue(opt);
                       }
@@ -291,6 +304,15 @@ export const EditableCell = ({
       }
       return "";
     }
+    if (isNotes) {
+      return (
+        <NotesDisplay
+          value={value}
+          expanded={isNotesExpanded}
+          onToggle={() => setIsNotesExpanded((prev) => !prev)}
+        />
+      );
+    }
     return String(value ?? "");
   };
 
@@ -298,11 +320,25 @@ export const EditableCell = ({
     <>
       <div
         className="absolute inset-0 z-0 cursor-text focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-400"
-        onDoubleClick={handleDoubleClick}
+        onMouseDown={(e: React.MouseEvent<HTMLDivElement>) => {
+          if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
+            if (isNotes) {
+              e.preventDefault();
+              setIsNotesExpanded((prev) => !prev);
+            } else {
+              enterEditMode(e);
+            }
+          }
+        }}
+        onDoubleClick={(e: React.MouseEvent<HTMLDivElement>) => {
+          if (isNotes) {
+            enterEditMode(e);
+          }
+        }}
         onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            handleDoubleClick(e);
+            enterEditMode(e);
           }
           if (e.key === "Delete" || e.key === "Backspace") {
             e.preventDefault();
@@ -310,7 +346,11 @@ export const EditableCell = ({
           }
         }}
         tabIndex={0}
-        title="Double-click or press Enter to edit"
+        title={
+          isNotes
+            ? "Click to expand, double-click to edit"
+            : "Click or press Enter to edit"
+        }
       />
       <div className="relative z-10 w-full h-full min-h-6 cursor-text flex items-center gap-1 flex-wrap overflow-hidden pointer-events-none">
         {renderReadOnlyTags()}

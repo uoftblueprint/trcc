@@ -7,6 +7,8 @@ import {
   Import,
   Plus,
   Trash2,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import { FilterTuple } from "@/lib/api/getVolunteersByMultipleColumns";
 import { FilterModal, filterModalAlignRight } from "./FilterModal";
@@ -27,6 +29,14 @@ interface TableToolbarProps {
   onDelete: () => void;
   onOpenAddVolunteer: () => void;
   onOpenImportCSV: () => void;
+  hasEdits: boolean;
+  isSaving: boolean;
+  onSave: () => void;
+  onCancel: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
 }
 
 export const TableToolbar = ({
@@ -43,6 +53,14 @@ export const TableToolbar = ({
   onDelete,
   onOpenAddVolunteer,
   onOpenImportCSV,
+  hasEdits,
+  isSaving,
+  onSave,
+  onCancel,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
 }: TableToolbarProps): React.JSX.Element => {
   const [isMainFilterOpen, setIsMainFilterOpen] = useState(false);
   const [mainFilterAlignRight, setMainFilterAlignRight] = useState(false);
@@ -61,7 +79,7 @@ export const TableToolbar = ({
   };
 
   return (
-    <div className="flex items-center justify-end gap-3 mb-2">
+    <div className="flex items-center justify-start gap-3 mb-2">
       <div className="relative w-full max-w-96">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-800">
           <Search className="w-4 h-4 shrink-0" />
@@ -161,6 +179,43 @@ export const TableToolbar = ({
           <Import className="w-4 h-4 shrink-0" />
           <span>Import from CSV</span>
         </button>
+      )}
+
+      {(hasEdits || canUndo || canRedo) && (
+        <div className="flex items-center gap-2 ml-auto animate-in fade-in slide-in-from-right-2 duration-200">
+          <div className="flex items-center gap-1 mr-1">
+            <button
+              onClick={onUndo}
+              disabled={!canUndo || isSaving}
+              title="Undo (⌘Z)"
+              className="p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-default"
+            >
+              <Undo2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={onRedo}
+              disabled={!canRedo || isSaving}
+              title="Redo (⌘⇧Z)"
+              className="p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-default"
+            >
+              <Redo2 className="w-4 h-4" />
+            </button>
+          </div>
+          <button
+            onClick={onCancel}
+            disabled={isSaving}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onSave}
+            disabled={isSaving || !hasEdits}
+            className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+          >
+            {isSaving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
       )}
     </div>
   );

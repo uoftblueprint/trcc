@@ -11,6 +11,7 @@ import {
   ColumnDef,
 } from "@tanstack/react-table";
 import clsx from "clsx";
+import toast from "react-hot-toast";
 import type { Volunteer } from "./types";
 import { useCellSelection } from "./useCellSelection";
 import { getBaseColumns, FILTERABLE_COLUMNS } from "./volunteerColumns";
@@ -83,6 +84,10 @@ const VolunteersTableContent = ({
     handleCellEdit,
     handleSaveEdits,
     handleCancelEdits,
+    canUndo,
+    canRedo,
+    undo,
+    redo,
   } = useVolunteerEdits({
     editedRows,
     setEditedRows,
@@ -251,10 +256,19 @@ const VolunteersTableContent = ({
     if (!confirmed) return;
 
     setIsDeleting(true);
+    const deleteToast = toast.loading(
+      `Deleting ${selectedRowIds.length} volunteer(s)...`
+    );
     try {
       const result = await removeVolunteersAction(selectedRowIds);
       if (result.failed > 0) {
-        console.error("[VolunteersTable] Delete errors:", result.errors);
+        toast.error(`${result.failed} volunteer(s) could not be deleted`, {
+          id: deleteToast,
+        });
+      } else {
+        toast.success(`${result.succeeded} volunteer(s) deleted`, {
+          id: deleteToast,
+        });
       }
       if (result.succeeded > 0) {
         setRowSelection({});
@@ -263,6 +277,7 @@ const VolunteersTableContent = ({
       }
     } catch (error) {
       console.error("[VolunteersTable] Delete failed:", error);
+      toast.error("Delete failed — please try again", { id: deleteToast });
     } finally {
       setIsDeleting(false);
     }
@@ -284,6 +299,27 @@ const VolunteersTableContent = ({
   }, [isAdmin, selectedRowIds]);
 
   useEffect(() => {
+    const handleUndoRedo = (e: KeyboardEvent): void => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if (
+        (mod && e.key === "z" && e.shiftKey) ||
+        (mod && e.key === "y")
+      ) {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", handleUndoRedo);
+    return (): void => window.removeEventListener("keydown", handleUndoRedo);
+  }, [undo, redo]);
+
+  useEffect(() => {
     const handleMouseUp = (): void => {
       setTimeout(() => {
         isResizingRef.current = false;
@@ -294,7 +330,7 @@ const VolunteersTableContent = ({
   }, []);
 
   return (
-    <div className="w-full flex flex-col gap-4 p-6 bg-white min-h-150">
+    <div className="w-full flex flex-col gap-4 p-3 bg-white min-h-150">
       <TableToolbar
         globalFilter={globalFilter}
         setGlobalFilter={setGlobalFilter}
@@ -309,6 +345,14 @@ const VolunteersTableContent = ({
         onDelete={handleDeleteSelected}
         onOpenAddVolunteer={() => setIsAddVolunteerOpen(true)}
         onOpenImportCSV={() => setIsImportCSVOpen(true)}
+        hasEdits={hasEdits}
+        isSaving={isSaving}
+        onSave={handleSaveEdits}
+        onCancel={handleCancelEdits}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={undo}
+        onRedo={redo}
       />
 
       {saveErrors.length > 0 && (
@@ -514,13 +558,7 @@ const VolunteersTableContent = ({
             </table>
           </div>
 
-          <TablePagination
-            table={table}
-            hasEdits={hasEdits}
-            isSaving={isSaving}
-            onSave={handleSaveEdits}
-            onCancel={handleCancelEdits}
-          />
+          <TablePagination table={table} />
         </div>
       )}
 
@@ -528,6 +566,7 @@ const VolunteersTableContent = ({
         isOpen={isAddVolunteerOpen}
         onClose={() => setIsAddVolunteerOpen(false)}
         onSuccess={() => {
+          toast.success("Volunteer added");
           setLoading(true);
           fetchInitialData();
         }}
@@ -537,6 +576,7 @@ const VolunteersTableContent = ({
         isOpen={isImportCSVOpen}
         onClose={() => setIsImportCSVOpen(false)}
         onSuccess={() => {
+          toast.success("CSV imported successfully");
           setLoading(true);
           fetchInitialData();
         }}
