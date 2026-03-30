@@ -15,6 +15,7 @@ import {
 } from "./createUser";
 import { deleteUser } from "./deleteUser";
 import { removeVolunteer } from "./removeVolunteer";
+import { removeUser } from "./removeUser";
 import { updateUser } from "./updateUser";
 import { getCurrentUserServer } from "./getCurrentUserServer";
 import { updateCurrentUserAccount, type ValidationError } from "./updateUser";
@@ -173,5 +174,41 @@ export async function updateUserPasswordAction(
     return { success: false, error: result.error };
   }
 
+  return { success: true };
+}
+
+export async function updateUserAction(
+  userId: string,
+  patch: { name?: string; email?: string; role?: string }
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
+
+  const result = await updateUser(userId, patch);
+
+  if (result.error) {
+    return { success: false, error: result.error };
+  }
+
+  revalidatePath("/settings/manage");
+  return { success: true };
+}
+
+export async function removeUserAction(
+  userId: string
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
+
+  const currentUser = await getCurrentUserServer();
+  if (currentUser?.id === userId) {
+    return { success: false, error: "You cannot remove your own account." };
+  }
+
+  const result = await removeUser(userId);
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  revalidatePath("/settings/manage");
   return { success: true };
 }

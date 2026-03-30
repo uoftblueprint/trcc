@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useState } from "react";
+import { Trash2 } from "lucide-react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -42,6 +43,7 @@ function EditableCell({
   row,
   column,
   table,
+  placeholder,
 }: {
   getValue: () => string;
   row: { index: number };
@@ -57,6 +59,7 @@ function EditableCell({
       };
     };
   };
+  placeholder?: React.ReactNode;
 }): React.JSX.Element {
   const [value, setValue] = useState("");
   const [editing, setEditing] = useState(false);
@@ -93,6 +96,8 @@ function EditableCell({
     );
   }
 
+  const display = getValue()?.trim() ? getValue() : (placeholder ?? " ");
+
   return (
     <div
       role="button"
@@ -101,7 +106,7 @@ function EditableCell({
       onKeyDown={(e) => e.key === "Enter" && startEditing()}
       style={{ cursor: "text", minHeight: "24px" }}
     >
-      {getValue() || " "}
+      {display}
     </div>
   );
 }
@@ -192,6 +197,8 @@ type ManageStaffTableProps = {
   ) => void | Promise<void>;
   onDeleteUser?: (userId: string) => void | Promise<void>;
   onPasswordClick?: (user: StaffRow) => void;
+  onRemoveClick?: (user: StaffRow) => void;
+  currentUserId?: string | undefined;
 };
 
 export function ManageStaffTable({
@@ -201,6 +208,8 @@ export function ManageStaffTable({
   onUpdateUser,
   onDeleteUser,
   onPasswordClick,
+  onRemoveClick,
+  currentUserId,
 }: ManageStaffTableProps): React.JSX.Element {
   const [internalData, setInternalData] = useState<StaffRow[]>(
     () => initialData ?? []
@@ -229,14 +238,48 @@ export function ManageStaffTable({
     columns: [
       columnHelper.accessor("name", {
         header: "Name",
-        cell: (ctx) => (
-          <EditableCell
-            getValue={ctx.getValue}
-            row={ctx.row}
-            column={ctx.column}
-            table={ctx.table}
-          />
-        ),
+        cell: (ctx) => {
+          const isSelf = currentUserId === ctx.row.original.id;
+          return (
+            <div
+              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+            >
+              <EditableCell
+                getValue={ctx.getValue}
+                row={ctx.row}
+                column={ctx.column}
+                table={ctx.table}
+                placeholder={
+                  <span
+                    style={{
+                      fontStyle: "italic",
+                      color: "#b45309",
+                      fontSize: "0.8125rem",
+                    }}
+                  >
+                    No name
+                  </span>
+                }
+              />
+              {isSelf && (
+                <span
+                  style={{
+                    fontSize: "0.75rem",
+                    fontWeight: 500,
+                    color: "#7c3aed",
+                    backgroundColor: "#ede9fe",
+                    padding: "1px 6px",
+                    borderRadius: "4px",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                  }}
+                >
+                  You
+                </span>
+              )}
+            </div>
+          );
+        },
       }),
       columnHelper.accessor("email", {
         header: "Email",
@@ -342,22 +385,28 @@ export function ManageStaffTable({
         ))}
       </thead>
       <tbody>
-        {table.getRowModel().rows.map((row) => (
-          <tr key={row.id}>
-            {row.getVisibleCells().map((cell) => (
-              <td
-                key={cell.id}
-                style={{
-                  padding: "0.5rem 1rem",
-                  borderBottom: "1px solid #e5e5e5",
-                  verticalAlign: "middle",
-                }}
-              >
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </td>
-            ))}
-          </tr>
-        ))}
+        {table.getRowModel().rows.map((row) => {
+          const isSelf = currentUserId === row.original.id;
+          return (
+            <tr
+              key={row.id}
+              style={isSelf ? { backgroundColor: "#f5f3ff" } : undefined}
+            >
+              {row.getVisibleCells().map((cell) => (
+                <td
+                  key={cell.id}
+                  style={{
+                    padding: "0.5rem 1rem",
+                    borderBottom: "1px solid #e5e5e5",
+                    verticalAlign: "middle",
+                  }}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              ))}
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );

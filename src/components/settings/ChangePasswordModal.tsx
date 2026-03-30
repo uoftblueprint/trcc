@@ -28,8 +28,12 @@ const inputStyle = {
 };
 const infoValueStyle = {
   flex: 1,
+  minWidth: 0,
   fontSize: "0.875rem",
   color: "#171717",
+  overflow: "hidden" as const,
+  textOverflow: "ellipsis" as const,
+  whiteSpace: "nowrap" as const,
 };
 const iconStyle = { width: 20, height: 20, color: "#737373", flexShrink: 0 };
 
