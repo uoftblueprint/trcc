@@ -27,21 +27,51 @@ export const formatCellData = (value: unknown): string => {
   return String(value);
 };
 
+const TAG_COLORS = [
+  "bg-tag-blue",
+  "bg-tag-green",
+  "bg-tag-yellow",
+  "bg-tag-pink",
+  "bg-tag-purple",
+  "bg-tag-orange",
+  "bg-tag-brown",
+  "bg-tag-red",
+  "bg-tag-gray",
+] as const;
+
+const EXPLICIT_TAG_COLORS: Record<string, string> = {
+  yes: "bg-tag-green",
+  no: "bg-tag-red",
+  "she/her": "bg-tag-pink",
+  "he/him": "bg-tag-purple",
+  "they/them": "bg-tag-yellow",
+  "emergency back-up": "bg-tag-red",
+};
+
+const KEYWORD_TAG_COLORS: [string, string][] = [
+  ["fall", "bg-tag-yellow"],
+  ["summer", "bg-tag-green"],
+  ["spring", "bg-tag-blue"],
+  ["winter", "bg-tag-pink"],
+];
+
+const hashString = (str: string): number => {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+};
+
 export const getTagColorClass = (label: string): string => {
   const text = label.toLowerCase();
 
-  if (text === "yes") return "bg-tag-green";
-  if (text === "no") return "bg-tag-red";
-  if (text.includes("fall")) return "bg-tag-yellow";
-  if (text.includes("summer")) return "bg-tag-green";
-  if (text.includes("spring")) return "bg-tag-blue";
-  if (text.includes("winter")) return "bg-tag-pink";
-  if (text === "she/her") return "bg-tag-pink";
-  if (text === "he/him") return "bg-tag-purple";
-  if (text === "they/them") return "bg-tag-yellow";
-  if (text === "crisis line counsellor") return "bg-tag-orange";
-  if (text === "chat counsellor") return "bg-tag-yellow";
-  if (text === "emergency back-up") return "bg-tag-red";
+  const explicit = EXPLICIT_TAG_COLORS[text];
+  if (explicit) return explicit;
 
-  return "bg-tag-gray";
+  for (const [keyword, color] of KEYWORD_TAG_COLORS) {
+    if (text.includes(keyword)) return color;
+  }
+
+  return TAG_COLORS[hashString(text) % TAG_COLORS.length] ?? "bg-tag-gray";
 };

@@ -13,9 +13,9 @@ import {
   type CreateUserInput,
   type CreateUserResponse,
 } from "./createUser";
-import { updateUser } from "./updateUser";
 import { deleteUser } from "./deleteUser";
 import { removeVolunteer } from "./removeVolunteer";
+import { updateUser } from "./updateUser";
 import { getCurrentUserServer } from "./getCurrentUserServer";
 import { updateCurrentUserAccount, type ValidationError } from "./updateUser";
 
@@ -159,4 +159,19 @@ export async function updateAccountSettingsAction(
 
   revalidatePath("/settings/account");
   return { ok: true };
+}
+
+export async function updateUserPasswordAction(
+  userId: string,
+  password: string
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
+
+  const result = await updateUser(userId, { password });
+
+  if (result.error) {
+    return { success: false, error: result.error };
+  }
+
+  return { success: true };
 }

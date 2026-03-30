@@ -4,6 +4,7 @@ import { Volunteer } from "./types";
 import { VolunteerTag } from "./VolunteerTag";
 import { HeaderWithIcon } from "./HeaderWithIcon";
 import { EditableCell } from "./EditableCell";
+import { NotesDisplay } from "./NotesDisplay";
 import {
   CaseSensitive,
   Hash,
@@ -12,6 +13,7 @@ import {
   Phone,
   List,
   TextAlignStart,
+  Bell,
 } from "lucide-react";
 
 type FilterType = "text" | "options" | null;
@@ -61,7 +63,7 @@ export const COLUMNS_CONFIG: ColumnConfig[] = [
     label: "ID",
     icon: Hash,
     filterType: null,
-    size: 60,
+    size: 100,
     accessorFn: (row: Volunteer): number => row.id,
     cell: (info: CellContext<Volunteer, unknown>): React.JSX.Element => (
       <span className="text-gray-500 text-xs">{String(info.getValue())}</span>
@@ -143,7 +145,7 @@ export const COLUMNS_CONFIG: ColumnConfig[] = [
   {
     id: "opt_in_communication",
     label: "Opt-In Communication",
-    icon: Phone,
+    icon: Bell,
     filterType: "options",
     isMulti: false,
     size: 150,
@@ -160,6 +162,9 @@ export const COLUMNS_CONFIG: ColumnConfig[] = [
     icon: TextAlignStart,
     filterType: null,
     size: 200,
+    cell: (info: CellContext<Volunteer, unknown>): React.JSX.Element => (
+      <NotesDisplay value={info.getValue()} />
+    ),
   },
 ];
 

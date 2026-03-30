@@ -8,6 +8,8 @@ import {
   updateUserAction,
   deleteUserAction,
 } from "@/lib/api/actions";
+import { ChangePasswordModal } from "./ChangePasswordModal";
+import { updateUserPasswordAction } from "@/lib/api/actions";
 
 type ManageStaffContentProps = {
   initialData: StaffRow[];
@@ -22,6 +24,7 @@ export function ManageStaffContent({
   const [modalOpen, setModalOpen] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [passwordUser, setPasswordUser] = useState<StaffRow | null>(null);
 
   const handleUpdateUser = useCallback(
     async (userId: string, field: string, value: unknown) => {
@@ -84,6 +87,16 @@ export function ManageStaffContent({
       setCreateError(details ? `${result.error} (${details})` : result.error);
     }
   }, []);
+
+  const handlePasswordChange = useCallback(
+    async (userId: string, password: string) => {
+      const result = await updateUserPasswordAction(userId, password);
+      if (!result.success) {
+        throw new Error(result.error ?? "Failed to update password.");
+      }
+    },
+    []
+  );
 
   return (
     <div>
@@ -162,11 +175,18 @@ export function ManageStaffContent({
         onDataChange={setStaffList}
         onUpdateUser={handleUpdateUser}
         onDeleteUser={handleDeleteUser}
+        onPasswordClick={setPasswordUser}
       />
       <NewUserModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         onSubmit={handleAddUser}
+      />
+      <ChangePasswordModal
+        isOpen={passwordUser !== null}
+        user={passwordUser}
+        onClose={() => setPasswordUser(null)}
+        onSubmit={handlePasswordChange}
       />
     </div>
   );

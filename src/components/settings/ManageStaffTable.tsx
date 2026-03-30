@@ -107,68 +107,19 @@ function EditableCell({
 }
 
 function PasswordCell({
-  getValue,
   row,
-  column,
-  table,
+  onPasswordClick,
 }: {
-  getValue: () => string;
-  row: { index: number };
-  column: { id: string };
-  table: {
-    options: {
-      meta?: {
-        updateData?: (
-          rowIndex: number,
-          columnId: string,
-          value: unknown
-        ) => void;
-      };
-    };
-  };
+  row: { index: number; original: StaffRow };
+  onPasswordClick?: (user: StaffRow) => void;
 }): React.JSX.Element {
-  const [value, setValue] = useState("");
-  const [editing, setEditing] = useState(false);
-
-  const startEditing = useCallback(() => {
-    setValue(getValue());
-    setEditing(true);
-  }, [getValue]);
-
-  const onBlur = useCallback(() => {
-    setEditing(false);
-    table.options.meta?.updateData?.(row.index, column.id, value);
-  }, [row.index, column.id, value, table.options.meta]);
-
-  if (editing) {
-    return (
-      <input
-        type="password"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={onBlur}
-        onKeyDown={(e) =>
-          e.key === "Enter" && (e.target as HTMLInputElement).blur()
-        }
-        autoFocus
-        style={{
-          width: "100%",
-          border: "1px solid #ccc",
-          borderRadius: "4px",
-          padding: "4px 8px",
-          fontSize: "inherit",
-        }}
-      />
-    );
-  }
-
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={startEditing}
-      onKeyDown={(e) => e.key === "Enter" && startEditing()}
-      style={{ cursor: "text", minHeight: "24px", color: "#737373" }}
+      onClick={() => onPasswordClick?.(row.original)}
+      onKeyDown={(e) => e.key === "Enter" && onPasswordClick?.(row.original)}
+      style={{ cursor: "pointer", minHeight: "24px", color: "#737373" }}
     >
       ****************
     </div>
@@ -240,6 +191,7 @@ type ManageStaffTableProps = {
     value: unknown
   ) => void | Promise<void>;
   onDeleteUser?: (userId: string) => void | Promise<void>;
+  onPasswordClick?: (user: StaffRow) => void;
 };
 
 export function ManageStaffTable({
@@ -248,6 +200,7 @@ export function ManageStaffTable({
   onDataChange,
   onUpdateUser,
   onDeleteUser,
+  onPasswordClick,
 }: ManageStaffTableProps): React.JSX.Element {
   const [internalData, setInternalData] = useState<StaffRow[]>(
     () => initialData ?? []
@@ -300,10 +253,8 @@ export function ManageStaffTable({
         header: "Password",
         cell: (ctx) => (
           <PasswordCell
-            getValue={ctx.getValue}
             row={ctx.row}
-            column={ctx.column}
-            table={ctx.table}
+            {...(onPasswordClick ? { onPasswordClick } : {})}
           />
         ),
       }),

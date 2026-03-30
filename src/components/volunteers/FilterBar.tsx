@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { FilterTuple } from "@/lib/api/getVolunteersByMultipleColumns";
-import { ChevronDown, Plus, ArrowUpDown } from "lucide-react";
+import { ChevronDown, Plus, ArrowUpDown, X } from "lucide-react";
 import { SortingState } from "@tanstack/react-table";
 import clsx from "clsx";
 import { FILTERABLE_COLUMNS } from "./volunteerColumns";
@@ -131,15 +131,20 @@ export const FilterBar = ({
         return (
           <div
             key={index}
-            className={clsx("relative", isCurrentlyEditing ? "z-50" : "z-10")}
+            className={clsx(
+              "relative group/filter",
+              isCurrentlyEditing ? "z-50" : "z-10"
+            )}
           >
             <button
               onClick={(e) => handleEditClick(e, index)}
-              className="bg-purple-200 text-gray-900 hover:bg-purple-300 rounded-lg px-3 py-1.5 text-sm font-medium flex items-center gap-2 transition-colors cursor-pointer"
+              className="bg-purple-200 text-gray-900 hover:bg-purple-300 rounded-lg px-2 py-1.5 text-sm font-medium flex items-center gap-0 group-hover/filter:gap-2 group-hover/filter:px-3 transition-all duration-200 cursor-pointer"
             >
-              {Icon && <Icon className="w-3.5 h-3.5 opacity-70" />}
-              {colDef?.label}
-              <ChevronDown className="w-3 h-3" />
+              {Icon && <Icon className="w-3.5 h-3.5 opacity-70 shrink-0" />}
+              <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 group-hover/filter:max-w-40 group-hover/filter:opacity-100 transition-all duration-200">
+                {colDef?.label}
+              </span>
+              <ChevronDown className="w-3 h-3 shrink-0 max-w-0 overflow-hidden opacity-0 group-hover/filter:max-w-4 group-hover/filter:opacity-100 transition-all duration-200" />
             </button>
 
             <FilterModal
@@ -172,6 +177,22 @@ export const FilterBar = ({
           alignRight={newAlignRight}
         />
       </div>
+
+      <div className="w-px h-5 bg-gray-300 mx-1" />
+
+      <button
+        onClick={() => {
+          setFilters([]);
+          setSorting([]);
+          setEditingIndex(null);
+          setIsAddingNew(false);
+          setIsSortModalOpen(false);
+        }}
+        className="text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg px-3 py-1.5 text-sm font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+      >
+        <X className="w-3.5 h-3.5" />
+        Reset all
+      </button>
     </div>
   );
 };

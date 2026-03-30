@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LogOut, MoreVertical, Settings, UserCircle } from "lucide-react";
+import { Home, LogOut, MoreVertical, Settings, UserCircle } from "lucide-react";
 import { createClient } from "@/lib/client/supabase/client";
 import { useUser } from "@/lib/client/userContext";
 import { getCurrentUser } from "@/lib/api/getCurrentUser";
@@ -62,7 +62,7 @@ export function TopNavBar(): React.JSX.Element {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "20px 40px",
+        padding: "15px 40px",
         backgroundColor: "#fff",
         borderBottom: "1px solid var(--color-border, #d4e3ee)",
         position: "sticky",
@@ -75,8 +75,8 @@ export function TopNavBar(): React.JSX.Element {
         <Image
           src="/trcc-logo.png"
           alt="Toronto Rape Crisis Centre"
-          width={100}
-          height={40}
+          width={75}
+          height={30}
           style={{ objectFit: "contain" }}
           priority
         />
@@ -157,6 +157,24 @@ export function TopNavBar(): React.JSX.Element {
               zIndex: 50,
             }}
           >
+            <Link
+              href="/volunteers"
+              onClick={() => setMenuOpen(false)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "8px 12px",
+                borderRadius: "6px",
+                fontSize: "0.875rem",
+                color: "#171717",
+                textDecoration: "none",
+                transition: "background-color 0.15s ease",
+              }}
+            >
+              <Home style={{ width: 16, height: 16, color: "#737373" }} />
+              Dashboard
+            </Link>
             <Link
               href="/settings/account"
               onClick={() => setMenuOpen(false)}
