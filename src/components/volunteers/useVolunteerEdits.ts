@@ -41,6 +41,12 @@ export interface UseVolunteerEditsReturn {
 const MAX_HISTORY = 100;
 
 const normalizeValue = (colId: string, value: unknown): unknown => {
+  if (colId === "pronouns") {
+    if (Array.isArray(value)) {
+      if (value.length === 0) return null;
+      return String(value[0]);
+    }
+  }
   if (colId === "opt_in_communication") {
     if (value === "Yes") return true;
     if (value === "No") return false;
@@ -119,14 +125,12 @@ export const useVolunteerEdits = ({
         const next = { ...prev };
         if (matchesOriginal) {
           if (next[rowId]) {
-            const { [colId]: _removed, ...rest } = next[rowId] as Record<
-              string,
-              unknown
-            >;
-            if (Object.keys(rest).length === 0) {
+            const rowObj = { ...(next[rowId] as Record<string, unknown>) };
+            delete rowObj[colId];
+            if (Object.keys(rowObj).length === 0) {
               delete next[rowId];
             } else {
-              next[rowId] = rest as Partial<Volunteer>;
+              next[rowId] = rowObj as Partial<Volunteer>;
             }
           }
         } else {

@@ -44,13 +44,17 @@ export function NewUserModal({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [memberType, setMemberType] = useState<StaffRow["memberType"]>("Staff");
+  const [error, setError] = useState("");
 
   const reset = useCallback(() => {
     setName("");
     setEmail("");
     setPassword("");
+    setConfirmPassword("");
     setMemberType("Staff");
+    setError("");
   }, []);
 
   const handleClose = useCallback(() => {
@@ -61,7 +65,18 @@ export function NewUserModal({
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      await onSubmit({
+      setError("");
+
+      if (password.length < 6) {
+        setError("Password must be at least 6 characters.");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+      }
+
+      onSubmit({
         name: name.trim(),
         email: email.trim(),
         password,
@@ -70,7 +85,16 @@ export function NewUserModal({
       reset();
       onClose();
     },
-    [name, email, password, memberType, onSubmit, reset, onClose]
+    [
+      name,
+      email,
+      password,
+      confirmPassword,
+      memberType,
+      onSubmit,
+      reset,
+      onClose,
+    ]
   );
 
   useEffect((): (() => void) | undefined => {
@@ -195,13 +219,54 @@ export function NewUserModal({
               id="new-user-password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Empty"
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError("");
+              }}
+              placeholder="At least 6 characters"
               style={inputStyle}
               required
               minLength={6}
+              autoComplete="new-password"
             />
           </div>
+
+          <div style={fieldStyle}>
+            <Lock style={iconStyle} aria-hidden />
+            <label htmlFor="new-user-confirm-password" style={labelStyle}>
+              Confirm
+            </label>
+            <input
+              id="new-user-confirm-password"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value);
+                setError("");
+              }}
+              placeholder="Re-enter password"
+              style={inputStyle}
+              required
+              minLength={6}
+              autoComplete="new-password"
+            />
+          </div>
+
+          {error && (
+            <div
+              role="alert"
+              style={{
+                padding: "0.5rem 0.75rem",
+                marginBottom: "0.75rem",
+                backgroundColor: "#fef2f2",
+                color: "#991b1b",
+                borderRadius: "6px",
+                fontSize: "0.813rem",
+              }}
+            >
+              {error}
+            </div>
+          )}
 
           <div style={fieldStyle}>
             <UserCircle style={iconStyle} aria-hidden />

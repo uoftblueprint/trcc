@@ -30,7 +30,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <UserProvider>
-          <Toaster position="bottom-right" toastOptions={{ duration: 4000 }} />
+          <Toaster position="top-center" toastOptions={{ duration: 4000 }} />
           <TopNavBar />
           {children}
           <AppToaster />

@@ -21,6 +21,8 @@ import { TableToolbar } from "./TableToolbar";
 import { TablePagination } from "./TablePagination";
 import { AddVolunteerModal } from "./AddVolunteerModal";
 import { ImportCSVModal } from "./ImportCSVModal";
+import { DeleteVolunteersConfirmModal } from "./DeleteVolunteersConfirmModal";
+import { VolunteersTableHelpModal } from "./VolunteersTableHelpModal";
 import { getCurrentUser } from "@/lib/api/getCurrentUser";
 import { removeVolunteersAction } from "@/lib/api/actions";
 import {
@@ -53,6 +55,7 @@ const VolunteersTableContent = ({
   const [isAddVolunteerOpen, setIsAddVolunteerOpen] = useState(false);
   const [isImportCSVOpen, setIsImportCSVOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
   const {
     data,
@@ -133,6 +136,16 @@ const VolunteersTableContent = ({
       });
     });
 
+    for (const edits of Object.values(editedRows)) {
+      for (const [colId, value] of Object.entries(edits)) {
+        if (Array.isArray(value) && options[colId]) {
+          value.forEach((v) => {
+            if (v) options[colId]!.add(String(v));
+          });
+        }
+      }
+    }
+
     const PREDEFINED_ORDERS: Record<string, string[]> = {
       pronouns: PRONOUN_OPTIONS,
       opt_in_communication: OPT_IN_OPTIONS,
@@ -159,7 +172,7 @@ const VolunteersTableContent = ({
       }
     }
     return result;
-  }, [allVolunteers, allRoles, allCohorts]);
+  }, [allVolunteers, allRoles, allCohorts, editedRows]);
 
   const columns = useMemo<ColumnDef<Volunteer>[]>(
     () => [
@@ -248,13 +261,25 @@ const VolunteersTableContent = ({
       .filter((id): id is number => id !== undefined);
   }, [rowSelection, table]);
 
+  const volunteersPendingDelete = useMemo(() => {
+    return selectedRowIds.map((id) => {
+      const row = data.find((v) => v.id === id);
+      return {
+        id,
+        name: row?.name_org ?? "",
+      };
+    });
+  }, [selectedRowIds, data]);
+
+  const requestDeleteVolunteers = (): void => {
+    if (selectedRowIds.length === 0) return;
+    setDeleteModalOpen(true);
+  };
+
   const handleDeleteSelected = async (): Promise<void> => {
     if (selectedRowIds.length === 0) return;
-    const confirmed = window.confirm(
-      `Are you sure you want to delete ${selectedRowIds.length} volunteer(s)? This cannot be undone.`
-    );
-    if (!confirmed) return;
 
+    setDeleteModalOpen(false);
     setIsDeleting(true);
     const deleteToast = toast.loading(
       `Deleting ${selectedRowIds.length} volunteer(s)...`
@@ -290,7 +315,7 @@ const VolunteersTableContent = ({
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
-        handleDeleteSelected();
+        requestDeleteVolunteers();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -331,6 +356,7 @@ const VolunteersTableContent = ({
 
   return (
     <div className="w-full flex flex-col gap-4 p-3 bg-white min-h-150">
+      <VolunteersTableHelpModal role={role} />
       <TableToolbar
         globalFilter={globalFilter}
         setGlobalFilter={setGlobalFilter}
@@ -342,7 +368,7 @@ const VolunteersTableContent = ({
         role={role}
         selectedCount={selectedRowIds.length}
         isDeleting={isDeleting}
-        onDelete={handleDeleteSelected}
+        onDelete={requestDeleteVolunteers}
         onOpenAddVolunteer={() => setIsAddVolunteerOpen(true)}
         onOpenImportCSV={() => setIsImportCSVOpen(true)}
         hasEdits={hasEdits}
@@ -580,6 +606,14 @@ const VolunteersTableContent = ({
           setLoading(true);
           fetchInitialData();
         }}
+      />
+
+      <DeleteVolunteersConfirmModal
+        isOpen={deleteModalOpen}
+        volunteers={volunteersPendingDelete}
+        isDeleting={isDeleting}
+        onConfirm={handleDeleteSelected}
+        onCancel={() => setDeleteModalOpen(false)}
       />
     </div>
   );
