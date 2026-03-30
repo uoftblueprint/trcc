@@ -9,6 +9,7 @@ const hasIntegrationEnv = Boolean(process.env["SECRET_KEY"]);
 // ── Unit tests: auth/confirm route ──────────────────────────────────────────
 
 const mockVerifyOtp = vi.fn();
+const mockExchangeCodeForSession = vi.fn();
 
 vi.mock("@/lib/client/supabase/server", () => ({
   createClient: vi.fn(),
@@ -37,6 +38,7 @@ beforeEach(() => {
   (createClient as ReturnType<typeof vi.fn>).mockResolvedValue({
     auth: {
       verifyOtp: mockVerifyOtp,
+      exchangeCodeForSession: mockExchangeCodeForSession,
     },
   });
 });
@@ -110,6 +112,70 @@ describe("Reset Password", () => {
       await expect(GET(request as never)).rejects.toThrow("NEXT_REDIRECT");
 
       expect(redirect).toHaveBeenCalledWith("/volunteers");
+    });
+  });
+
+  describe("PKCE code exchange — auth/confirm route (unit)", () => {
+    it("redirects to /reset-password for valid recovery code", async () => {
+      mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+      const request = makeConfirmRequest({
+        code: "valid-pkce-code",
+        type: "recovery",
+      });
+
+      await expect(GET(request as never)).rejects.toThrow("NEXT_REDIRECT");
+
+      expect(mockExchangeCodeForSession).toHaveBeenCalledWith(
+        "valid-pkce-code"
+      );
+      expect(redirect).toHaveBeenCalledWith("/reset-password");
+    });
+
+    it("redirects to /auth/auth-code-error for invalid code", async () => {
+      mockExchangeCodeForSession.mockResolvedValue({
+        error: { message: "Invalid code" },
+      });
+
+      const request = makeConfirmRequest({
+        code: "invalid-code",
+        type: "recovery",
+      });
+
+      await expect(GET(request as never)).rejects.toThrow("NEXT_REDIRECT");
+
+      expect(redirect).toHaveBeenCalledWith("/auth/auth-code-error");
+    });
+
+    it("redirects to /volunteers for non-recovery code", async () => {
+      mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+      const request = makeConfirmRequest({
+        code: "valid-pkce-code",
+        type: "email",
+      });
+
+      await expect(GET(request as never)).rejects.toThrow("NEXT_REDIRECT");
+
+      expect(redirect).toHaveBeenCalledWith("/volunteers");
+    });
+
+    it("prefers code over token_hash when both are present", async () => {
+      mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+      const request = makeConfirmRequest({
+        code: "valid-pkce-code",
+        token_hash: "some-token-hash",
+        type: "recovery",
+      });
+
+      await expect(GET(request as never)).rejects.toThrow("NEXT_REDIRECT");
+
+      expect(mockExchangeCodeForSession).toHaveBeenCalledWith(
+        "valid-pkce-code"
+      );
+      expect(mockVerifyOtp).not.toHaveBeenCalled();
+      expect(redirect).toHaveBeenCalledWith("/reset-password");
     });
   });
 
