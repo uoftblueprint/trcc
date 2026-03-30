@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
-
-const hasIntegrationEnv = Boolean(process.env["SECRET_KEY"]);
 import { POST } from "@/app/auth/forgot-password/route";
 import {
   createServiceTestClient,
   createAdminTestClient,
 } from "../support/helpers";
+
+const hasIntegrationEnv = Boolean(process.env["SECRET_KEY"]);
 
 //Unit test (mocking supabase)
 
@@ -165,7 +165,7 @@ describe("Forgot Password Route", () => {
           const { error } = await regularClient.auth.resetPasswordForEmail(
             `test-unknown-${Date.now()}@example.com`,
             {
-              redirectTo: `${process.env["NEXT_PUBLIC_SITE_URL"] ?? "http://localhost:3000"}/forgot-password`,
+              redirectTo: `${process.env["NEXT_PUBLIC_SITE_URL"] ?? "http://localhost:3000"}/auth/confirm`,
             }
           );
 
@@ -188,7 +188,7 @@ describe("Forgot Password Route", () => {
           try {
             const { error: resetError } =
               await regularClient.auth.resetPasswordForEmail(testEmail, {
-                redirectTo: `${process.env["NEXT_PUBLIC_SITE_URL"] ?? "http://localhost:3000"}/forgot-password`,
+                redirectTo: `${process.env["NEXT_PUBLIC_SITE_URL"] ?? "http://localhost:3000"}/auth/confirm`,
               });
 
             expect(resetError).toBeNull();

@@ -1,4 +1,4 @@
-import { createAdminClient } from "../client/supabase/server";
+import { createClient } from "../client/supabase/server";
 
 interface RemoveVolunteerResponse {
   error: { message: string } | null;
@@ -54,7 +54,7 @@ export async function removeVolunteer(
   }
 
   try {
-    const client = createAdminClient();
+    const client = await createClient();
 
     // Attempt to delete the volunteer and return the deleted id
     const { data: deletedVolunteer, error: deleteError } = await client
