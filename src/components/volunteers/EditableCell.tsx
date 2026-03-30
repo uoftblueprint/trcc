@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { CellContext } from "@tanstack/react-table";
+import toast from "react-hot-toast";
 import { Volunteer } from "./types";
 import { VolunteerTag } from "./VolunteerTag";
 import { ArrowRight } from "lucide-react";
@@ -162,7 +163,19 @@ export const EditableCell = ({
       if (!existingMatch) return;
       applyValue(existingMatch);
     } else {
+      const currentArray = Array.isArray(value) ? (value as string[]) : [];
+      const alreadyExists =
+        options.some((o) => o.toLowerCase() === newTag.toLowerCase()) ||
+        currentArray.some((o) => o.toLowerCase() === newTag.toLowerCase());
       applyValue(newTag);
+      if (!alreadyExists) {
+        const toastId = `new-tag-${info.column.id}-${newTag.toLowerCase()}`;
+        toast(`New tag "${newTag}" created — remember to save your changes.`, {
+          id: toastId,
+          icon: "🏷️",
+          duration: 4000,
+        });
+      }
     }
     setInputValue("");
   };
@@ -185,8 +198,15 @@ export const EditableCell = ({
             label={v}
             onRemove={() => {
               const updated = currentArray.filter((_, idx) => idx !== i);
-              setValue(updated);
-              onEdit(info.row.original.id, info.column.id, updated);
+              if (isMulti) {
+                setValue(updated);
+                onEdit(info.row.original.id, info.column.id, updated);
+              } else {
+                const next: string | null =
+                  updated.length === 0 ? null : String(updated[0] ?? "");
+                setValue(next);
+                onEdit(info.row.original.id, info.column.id, next);
+              }
             }}
           />
         ))}
@@ -270,6 +290,30 @@ export const EditableCell = ({
   }
 
   if (isEditing && type === "text") {
+    if (isNotes) {
+      return (
+        <textarea
+          autoFocus
+          rows={5}
+          className="w-full bg-white border border-blue-400 px-2 py-1.5 text-sm rounded outline-none resize-y min-h-24"
+          value={(value as string) || ""}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>): void =>
+            setValue(e.target.value)
+          }
+          onBlur={(): void => handleSave()}
+          onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
+            if (e.key === "Escape") {
+              setValue(initialValue);
+              setIsEditing(false);
+            }
+          }}
+          onMouseDown={(e: React.MouseEvent<HTMLTextAreaElement>): void =>
+            e.stopPropagation()
+          }
+        />
+      );
+    }
+
     return (
       <input
         autoFocus
@@ -319,24 +363,14 @@ export const EditableCell = ({
   return (
     <>
       <div
-        className="absolute inset-0 z-0 cursor-text focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-400"
-        onMouseDown={(e: React.MouseEvent<HTMLDivElement>) => {
-          if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
-            if (isNotes) {
-              e.preventDefault();
-              setIsNotesExpanded((prev) => !prev);
-            } else {
-              enterEditMode(e);
-            }
-          }
-        }}
+        className="absolute inset-0 z-0 cursor-cell select-none focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-400"
         onDoubleClick={(e: React.MouseEvent<HTMLDivElement>) => {
-          if (isNotes) {
-            enterEditMode(e);
-          }
+          e.preventDefault();
+          e.stopPropagation();
+          enterEditMode(e);
         }}
         onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => {
-          if (e.key === "Enter" || e.key === " ") {
+          if (e.key === "Enter" || e.key === "F2") {
             e.preventDefault();
             enterEditMode(e);
           }
@@ -348,8 +382,8 @@ export const EditableCell = ({
         tabIndex={0}
         title={
           isNotes
-            ? "Click to expand, double-click to edit"
-            : "Click or press Enter to edit"
+            ? "Double-click or press Enter to edit. Use Show more to read long notes."
+            : "Click to select, double-click or press Enter to edit"
         }
       />
       <div className="relative z-10 w-full h-full min-h-6 cursor-text flex items-center gap-1 flex-wrap overflow-hidden pointer-events-none">

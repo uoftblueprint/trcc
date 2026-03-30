@@ -11,6 +11,12 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { sortCohorts, sortRoles } from "./utils";
 import { SortingState, RowSelectionState } from "@tanstack/react-table";
 
+export const DEFAULT_OPT_IN_FILTER: FilterTuple = {
+  field: "opt_in_communication",
+  miniOp: "OR",
+  values: ["Yes"],
+};
+
 interface UseVolunteersDataProps {
   isAdmin: boolean;
   editedRowsRef: React.RefObject<Record<number, Partial<Volunteer>>>;
@@ -51,7 +57,7 @@ export const useVolunteersData = ({
   const [allCohorts, setAllCohorts] = useState<CohortRow[]>([]);
 
   const [filters, setFilters] = useState<FilterTuple[]>([
-    { field: "opt_in_communication", miniOp: "OR", values: ["Yes"] },
+    DEFAULT_OPT_IN_FILTER,
   ]);
   const [globalOp, setGlobalOp] = useState<"AND" | "OR">("AND");
   const debouncedFilters = useDebounce(filters);
