@@ -8,6 +8,7 @@ import {
   createColumnHelper,
   type RowData,
 } from "@tanstack/react-table";
+import { Trash2 } from "lucide-react";
 
 export type StaffRow = {
   id: string;
@@ -233,12 +234,20 @@ type ManageStaffTableProps = {
   /** When provided with onDataChange, table is controlled (e.g. for adding rows from a parent modal). */
   data?: StaffRow[];
   onDataChange?: (data: StaffRow[]) => void;
+  onUpdateUser?: (
+    userId: string,
+    field: string,
+    value: unknown
+  ) => void | Promise<void>;
+  onDeleteUser?: (userId: string) => void | Promise<void>;
 };
 
 export function ManageStaffTable({
   initialData,
   data: controlledData,
   onDataChange,
+  onUpdateUser,
+  onDeleteUser,
 }: ManageStaffTableProps): React.JSX.Element {
   const [internalData, setInternalData] = useState<StaffRow[]>(
     () => initialData ?? []
@@ -248,13 +257,18 @@ export function ManageStaffTable({
 
   const updateData = useCallback(
     (rowIndex: number, columnId: string, value: unknown) => {
-      const next = data.map((row, i) =>
-        i === rowIndex ? { ...row, [columnId]: value } : row
+      const row = data[rowIndex];
+      const next = data.map((r, i) =>
+        i === rowIndex ? { ...r, [columnId]: value } : r
       );
       if (isControlled) onDataChange(next);
       else setInternalData(next);
+
+      if (row && onUpdateUser) {
+        onUpdateUser(row.id, columnId, value);
+      }
     },
-    [data, isControlled, onDataChange]
+    [data, isControlled, onDataChange, onUpdateUser]
   );
 
   const table = useReactTable({
@@ -303,6 +317,40 @@ export function ManageStaffTable({
             table={ctx.table}
           />
         ),
+      }),
+      columnHelper.display({
+        id: "actions",
+        header: "",
+        cell: (ctx) => {
+          const row = ctx.row.original;
+          return onDeleteUser ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `Delete user "${row.name}"? This cannot be undone.`
+                  )
+                ) {
+                  onDeleteUser(row.id);
+                }
+              }}
+              title="Delete user"
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "#991b1b",
+                padding: "4px",
+                borderRadius: "4px",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <Trash2 style={{ width: 16, height: 16 }} />
+            </button>
+          ) : null;
+        },
       }),
     ],
     getCoreRowModel: getCoreRowModel(),

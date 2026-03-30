@@ -33,7 +33,7 @@ const iconStyle = { width: 20, height: 20, color: "#737373", flexShrink: 0 };
 type NewUserModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (user: Omit<StaffRow, "id">) => void;
+  onSubmit: (user: Omit<StaffRow, "id">) => void | Promise<void>;
 };
 
 export function NewUserModal({
@@ -59,9 +59,9 @@ export function NewUserModal({
   }, [reset, onClose]);
 
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
-      onSubmit({
+      await onSubmit({
         name: name.trim(),
         email: email.trim(),
         password,
@@ -166,6 +166,7 @@ export function NewUserModal({
               onChange={(e) => setName(e.target.value)}
               placeholder="Empty"
               style={inputStyle}
+              required
             />
           </div>
 
@@ -198,6 +199,7 @@ export function NewUserModal({
               placeholder="Empty"
               style={inputStyle}
               required
+              minLength={6}
             />
           </div>
 
