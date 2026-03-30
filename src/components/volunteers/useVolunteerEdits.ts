@@ -19,10 +19,11 @@ interface UseVolunteerEditsProps {
   fetchInitialData: () => Promise<void>;
 }
 
+/** Single history step: set this cell to `value` when applied (undo or redo). */
 interface EditAction {
   rowId: number;
   colId: string;
-  oldValue: unknown;
+  value: unknown;
 }
 
 export interface UseVolunteerEditsReturn {
@@ -84,10 +85,19 @@ export const useVolunteerEdits = ({
   const isUndoRedoRef = useRef(false);
   const editedRowsRef = useRef(editedRows);
   editedRowsRef.current = editedRows;
-  const [historyTick, setHistoryTick] = useState(0);
 
-  const canUndo = undoStackRef.current.length > 0;
-  const canRedo = redoStackRef.current.length > 0;
+  /** Mirrors stack lengths so undo/redo buttons re-render when refs change. */
+  const [historyStacks, setHistoryStacks] = useState({ undo: 0, redo: 0 });
+
+  const syncHistoryStacks = useCallback((): void => {
+    setHistoryStacks({
+      undo: undoStackRef.current.length,
+      redo: redoStackRef.current.length,
+    });
+  }, []);
+
+  const canUndo = historyStacks.undo > 0;
+  const canRedo = historyStacks.redo > 0;
 
   const getCellValue = useCallback(
     (rowId: number, colId: string): unknown => {
@@ -138,13 +148,16 @@ export const useVolunteerEdits = ({
         }
 
         const willHaveEdits = Object.keys(next).length > 0;
-        if (willHaveEdits && !hadEditsRef.current) {
-          toast("Tracking changes — save when ready", {
-            icon: "✏️",
-            id: "tracking-edits",
+        const showTrackingToast = willHaveEdits && !hadEditsRef.current;
+        hadEditsRef.current = willHaveEdits;
+        if (showTrackingToast) {
+          queueMicrotask((): void => {
+            toast("Tracking changes — save when ready", {
+              icon: "✏️",
+              id: "tracking-edits",
+            });
           });
         }
-        hadEditsRef.current = willHaveEdits;
 
         return next;
       });
@@ -161,53 +174,53 @@ export const useVolunteerEdits = ({
       const finalValue = normalizeValue(colId, value);
 
       if (!isUndoRedoRef.current) {
-        const oldValue = getCellValue(rowId, colId);
+        const priorValue = getCellValue(rowId, colId);
         undoStackRef.current = [
           ...undoStackRef.current.slice(-(MAX_HISTORY - 1)),
-          { rowId, colId, oldValue },
+          { rowId, colId, value: priorValue },
         ];
         redoStackRef.current = [];
       }
 
       applyEdit(rowId, colId, finalValue);
-      setHistoryTick((t) => t + 1);
+      syncHistoryStacks();
     },
-    [getCellValue, applyEdit]
+    [getCellValue, applyEdit, syncHistoryStacks]
   );
 
   const undo = useCallback((): void => {
     const action = undoStackRef.current.pop();
     if (!action) return;
 
-    const currentValue = getCellValue(action.rowId, action.colId);
+    const valueBeforeUndo = getCellValue(action.rowId, action.colId);
     redoStackRef.current.push({
       rowId: action.rowId,
       colId: action.colId,
-      oldValue: currentValue,
+      value: valueBeforeUndo,
     });
 
     isUndoRedoRef.current = true;
-    applyEdit(action.rowId, action.colId, action.oldValue);
+    applyEdit(action.rowId, action.colId, action.value);
     isUndoRedoRef.current = false;
-    setHistoryTick((t) => t + 1);
-  }, [getCellValue, applyEdit]);
+    syncHistoryStacks();
+  }, [getCellValue, applyEdit, syncHistoryStacks]);
 
   const redo = useCallback((): void => {
     const action = redoStackRef.current.pop();
     if (!action) return;
 
-    const currentValue = getCellValue(action.rowId, action.colId);
+    const valueBeforeRedo = getCellValue(action.rowId, action.colId);
     undoStackRef.current.push({
       rowId: action.rowId,
       colId: action.colId,
-      oldValue: currentValue,
+      value: valueBeforeRedo,
     });
 
     isUndoRedoRef.current = true;
-    applyEdit(action.rowId, action.colId, action.oldValue);
+    applyEdit(action.rowId, action.colId, action.value);
     isUndoRedoRef.current = false;
-    setHistoryTick((t) => t + 1);
-  }, [getCellValue, applyEdit]);
+    syncHistoryStacks();
+  }, [getCellValue, applyEdit, syncHistoryStacks]);
 
   const handleSaveEdits = async (): Promise<void> => {
     setIsSaving(true);
@@ -372,7 +385,7 @@ export const useVolunteerEdits = ({
     hadEditsRef.current = Object.keys(remainingEdits).length > 0;
     undoStackRef.current = [];
     redoStackRef.current = [];
-    setHistoryTick((t) => t + 1);
+    syncHistoryStacks();
 
     if (currentErrors.length > 0) {
       toast.error(`${currentErrors.length} update(s) failed`, {
@@ -390,12 +403,10 @@ export const useVolunteerEdits = ({
     hadEditsRef.current = false;
     undoStackRef.current = [];
     redoStackRef.current = [];
-    setHistoryTick((t) => t + 1);
+    syncHistoryStacks();
     toast("Changes discarded", { icon: "↩️" });
     await fetchInitialData();
   };
-
-  void historyTick;
 
   return {
     isSaving,

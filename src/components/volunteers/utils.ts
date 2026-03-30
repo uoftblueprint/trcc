@@ -55,8 +55,15 @@ const KEYWORD_TAG_COLORS: [string, string][] = [
   ["winter", "bg-tag-pink"],
 ];
 
-let sequenceIndex = 0;
 const assignedColors = new Map<string, string>();
+
+function stableColorIndexForLabel(text: string): number {
+  let h = 0;
+  for (let i = 0; i < text.length; i++) {
+    h = (h * 31 + text.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
 
 export const getTagColorClass = (label: string): string => {
   const text = label.toLowerCase();
@@ -71,8 +78,8 @@ export const getTagColorClass = (label: string): string => {
   const cached = assignedColors.get(text);
   if (cached) return cached;
 
-  const color = TAG_COLORS[sequenceIndex % TAG_COLORS.length] ?? "bg-tag-gray";
-  sequenceIndex++;
+  const idx = stableColorIndexForLabel(text) % TAG_COLORS.length;
+  const color = TAG_COLORS[idx] ?? "bg-tag-gray";
   assignedColors.set(text, color);
   return color;
 };

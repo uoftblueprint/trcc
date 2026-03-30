@@ -202,8 +202,7 @@ export function ManageStaffContent({
         if (c.field === "Name") patch.name = current.name;
         if (c.field === "Email") patch.email = current.email;
         if (c.field === "Role") {
-          const role = MEMBER_TYPE_TO_ROLE[current.memberType];
-          if (role) patch.role = role;
+          patch.role = MEMBER_TYPE_TO_ROLE[current.memberType] ?? "";
         }
       }
 
