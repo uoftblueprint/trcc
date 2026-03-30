@@ -8,6 +8,13 @@ import {
   type CreateVolunteerInput,
   type CreateVolunteerResponse,
 } from "./createVolunteer";
+import {
+  createUser,
+  type CreateUserInput,
+  type CreateUserResponse,
+} from "./createUser";
+import { updateUser } from "./updateUser";
+import { deleteUser } from "./deleteUser";
 import { removeVolunteer } from "./removeVolunteer";
 import { getCurrentUserServer } from "./getCurrentUserServer";
 import { updateCurrentUserAccount, type ValidationError } from "./updateUser";
@@ -39,6 +46,41 @@ export async function createVolunteerAction(
   const result = await createVolunteer(input);
   if (result.success) {
     revalidatePath("/volunteers");
+  }
+  return result;
+}
+
+export async function createUserAction(
+  input: CreateUserInput
+): Promise<CreateUserResponse> {
+  await requireAdmin();
+  const result = await createUser(input);
+  if (result.success) {
+    revalidatePath("/settings/manage");
+  }
+  return result;
+}
+
+export async function updateUserAction(
+  userId: string,
+  body: Record<string, unknown>
+): Promise<{ data?: Record<string, unknown>; error?: string }> {
+  await requireAdmin();
+  const result = await updateUser(userId, body);
+  if (result.error) {
+    return { error: result.error };
+  }
+  revalidatePath("/settings/manage");
+  return { data: result.data as Record<string, unknown> };
+}
+
+export async function deleteUserAction(
+  userId: string
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
+  const result = await deleteUser(userId);
+  if (result.success) {
+    revalidatePath("/settings/manage");
   }
   return result;
 }

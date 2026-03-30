@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 
-// Automatically find the .env file
+// Load .env.test first (local Supabase keys), then fall back to .env for any missing vars
+dotenv.config({ path: ".env.test" });
 dotenv.config();
 
 process.env["SUPABASE_TESTING"] = "1";
