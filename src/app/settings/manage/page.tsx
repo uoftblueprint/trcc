@@ -17,7 +17,7 @@ function mapUserToStaffRow(user: {
       : user.role === "staff"
         ? "Staff"
         : "No role";
-  const name = user.name ?? user.email ?? "";
+  const name = user.name ?? "";
   const email =
     typeof user.email === "string" && user.email !== ""
       ? user.email

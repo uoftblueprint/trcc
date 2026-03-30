@@ -22,16 +22,6 @@ export function SettingsNav(): React.JSX.Element {
         gap: "0.25rem",
       }}
     >
-      <h2
-        style={{
-          fontWeight: 700,
-          fontSize: "1rem",
-          color: "#171717",
-          marginBottom: "1rem",
-        }}
-      >
-        Settings
-      </h2>
       {NAV_ITEMS.map(({ href, label }) => {
         const isActive =
           pathname === href ||
@@ -43,14 +33,17 @@ export function SettingsNav(): React.JSX.Element {
             href={href}
             style={{
               display: "block",
-              padding: "0.5rem 0.75rem",
-              borderRadius: "6px",
+              padding: "0.625rem 1rem",
+              border: !isActive ? "1px solid #d9dee8" : "none",
+              borderRadius: !isActive ? "6px" : "none",
               backgroundColor: isActive
                 ? "var(--trcc-light-purple)"
                 : "transparent",
               color: "#171717",
               fontWeight: 500,
               textDecoration: "none",
+              fontSize: "0.875rem",
+              marginBottom: "0.5rem",
             }}
           >
             {label}
@@ -70,6 +63,7 @@ export function SettingsNav(): React.JSX.Element {
           textAlign: "center",
           textDecoration: "none",
           marginTop: "auto",
+          fontSize: "0.875rem",
         }}
       >
         Back to dashboard
