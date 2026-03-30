@@ -27,6 +27,14 @@ export default function Page(): ReactElement {
       return;
     }
 
+    if (password.length < 6) {
+      setAlert({
+        type: "error",
+        message: "Password must be at least 6 characters",
+      });
+      return;
+    }
+
     if (password !== confirmPassword) {
       setAlert({ type: "error", message: "Passwords do not match." });
       return;
