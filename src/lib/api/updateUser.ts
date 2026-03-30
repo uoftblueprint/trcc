@@ -94,7 +94,7 @@ function validateUserUpdateBody(body: unknown): {
     } else {
       const trimmedRole = body["role"].trim();
       if (!trimmedRole) {
-        errors.push({ field: "role", message: "Role cannot be empty" });
+        cleanedPatch.role = "";
       } else if (!ALLOWED_USER_ROLES.includes(trimmedRole)) {
         errors.push({ field: "role", message: "Role invalid" });
       } else {
@@ -145,9 +145,12 @@ export async function updateUser(
   if (cleanedPatch.password) authUpdatePayload.password = cleanedPatch.password;
 
   // these two fields are inside the public user table
-  const userTableUpdatePayload: Record<string, string> = {};
+  const userTableUpdatePayload: Record<string, string | null> = {};
   if (cleanedPatch.name) userTableUpdatePayload["name"] = cleanedPatch.name;
-  if (cleanedPatch.role) userTableUpdatePayload["role"] = cleanedPatch.role;
+  if ("role" in cleanedPatch) {
+    userTableUpdatePayload["role"] =
+      cleanedPatch.role.trim() === "" ? null : cleanedPatch.role;
+  }
 
   const hasTableUpdates = Object.keys(userTableUpdatePayload).length > 0;
   const hasAuthUpdates = Object.keys(authUpdatePayload).length > 0;

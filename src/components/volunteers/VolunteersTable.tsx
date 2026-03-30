@@ -138,10 +138,16 @@ const VolunteersTableContent = ({
 
     for (const edits of Object.values(editedRows)) {
       for (const [colId, value] of Object.entries(edits)) {
-        if (Array.isArray(value) && options[colId]) {
+        const bucket = options[colId];
+        if (!bucket) continue;
+        if (Array.isArray(value)) {
           value.forEach((v) => {
-            if (v) options[colId]!.add(String(v));
+            if (v) bucket.add(String(v));
           });
+        } else if (value != null) {
+          if (colId === "opt_in_communication")
+            bucket.add(value ? "Yes" : "No");
+          else bucket.add(String(value));
         }
       }
     }
