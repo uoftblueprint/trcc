@@ -9,11 +9,57 @@ import {
   Trash2,
   Undo2,
   Redo2,
+  Eye,
+  X,
+  Save,
 } from "lucide-react";
 import { FilterTuple } from "@/lib/api/getVolunteersByMultipleColumns";
 import { FilterModal, filterModalAlignRight } from "./FilterModal";
 import { SortModal } from "./SortModal";
 import { SortingState } from "@tanstack/react-table";
+
+/** Icon-only by default; label expands on hover / focus-visible. */
+function ExpandableToolButton({
+  icon,
+  children,
+  className,
+  forceExpanded = false,
+  "aria-label": ariaLabel,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  icon: React.ReactNode;
+  forceExpanded?: boolean;
+}): React.JSX.Element {
+  const { disabled } = props;
+  const expanded = forceExpanded;
+  return (
+    <button
+      {...props}
+      type="button"
+      aria-label={ariaLabel}
+      className={clsx(
+        "group relative inline-flex items-center justify-center h-9 shrink-0 overflow-hidden rounded-lg text-sm font-medium cursor-pointer transition-[padding,gap,background-color,border-color] duration-300 ease-out motion-reduce:transition-none",
+        expanded
+          ? "gap-2 px-3"
+          : "gap-0 px-2 hover:gap-2 hover:px-3 focus-visible:gap-2 focus-visible:px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-200 focus-visible:ring-offset-2",
+        disabled && "cursor-default",
+        className
+      )}
+    >
+      <span className="inline-flex shrink-0 pointer-events-none">{icon}</span>
+      <span
+        className={clsx(
+          "pointer-events-none overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out motion-reduce:transition-none",
+          expanded
+            ? "max-w-[min(100vw,18rem)] opacity-100"
+            : "max-w-0 opacity-0 group-hover:max-w-[min(100vw,18rem)] group-hover:opacity-100 group-focus-visible:max-w-[min(100vw,18rem)] group-focus-visible:opacity-100"
+        )}
+      >
+        {children}
+      </span>
+    </button>
+  );
+}
 
 interface TableToolbarProps {
   globalFilter: string;
@@ -82,9 +128,14 @@ export const TableToolbar = ({
     setIsMainFilterOpen(true);
   };
 
+  const neutralExpandable =
+    "border bg-white border-gray-300 text-gray-800 hover:border-purple-300 hover:bg-gray-50";
+  const neutralActiveExpandable =
+    "border bg-purple-100 border-purple-300 text-purple-800 hover:bg-purple-200";
+
   return (
-    <div className="flex items-center justify-start gap-3 mb-2">
-      <div className="relative w-full max-w-72">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="relative w-full md:w-auto md:min-w-[20rem] md:max-w-[26rem]">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-800">
           <Search className="w-4 h-4 shrink-0" />
         </div>
@@ -94,151 +145,179 @@ export const TableToolbar = ({
           aria-label="Search volunteers"
           value={globalFilter ?? ""}
           onChange={(e) => setGlobalFilter(e.target.value)}
-          className="w-full pl-10 px-3 py-2 bg-purple-200 hover:bg-purple-300 transition-colors rounded-lg text-sm text-gray-900 placeholder-gray-500 border-none focus:outline-none focus:ring-2 focus:ring-purple-300"
+          className="w-full pl-10 pr-3 py-2 bg-white border border-gray-300 hover:border-purple-300 transition-colors rounded-lg text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
         />
       </div>
 
-      <div className={clsx("relative", isMainFilterOpen ? "z-50" : "z-10")}>
-        <button
-          onClick={handleOpenMainFilter}
-          className={clsx(
-            "group flex items-center justify-start gap-2 w-10 hover:w-30 focus-visible:w-30 overflow-hidden px-3 py-2 transition-all duration-200 rounded-lg text-sm font-medium cursor-pointer",
-            filters.length > 0
-              ? "bg-secondary-purple text-accent-purple"
-              : "bg-primary-purple hover:bg-secondary-purple text-gray-900"
-          )}
-        >
-          <ListFilter className="w-4 h-4 shrink-0" />
-          <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
-            Filter {filters.length > 0 && `(${filters.length})`}
-          </span>
-        </button>
-
-        <FilterModal
-          isOpen={isMainFilterOpen}
-          onClose={() => setIsMainFilterOpen(false)}
-          onApply={(newFilter) => {
-            if (newFilter) setFilters((prev) => [...prev, newFilter]);
-            setIsMainFilterOpen(false);
-          }}
-          optionsData={filterOptions}
-          alignRight={mainFilterAlignRight}
-        />
-      </div>
-
-      <div className={clsx("relative", isSortModalOpen ? "z-50" : "z-10")}>
-        <button
-          onClick={(e) => {
-            setSortModalAlignRight(
-              filterModalAlignRight(e.currentTarget as HTMLElement)
-            );
-            setIsSortModalOpen(!isSortModalOpen);
-          }}
-          className={clsx(
-            "group flex items-center justify-start gap-2 w-10 hover:w-28 focus-visible:w-28 overflow-hidden px-3 py-2 transition-all duration-200 rounded-lg text-sm font-medium cursor-pointer",
-            sorting.length > 0
-              ? "bg-secondary-purple text-accent-purple"
-              : "bg-primary-purple hover:bg-secondary-purple text-gray-900"
-          )}
-        >
-          <ArrowUpDown className="w-4 h-4 shrink-0" />
-          <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
-            Sort {sorting.length > 0 && `(${sorting.length})`}
-          </span>
-        </button>
-
-        <SortModal
-          isOpen={isSortModalOpen}
-          onClose={() => setIsSortModalOpen(false)}
-          sorting={sorting}
-          setSorting={setSorting}
-          alignRight={sortModalAlignRight}
-        />
-      </div>
-
-      {role === "admin" && (
-        <button
-          onClick={onOpenAddVolunteer}
-          className="group flex items-center justify-start gap-2 w-10 hover:w-36 focus-visible:w-36 overflow-hidden px-3 py-2 bg-accent-purple hover:bg-dark-accent-purple transition-all duration-200 rounded-lg text-sm font-medium text-white shadow-sm"
-        >
-          <Plus className="w-4 h-4 shrink-0" />
-          <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
-            New Volunteer
-          </span>
-        </button>
-      )}
-
-      {role === "admin" && (
-        <button
-          onClick={onOpenImportCSV}
-          className="group flex items-center justify-start gap-2 w-10 hover:w-40 focus-visible:w-40 overflow-hidden px-3 py-2 bg-primary-purple hover:bg-secondary-purple transition-all duration-200 rounded-lg text-sm font-medium text-gray-900"
-        >
-          <Import className="w-4 h-4 shrink-0" />
-          <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
-            Import from CSV
-          </span>
-        </button>
-      )}
-
-      {(role === "admin" && selectedCount > 0) ||
-      hasEdits ||
-      canUndo ||
-      canRedo ? (
-        <div className="flex items-center gap-2 ml-auto animate-in fade-in slide-in-from-right-2 duration-200">
-          {role === "admin" && selectedCount > 0 && (
-            <button
-              onClick={onDelete}
-              disabled={isDeleting}
-              className="group flex items-center justify-start gap-2 w-10 hover:w-34 focus-visible:w-34 overflow-hidden px-3 py-2 bg-red-200 hover:bg-red-300 transition-all duration-200 rounded-lg text-sm font-medium text-red-900 disabled:opacity-50"
-            >
-              <Trash2 className="w-4 h-4 shrink-0" />
-              <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
-                {isDeleting ? "Deleting..." : `Delete (${selectedCount})`}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className={clsx("relative", isMainFilterOpen ? "z-50" : "z-10")}>
+          <ExpandableToolButton
+            onClick={handleOpenMainFilter}
+            aria-label={
+              filters.length > 0
+                ? `Filter (${filters.length} active)`
+                : "Filter volunteers"
+            }
+            className={clsx(
+              filters.length > 0 ? neutralActiveExpandable : neutralExpandable
+            )}
+            icon={
+              <span className="relative inline-flex">
+                <ListFilter className="w-4 h-4 shrink-0" />
+                {filters.length > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-purple-600 ring-2 ring-purple-100" />
+                )}
               </span>
-            </button>
-          )}
+            }
+          >
+            Filter {filters.length > 0 && `(${filters.length})`}
+          </ExpandableToolButton>
 
-          <div className="flex items-center gap-1 mr-1">
-            <button
-              onClick={onUndo}
-              disabled={!canUndo || isSaving}
-              title="Undo (⌘Z)"
-              className="p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-default"
-            >
-              <Undo2 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={onRedo}
-              disabled={!canRedo || isSaving}
-              title="Redo (⌘⇧Z)"
-              className="p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-default"
-            >
-              <Redo2 className="w-4 h-4" />
-            </button>
-          </div>
-          <button
-            onClick={onViewChanges}
-            disabled={!hasEdits || isSaving}
-            className="px-4 py-2 text-sm font-medium text-purple-700 bg-purple-100 hover:bg-purple-200 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-          >
-            View Changes ({pendingChangesCount})
-          </button>
-          <button
-            onClick={onCancel}
-            disabled={isSaving}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onSave}
-            disabled={isSaving || !hasEdits}
-            className="px-4 py-2 text-sm font-medium text-green-900 bg-green-200 hover:bg-green-300 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-          >
-            {isSaving ? "Saving..." : "Save Changes"}
-          </button>
+          <FilterModal
+            isOpen={isMainFilterOpen}
+            onClose={() => setIsMainFilterOpen(false)}
+            onApply={(newFilter) => {
+              if (newFilter) setFilters((prev) => [...prev, newFilter]);
+              setIsMainFilterOpen(false);
+            }}
+            optionsData={filterOptions}
+            alignRight={mainFilterAlignRight}
+          />
         </div>
-      ) : null}
+
+        <div className={clsx("relative", isSortModalOpen ? "z-50" : "z-10")}>
+          <ExpandableToolButton
+            onClick={(e) => {
+              setSortModalAlignRight(
+                filterModalAlignRight(e.currentTarget as HTMLElement)
+              );
+              setIsSortModalOpen(!isSortModalOpen);
+            }}
+            aria-label={
+              sorting.length > 0
+                ? `Sort (${sorting.length} rules)`
+                : "Sort volunteers"
+            }
+            className={clsx(
+              sorting.length > 0 ? neutralActiveExpandable : neutralExpandable
+            )}
+            icon={
+              <span className="relative inline-flex">
+                <ArrowUpDown className="w-4 h-4 shrink-0" />
+                {sorting.length > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-purple-600 ring-2 ring-purple-100" />
+                )}
+              </span>
+            }
+          >
+            Sort {sorting.length > 0 && `(${sorting.length})`}
+          </ExpandableToolButton>
+
+          <SortModal
+            isOpen={isSortModalOpen}
+            onClose={() => setIsSortModalOpen(false)}
+            sorting={sorting}
+            setSorting={setSorting}
+            alignRight={sortModalAlignRight}
+          />
+        </div>
+
+        {role === "admin" && (
+          <ExpandableToolButton
+            onClick={onOpenAddVolunteer}
+            aria-label="Add new volunteer"
+            className="border-0 bg-purple-700 font-semibold text-white shadow-sm hover:bg-purple-800"
+            icon={<Plus className="w-4 h-4 shrink-0" />}
+          >
+            New Volunteer
+          </ExpandableToolButton>
+        )}
+
+        {role === "admin" && (
+          <ExpandableToolButton
+            onClick={onOpenImportCSV}
+            aria-label="Import volunteers from CSV"
+            className="border border-purple-200 bg-purple-50 text-purple-800 hover:bg-purple-100"
+            icon={<Import className="w-4 h-4 shrink-0" />}
+          >
+            Import CSV
+          </ExpandableToolButton>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 ml-auto justify-end">
+        {role === "admin" && selectedCount > 0 && (
+          <ExpandableToolButton
+            onClick={onDelete}
+            disabled={isDeleting}
+            forceExpanded={isDeleting}
+            aria-label={
+              isDeleting
+                ? "Deleting selected volunteers"
+                : `Delete ${selectedCount} selected volunteers`
+            }
+            className="border-0 bg-red-500 font-medium text-white shadow-sm hover:bg-red-600 disabled:opacity-50"
+            icon={<Trash2 className="w-4 h-4 shrink-0" />}
+          >
+            {isDeleting ? "Deleting..." : `Delete (${selectedCount})`}
+          </ExpandableToolButton>
+        )}
+
+        {(hasEdits || canUndo || canRedo) && (
+          <div className="flex flex-wrap items-center gap-2 animate-in fade-in slide-in-from-right-2 duration-200 bg-amber-50 border border-amber-200 rounded-lg p-1.5">
+            <div className="flex items-center gap-1 mr-1">
+              <ExpandableToolButton
+                onClick={onUndo}
+                disabled={!canUndo || isSaving}
+                title="Undo (⌘Z)"
+                aria-label="Undo last change"
+                className="border-0 bg-transparent p-0 text-gray-500 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-30"
+                icon={<Undo2 className="w-4 h-4 shrink-0" />}
+              >
+                Undo
+              </ExpandableToolButton>
+              <ExpandableToolButton
+                onClick={onRedo}
+                disabled={!canRedo || isSaving}
+                title="Redo (⌘⇧Z)"
+                aria-label="Redo last undone change"
+                className="border-0 bg-transparent p-0 text-gray-500 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-30"
+                icon={<Redo2 className="w-4 h-4 shrink-0" />}
+              >
+                Redo
+              </ExpandableToolButton>
+            </div>
+            <ExpandableToolButton
+              onClick={onViewChanges}
+              disabled={!hasEdits || isSaving}
+              aria-label={`View pending changes (${pendingChangesCount})`}
+              className="border border-purple-200/80 bg-purple-100 text-purple-700 hover:bg-purple-200"
+              icon={<Eye className="w-4 h-4 shrink-0" />}
+            >
+              View Changes ({pendingChangesCount})
+            </ExpandableToolButton>
+            <ExpandableToolButton
+              onClick={onCancel}
+              disabled={isSaving}
+              aria-label="Cancel edits"
+              className="border border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200"
+              icon={<X className="w-4 h-4 shrink-0" />}
+            >
+              Cancel
+            </ExpandableToolButton>
+            <ExpandableToolButton
+              onClick={onSave}
+              disabled={isSaving || !hasEdits}
+              aria-label="Save changes"
+              forceExpanded={isSaving}
+              className="border-0 bg-green-200 font-medium text-green-900 hover:bg-green-300 disabled:opacity-50"
+              icon={<Save className="w-4 h-4 shrink-0" />}
+            >
+              {isSaving ? "Saving..." : "Save Changes"}
+            </ExpandableToolButton>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
