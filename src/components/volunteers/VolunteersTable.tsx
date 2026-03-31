@@ -508,36 +508,38 @@ const VolunteersTableContent = ({
   }, []);
 
   return (
-    <div className="w-full flex flex-col gap-4 p-3 bg-white min-h-150">
+    <div className="w-full flex flex-col gap-3 min-h-150">
       <VolunteersTableHelpModal role={role} />
-      <TableToolbar
-        globalFilter={globalFilter}
-        setGlobalFilter={setGlobalFilter}
-        filters={filters}
-        setFilters={setFilters}
-        sorting={sorting}
-        setSorting={setSorting}
-        filterOptions={filterOptions}
-        role={role}
-        selectedCount={selectedRowIds.length}
-        isDeleting={isDeleting}
-        onDelete={requestDeleteVolunteers}
-        onOpenAddVolunteer={() => setIsAddVolunteerOpen(true)}
-        onOpenImportCSV={() => setIsImportCSVOpen(true)}
-        hasEdits={hasEdits}
-        isSaving={isSaving}
-        onSave={handleSaveEdits}
-        onCancel={handleCancelEdits}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        onUndo={undo}
-        onRedo={redo}
-        pendingChangesCount={pendingChangesCount}
-        onViewChanges={() => setIsChangesModalOpen(true)}
-      />
+      <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
+        <TableToolbar
+          globalFilter={globalFilter}
+          setGlobalFilter={setGlobalFilter}
+          filters={filters}
+          setFilters={setFilters}
+          sorting={sorting}
+          setSorting={setSorting}
+          filterOptions={filterOptions}
+          role={role}
+          selectedCount={selectedRowIds.length}
+          isDeleting={isDeleting}
+          onDelete={requestDeleteVolunteers}
+          onOpenAddVolunteer={() => setIsAddVolunteerOpen(true)}
+          onOpenImportCSV={() => setIsImportCSVOpen(true)}
+          hasEdits={hasEdits}
+          isSaving={isSaving}
+          onSave={handleSaveEdits}
+          onCancel={handleCancelEdits}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={undo}
+          onRedo={redo}
+          pendingChangesCount={pendingChangesCount}
+          onViewChanges={() => setIsChangesModalOpen(true)}
+        />
+      </div>
 
       {saveErrors.length > 0 && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg mt-2 mb-2">
+        <div className="bg-red-50 border border-red-200 p-4 rounded-xl">
           <div className="flex items-start">
             <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
             <div className="ml-3">
@@ -555,29 +557,32 @@ const VolunteersTableContent = ({
       )}
 
       {/* Filter Bar */}
-      <FilterBar
-        filters={filters}
-        setFilters={setFilters}
-        globalOp={globalOp}
-        setGlobalOp={setGlobalOp}
-        optionsData={filterOptions}
-        sorting={sorting}
-        setSorting={setSorting}
-      />
+      <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm">
+        <FilterBar
+          filters={filters}
+          setFilters={setFilters}
+          globalOp={globalOp}
+          setGlobalOp={setGlobalOp}
+          optionsData={filterOptions}
+          sorting={sorting}
+          setSorting={setSorting}
+        />
+      </div>
 
       {/* Table Content */}
       {loading ? (
-        <div className="space-y-4 p-4 animate-pulse rounded-lg h-64 bg-gray-50">
+        <div className="space-y-4 p-4 animate-pulse rounded-xl h-64 bg-white border border-gray-200 shadow-sm">
           <div className="h-10 bg-gray-200 rounded w-full"></div>
           <div className="h-8 bg-gray-200 rounded w-full"></div>
           <div className="h-8 bg-gray-200 rounded w-full"></div>
         </div>
       ) : data.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-64 border rounded-lg border-dashed border-gray-300 text-gray-500">
-          <p>No volunteers found</p>
+        <div className="flex flex-col items-center justify-center h-64 border rounded-xl border-dashed border-gray-300 bg-white text-gray-500 shadow-sm">
+          <p className="font-medium">No volunteers found</p>
+          <p className="text-sm mt-1">Try changing filters or search terms.</p>
         </div>
       ) : (
-        <div className="border-b border-gray-200 select-none">
+        <div className="border border-gray-200 rounded-xl bg-white shadow-sm p-0 select-none">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left table-fixed border-collapse">
               <thead className="border-b border-gray-200">
