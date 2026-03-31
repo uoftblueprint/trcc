@@ -231,6 +231,8 @@ const VolunteersTableContent = ({
     onRowSelectionChange: setRowSelection,
     onGlobalFilterChange: setGlobalFilter,
     enableRowSelection: true,
+    enableMultiSort: true,
+    isMultiSortEvent: () => true,
     globalFilterFn: (row, _columnId, filterValue) => {
       const lowerFilter = String(filterValue).toLowerCase();
       return row.getAllCells().some((cell) => {
