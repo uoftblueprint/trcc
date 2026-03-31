@@ -29,6 +29,7 @@ export const EditableCell = ({
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isNotesExpanded, setIsNotesExpanded] = useState<boolean>(false);
   const [value, setValue] = useState<unknown>(initialValue);
+  const [draftText, setDraftText] = useState<string>("");
   const [inputValue, setInputValue] = useState<string>("");
 
   const [modalCoords, setModalCoords] = useState<{
@@ -44,6 +45,7 @@ export const EditableCell = ({
   const popoverRef = useRef<HTMLDivElement>(null);
   const cellRef = useRef<HTMLDivElement>(null);
   const inlineEditorRef = useRef<HTMLDivElement>(null);
+  const draftTextRef = useRef("");
 
   const allowAdd: boolean = [
     "cohorts",
@@ -53,8 +55,9 @@ export const EditableCell = ({
   ].includes(info.column.id);
 
   useEffect(() => {
+    if (isEditing && type === "text") return;
     setValue(initialValue);
-  }, [initialValue]);
+  }, [initialValue, isEditing, type]);
 
   const enterEditMode = (e: React.SyntheticEvent<HTMLDivElement>): void => {
     e.preventDefault();
@@ -75,6 +78,11 @@ export const EditableCell = ({
     });
 
     setInputValue("");
+    if (type === "text") {
+      const text = String(value ?? "");
+      draftTextRef.current = text;
+      setDraftText(text);
+    }
     setIsEditing(true);
   };
 
@@ -138,6 +146,7 @@ export const EditableCell = ({
     if (!isEditing || type !== "text") return;
     const editor = inlineEditorRef.current;
     if (!editor) return;
+    editor.textContent = draftTextRef.current;
     editor.focus();
 
     const selection = window.getSelection();
@@ -307,7 +316,7 @@ export const EditableCell = ({
 
   if (isEditing && type === "text") {
     const commitAndExit = (): void => {
-      const text = inlineEditorRef.current?.innerText ?? "";
+      const text = draftText;
       setValue(text);
       handleSave(text);
     };
@@ -324,6 +333,11 @@ export const EditableCell = ({
           contentEditable
           suppressContentEditableWarning
           className="w-full min-h-24 px-2 py-1.5 text-sm whitespace-pre-wrap break-words outline-none"
+          onInput={(e: React.FormEvent<HTMLDivElement>): void => {
+            const next = (e.currentTarget.textContent ?? "").replace(/\r/g, "");
+            draftTextRef.current = next;
+            setDraftText(next);
+          }}
           onBlur={commitAndExit}
           onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>): void => {
             if (e.key === "Escape") {
@@ -334,9 +348,7 @@ export const EditableCell = ({
           onMouseDown={(e: React.MouseEvent<HTMLDivElement>): void =>
             e.stopPropagation()
           }
-        >
-          {(value as string) || ""}
-        </div>
+        />
       );
     }
 
@@ -346,6 +358,11 @@ export const EditableCell = ({
         contentEditable
         suppressContentEditableWarning
         className="w-full px-1 py-0.5 text-sm outline-none whitespace-pre-wrap break-words"
+        onInput={(e: React.FormEvent<HTMLDivElement>): void => {
+          const next = (e.currentTarget.textContent ?? "").replace(/\r/g, "");
+          draftTextRef.current = next;
+          setDraftText(next);
+        }}
         onBlur={commitAndExit}
         onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>): void => {
           if (e.key === "Enter") {
@@ -360,9 +377,7 @@ export const EditableCell = ({
         onMouseDown={(e: React.MouseEvent<HTMLDivElement>): void =>
           e.stopPropagation()
         }
-      >
-        {(value as string) || ""}
-      </div>
+      />
     );
   }
 
