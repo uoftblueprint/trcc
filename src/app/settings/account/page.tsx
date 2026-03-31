@@ -8,6 +8,7 @@ import EditIcon from "../../../components/icons/editIcon";
 import { useUser } from "@/lib/client/userContext";
 import { getCurrentUser } from "@/lib/api/getCurrentUser";
 import { updateAccountSettingsAction } from "@/lib/api/actions";
+import { UserCircle2 } from "lucide-react";
 
 const PASSWORD_MASK = "••••••••";
 
@@ -93,7 +94,17 @@ export default function Page(): React.JSX.Element {
 
   if (profileError) {
     return (
-      <div className={styles["container"]}>
+      <div style={{ maxWidth: "36rem" }}>
+        <h1
+          style={{
+            fontSize: "1.5rem",
+            fontWeight: 700,
+            color: "#171717",
+            marginBottom: "0.75rem",
+          }}
+        >
+          Account Info
+        </h1>
         <p className={styles["errorText"]} role="alert">
           {profileError}
         </p>
@@ -138,64 +149,145 @@ export default function Page(): React.JSX.Element {
   };
 
   return (
-    <div className={styles["container"]}>
-      <div className={styles["wrapper"]}>
-        <div className={styles["titleRow"]}>
-          <h1 className={styles["title"]}>Account Info</h1>
-          {!isEditing && (
-            <button
-              type="button"
-              className={styles["editButton"]}
-              onClick={() => {
-                setFormData({ ...savedProfile, password: "" });
-                setErrors({});
-                setIsEditing(true);
+    <div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "1.5rem",
+          paddingBottom: "1rem",
+          borderBottom: "1px solid #e5e5e5",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "10px",
+              backgroundColor: "var(--trcc-light-purple, #ede9fe)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <UserCircle2
+              style={{
+                width: 20,
+                height: 20,
+                color: "var(--trcc-purple, #7c3aed)",
               }}
-            >
-              <EditIcon />
-              Edit
-            </button>
-          )}
-        </div>
-
-        <div className={styles["card"]}>
-          {isEditing ? (
-            <EditView
-              formData={formData}
-              setFormData={setFormData}
-              errors={errors}
             />
-          ) : (
-            <ReadOnlyView profile={savedProfile} />
-          )}
+          </div>
+          <div>
+            <h1
+              style={{
+                fontSize: "1.25rem",
+                fontWeight: 700,
+                color: "#171717",
+                margin: 0,
+              }}
+            >
+              Account Info
+            </h1>
+            <p
+              style={{
+                fontSize: "0.8125rem",
+                color: "#737373",
+                margin: "0.125rem 0 0",
+              }}
+            >
+              Manage your profile details and password.
+            </p>
+          </div>
         </div>
 
-        {isEditing && (
-          <div className={styles["cancelSave"]}>
-            <button
-              type="button"
-              className={styles["cancelButton"]}
-              onClick={() => {
-                setErrors({});
-                setFormData({ ...savedProfile, password: "" });
-                setIsEditing(false);
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className={styles["saveButton"]}
-              disabled={saving}
-              onClick={() => {
-                void handleSave();
-              }}
-            >
-              {saving ? "Saving…" : "Save"}
-            </button>
-          </div>
+        {!isEditing && (
+          <button
+            type="button"
+            className={styles["editButton"]}
+            onClick={() => {
+              setFormData({ ...savedProfile, password: "" });
+              setErrors({});
+              setIsEditing(true);
+            }}
+            style={{ marginRight: 0 }}
+          >
+            <EditIcon />
+            Edit
+          </button>
         )}
       </div>
+
+      <div
+        style={{
+          width: "100%",
+          background: "#fff",
+          border: "1px solid #e5e5e5",
+          borderRadius: "10px",
+          padding: "1.25rem 1.25rem 0.5rem",
+        }}
+      >
+        {isEditing ? (
+          <EditView
+            formData={formData}
+            setFormData={setFormData}
+            errors={errors}
+          />
+        ) : (
+          <ReadOnlyView profile={savedProfile} />
+        )}
+      </div>
+
+      {isEditing && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: "0.75rem",
+            marginTop: "1rem",
+            padding: "0.75rem 1rem",
+            backgroundColor: "#fffbeb",
+            border: "1px solid #fde68a",
+            borderRadius: "8px",
+          }}
+        >
+          <span
+            style={{
+              marginRight: "auto",
+              fontSize: "0.875rem",
+              color: "#92400e",
+              fontWeight: 500,
+            }}
+          >
+            You have unsaved changes
+          </span>
+          <button
+            type="button"
+            className={styles["cancelButton"]}
+            onClick={() => {
+              setErrors({});
+              setFormData({ ...savedProfile, password: "" });
+              setIsEditing(false);
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className={styles["saveButton"]}
+            disabled={saving}
+            onClick={() => {
+              void handleSave();
+            }}
+          >
+            {saving ? "Saving…" : "Save Changes"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
