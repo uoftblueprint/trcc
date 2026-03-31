@@ -197,35 +197,59 @@ export const useCellSelection = (
         const selectedIds = Object.keys(selectedCells).filter(
           (k) => selectedCells[k]
         );
-        if (selectedIds.length === 0) return;
-
-        e.preventDefault();
         const rowsMap = new Map<
           string,
           { colIndex: number; value: string }[]
         >();
         const tableRows = table.getRowModel().rows;
         const visibleColumns = table.getVisibleLeafColumns();
+        const rowSelection = table.getState().rowSelection;
 
-        selectedIds.forEach((id) => {
-          const separatorIndex = id.indexOf("_");
-          if (separatorIndex === -1) return;
+        if (selectedIds.length > 0) {
+          e.preventDefault();
+          selectedIds.forEach((id) => {
+            const separatorIndex = id.indexOf("_");
+            if (separatorIndex === -1) return;
 
-          const rowId = id.slice(0, separatorIndex);
-          const colId = id.slice(separatorIndex + 1);
+            const rowId = id.slice(0, separatorIndex);
+            const colId = id.slice(separatorIndex + 1);
 
-          if (!rowId || !colId) return;
+            if (!rowId || !colId) return;
 
-          const row = tableRows.find((r) => String(r.id) === rowId);
-          const colIndex = visibleColumns.findIndex((c) => c.id === colId);
+            const row = tableRows.find((r) => String(r.id) === rowId);
+            const colIndex = visibleColumns.findIndex((c) => c.id === colId);
 
-          if (row && colIndex !== -1) {
-            const cellValue = row.getValue(colId);
-            const formattedValue = formatCellData(cellValue);
-            if (!rowsMap.has(rowId)) rowsMap.set(rowId, []);
-            rowsMap.get(rowId)?.push({ colIndex, value: formattedValue });
-          }
-        });
+            if (row && colIndex !== -1) {
+              const cellValue = row.getValue(colId);
+              const formattedValue = formatCellData(cellValue);
+              if (!rowsMap.has(rowId)) rowsMap.set(rowId, []);
+              rowsMap.get(rowId)?.push({ colIndex, value: formattedValue });
+            }
+          });
+        } else {
+          const selectedRowKeys = Object.keys(rowSelection).filter(
+            (key) => rowSelection[key]
+          );
+          if (selectedRowKeys.length === 0) return;
+
+          e.preventDefault();
+          const copyableColumns = visibleColumns.filter(
+            (c) => c.id !== "select"
+          );
+
+          tableRows
+            .filter((row) => rowSelection[row.id])
+            .forEach((row) => {
+              const rowId = String(row.id);
+              const rowValues = copyableColumns.map((col, idx) => {
+                const cellValue = row.getValue(col.id);
+                return { colIndex: idx, value: formatCellData(cellValue) };
+              });
+              rowsMap.set(rowId, rowValues);
+            });
+        }
+
+        if (rowsMap.size === 0) return;
 
         const sortedRowIds = Array.from(rowsMap.keys()).sort((a, b) => {
           const idxA = tableRows.findIndex((r) => String(r.id) === a);

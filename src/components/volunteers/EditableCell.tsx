@@ -43,6 +43,7 @@ export const EditableCell = ({
 
   const popoverRef = useRef<HTMLDivElement>(null);
   const cellRef = useRef<HTMLDivElement>(null);
+  const inlineEditorRef = useRef<HTMLDivElement>(null);
 
   const allowAdd: boolean = [
     "cohorts",
@@ -132,6 +133,21 @@ export const EditableCell = ({
       window.removeEventListener("scroll", handleOutsideInteraction, true);
     };
   }, [isEditing, type, handleSave]);
+
+  useEffect(() => {
+    if (!isEditing || type !== "text") return;
+    const editor = inlineEditorRef.current;
+    if (!editor) return;
+    editor.focus();
+
+    const selection = window.getSelection();
+    if (!selection) return;
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }, [isEditing, type]);
 
   const handleDelete = useCallback((): void => {
     const cleared = isMulti ? [] : type === "options" ? null : "";
@@ -290,50 +306,63 @@ export const EditableCell = ({
   }
 
   if (isEditing && type === "text") {
+    const commitAndExit = (): void => {
+      const text = inlineEditorRef.current?.innerText ?? "";
+      setValue(text);
+      handleSave(text);
+    };
+
+    const cancelAndExit = (): void => {
+      setValue(initialValue);
+      setIsEditing(false);
+    };
+
     if (isNotes) {
       return (
-        <textarea
-          autoFocus
-          rows={5}
-          className="w-full bg-white border border-blue-400 px-2 py-1.5 text-sm rounded outline-none resize-y min-h-24"
-          value={(value as string) || ""}
-          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>): void =>
-            setValue(e.target.value)
-          }
-          onBlur={(): void => handleSave()}
-          onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
+        <div
+          ref={inlineEditorRef}
+          contentEditable
+          suppressContentEditableWarning
+          className="w-full min-h-24 px-2 py-1.5 text-sm whitespace-pre-wrap break-words outline-none"
+          onBlur={commitAndExit}
+          onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>): void => {
             if (e.key === "Escape") {
-              setValue(initialValue);
-              setIsEditing(false);
+              e.preventDefault();
+              cancelAndExit();
             }
           }}
-          onMouseDown={(e: React.MouseEvent<HTMLTextAreaElement>): void =>
+          onMouseDown={(e: React.MouseEvent<HTMLDivElement>): void =>
             e.stopPropagation()
           }
-        />
+        >
+          {(value as string) || ""}
+        </div>
       );
     }
 
     return (
-      <input
-        autoFocus
-        className="w-full bg-white border border-blue-400 px-1 py-0.5 text-sm rounded outline-none"
-        value={(value as string) || ""}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>): void =>
-          setValue(e.target.value)
-        }
-        onBlur={(): void => handleSave()}
-        onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>): void => {
-          if (e.key === "Enter") handleSave();
+      <div
+        ref={inlineEditorRef}
+        contentEditable
+        suppressContentEditableWarning
+        className="w-full px-1 py-0.5 text-sm outline-none whitespace-pre-wrap break-words"
+        onBlur={commitAndExit}
+        onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>): void => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commitAndExit();
+          }
           if (e.key === "Escape") {
-            setValue(initialValue);
-            setIsEditing(false);
+            e.preventDefault();
+            cancelAndExit();
           }
         }}
-        onMouseDown={(e: React.MouseEvent<HTMLInputElement>): void =>
+        onMouseDown={(e: React.MouseEvent<HTMLDivElement>): void =>
           e.stopPropagation()
         }
-      />
+      >
+        {(value as string) || ""}
+      </div>
     );
   }
 
@@ -363,7 +392,7 @@ export const EditableCell = ({
   return (
     <>
       <div
-        className="absolute inset-0 z-0 cursor-cell select-none focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-400"
+        className="absolute inset-0 z-0 cursor-cell select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400"
         onDoubleClick={(e: React.MouseEvent<HTMLDivElement>) => {
           e.preventDefault();
           e.stopPropagation();
