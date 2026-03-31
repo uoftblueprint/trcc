@@ -9,7 +9,6 @@ import {
   createColumnHelper,
   type RowData,
 } from "@tanstack/react-table";
-import { Trash2 } from "lucide-react";
 
 export type StaffRow = {
   id: string;
@@ -317,33 +316,69 @@ export function ManageStaffTable({
         header: "",
         cell: (ctx) => {
           const row = ctx.row.original;
-          return onDeleteUser ? (
-            <button
-              type="button"
-              onClick={() => {
-                if (
-                  window.confirm(
-                    `Delete user "${row.name}"? This cannot be undone.`
-                  )
-                ) {
-                  onDeleteUser(row.id);
-                }
-              }}
-              title="Delete user"
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "#991b1b",
-                padding: "4px",
-                borderRadius: "4px",
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              <Trash2 style={{ width: 16, height: 16 }} />
-            </button>
-          ) : null;
+          const isSelf = currentUserId === row.id;
+
+          if (onRemoveClick) {
+            if (isSelf) return null;
+            return (
+              <button
+                type="button"
+                onClick={() => onRemoveClick(row)}
+                title="Remove user"
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#a3a3a3",
+                  padding: "4px",
+                  borderRadius: "4px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  transition: "color 0.15s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "#dc2626";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "#a3a3a3";
+                }}
+              >
+                <Trash2 style={{ width: 16, height: 16 }} />
+              </button>
+            );
+          }
+
+          if (onDeleteUser) {
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `Delete user "${row.name}"? This cannot be undone.`
+                    )
+                  ) {
+                    onDeleteUser(row.id);
+                  }
+                }}
+                title="Delete user"
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#991b1b",
+                  padding: "4px",
+                  borderRadius: "4px",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <Trash2 style={{ width: 16, height: 16 }} />
+              </button>
+            );
+          }
+
+          return null;
         },
       }),
     ],
