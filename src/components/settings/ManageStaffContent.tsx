@@ -6,15 +6,12 @@ import toast from "react-hot-toast";
 import { useUser } from "@/lib/client/userContext";
 import { ManageStaffTable, type StaffRow } from "./ManageStaffTable";
 import { NewUserModal } from "./NewUserModal";
+import { ChangePasswordModal } from "./ChangePasswordModal";
 import {
   createUserAction,
   updateUserAction,
   deleteUserAction,
-} from "@/lib/api/actions";
-import { ChangePasswordModal } from "./ChangePasswordModal";
-import {
   updateUserPasswordAction,
-  updateUserAction,
   removeUserAction,
 } from "@/lib/api/actions";
 
@@ -123,8 +120,8 @@ export function ManageStaffContent({
         return; // skip empty password updates
       }
       const result = await updateUserAction(userId, { [apiField]: apiValue });
-      if (result.error) {
-        setActionError(result.error);
+      if (!result.success) {
+        setActionError(result.error ?? "Update failed");
       }
     },
     []

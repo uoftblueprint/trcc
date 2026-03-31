@@ -62,19 +62,6 @@ export async function createUserAction(
   return result;
 }
 
-export async function updateUserAction(
-  userId: string,
-  body: Record<string, unknown>
-): Promise<{ data?: Record<string, unknown>; error?: string }> {
-  await requireAdmin();
-  const result = await updateUser(userId, body);
-  if (result.error) {
-    return { error: result.error };
-  }
-  revalidatePath("/settings/manage");
-  return { data: result.data as Record<string, unknown> };
-}
-
 export async function deleteUserAction(
   userId: string
 ): Promise<{ success: boolean; error?: string }> {
@@ -179,7 +166,7 @@ export async function updateUserPasswordAction(
 
 export async function updateUserAction(
   userId: string,
-  patch: { name?: string; email?: string; role?: string }
+  patch: Record<string, unknown>
 ): Promise<{ success: boolean; error?: string }> {
   await requireAdmin();
 
