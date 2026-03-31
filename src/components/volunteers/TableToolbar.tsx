@@ -37,6 +37,8 @@ interface TableToolbarProps {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
+  pendingChangesCount: number;
+  onViewChanges: () => void;
 }
 
 export const TableToolbar = ({
@@ -61,6 +63,8 @@ export const TableToolbar = ({
   canRedo,
   onUndo,
   onRedo,
+  pendingChangesCount,
+  onViewChanges,
 }: TableToolbarProps): React.JSX.Element => {
   const [isMainFilterOpen, setIsMainFilterOpen] = useState(false);
   const [mainFilterAlignRight, setMainFilterAlignRight] = useState(false);
@@ -80,7 +84,7 @@ export const TableToolbar = ({
 
   return (
     <div className="flex items-center justify-start gap-3 mb-2">
-      <div className="relative w-full max-w-96">
+      <div className="relative w-full max-w-72">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-800">
           <Search className="w-4 h-4 shrink-0" />
         </div>
@@ -90,7 +94,7 @@ export const TableToolbar = ({
           aria-label="Search volunteers"
           value={globalFilter ?? ""}
           onChange={(e) => setGlobalFilter(e.target.value)}
-          className="w-full pl-10 px-4 py-2 bg-purple-200 hover:bg-purple-300 transition-colors rounded-lg text-sm text-gray-900 placeholder-gray-500 border-none focus:outline-none focus:ring-2 focus:ring-purple-300"
+          className="w-full pl-10 px-3 py-2 bg-purple-200 hover:bg-purple-300 transition-colors rounded-lg text-sm text-gray-900 placeholder-gray-500 border-none focus:outline-none focus:ring-2 focus:ring-purple-300"
         />
       </div>
 
@@ -98,14 +102,16 @@ export const TableToolbar = ({
         <button
           onClick={handleOpenMainFilter}
           className={clsx(
-            "flex items-center justify-center gap-2 w-28 py-2 transition-colors rounded-lg text-sm font-medium cursor-pointer",
+            "group flex items-center justify-start gap-2 w-10 hover:w-30 focus-visible:w-30 overflow-hidden px-3 py-2 transition-all duration-200 rounded-lg text-sm font-medium cursor-pointer",
             filters.length > 0
               ? "bg-secondary-purple text-accent-purple"
               : "bg-primary-purple hover:bg-secondary-purple text-gray-900"
           )}
         >
           <ListFilter className="w-4 h-4 shrink-0" />
-          <span>Filter {filters.length > 0 && `(${filters.length})`}</span>
+          <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
+            Filter {filters.length > 0 && `(${filters.length})`}
+          </span>
         </button>
 
         <FilterModal
@@ -129,14 +135,16 @@ export const TableToolbar = ({
             setIsSortModalOpen(!isSortModalOpen);
           }}
           className={clsx(
-            "flex items-center justify-center gap-2 w-24 py-2 transition-colors rounded-lg text-sm font-medium cursor-pointer",
+            "group flex items-center justify-start gap-2 w-10 hover:w-28 focus-visible:w-28 overflow-hidden px-3 py-2 transition-all duration-200 rounded-lg text-sm font-medium cursor-pointer",
             sorting.length > 0
               ? "bg-secondary-purple text-accent-purple"
               : "bg-primary-purple hover:bg-secondary-purple text-gray-900"
           )}
         >
           <ArrowUpDown className="w-4 h-4 shrink-0" />
-          <span>Sort {sorting.length > 0 && `(${sorting.length})`}</span>
+          <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
+            Sort {sorting.length > 0 && `(${sorting.length})`}
+          </span>
         </button>
 
         <SortModal
@@ -148,41 +156,48 @@ export const TableToolbar = ({
         />
       </div>
 
-      {role === "admin" && selectedCount > 0 && (
+      {role === "admin" && (
         <button
-          onClick={onDelete}
-          disabled={isDeleting}
-          className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 transition-colors rounded-lg text-sm font-medium text-white shadow-sm disabled:opacity-50"
+          onClick={onOpenAddVolunteer}
+          className="group flex items-center justify-start gap-2 w-10 hover:w-36 focus-visible:w-36 overflow-hidden px-3 py-2 bg-accent-purple hover:bg-dark-accent-purple transition-all duration-200 rounded-lg text-sm font-medium text-white shadow-sm"
         >
-          <Trash2 className="w-4 h-4 shrink-0" />
-          <span>
-            {isDeleting ? "Deleting..." : `Delete (${selectedCount})`}
+          <Plus className="w-4 h-4 shrink-0" />
+          <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
+            New Volunteer
           </span>
         </button>
       )}
 
       {role === "admin" && (
         <button
-          onClick={onOpenAddVolunteer}
-          className="flex items-center gap-2 px-4 py-2 bg-accent-purple hover:bg-dark-accent-purple transition-colors rounded-lg text-sm font-medium text-white shadow-sm"
-        >
-          <Plus className="w-4 h-4 shrink-0" />
-          <span>New Volunteer</span>
-        </button>
-      )}
-
-      {role === "admin" && (
-        <button
           onClick={onOpenImportCSV}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-purple hover:bg-secondary-purple transition-colors rounded-lg text-sm font-medium text-gray-900"
+          className="group flex items-center justify-start gap-2 w-10 hover:w-40 focus-visible:w-40 overflow-hidden px-3 py-2 bg-primary-purple hover:bg-secondary-purple transition-all duration-200 rounded-lg text-sm font-medium text-gray-900"
         >
           <Import className="w-4 h-4 shrink-0" />
-          <span>Import from CSV</span>
+          <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
+            Import from CSV
+          </span>
         </button>
       )}
 
-      {(hasEdits || canUndo || canRedo) && (
+      {(role === "admin" && selectedCount > 0) ||
+      hasEdits ||
+      canUndo ||
+      canRedo ? (
         <div className="flex items-center gap-2 ml-auto animate-in fade-in slide-in-from-right-2 duration-200">
+          {role === "admin" && selectedCount > 0 && (
+            <button
+              onClick={onDelete}
+              disabled={isDeleting}
+              className="group flex items-center justify-start gap-2 w-10 hover:w-34 focus-visible:w-34 overflow-hidden px-3 py-2 bg-red-500 hover:bg-red-600 transition-all duration-200 rounded-lg text-sm font-medium text-white shadow-sm disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4 shrink-0" />
+              <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
+                {isDeleting ? "Deleting..." : `Delete (${selectedCount})`}
+              </span>
+            </button>
+          )}
+
           <div className="flex items-center gap-1 mr-1">
             <button
               onClick={onUndo}
@@ -202,6 +217,13 @@ export const TableToolbar = ({
             </button>
           </div>
           <button
+            onClick={onViewChanges}
+            disabled={!hasEdits || isSaving}
+            className="px-4 py-2 text-sm font-medium text-purple-700 bg-purple-100 hover:bg-purple-200 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+          >
+            View Changes ({pendingChangesCount})
+          </button>
+          <button
             onClick={onCancel}
             disabled={isSaving}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
@@ -216,7 +238,7 @@ export const TableToolbar = ({
             {isSaving ? "Saving..." : "Save Changes"}
           </button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

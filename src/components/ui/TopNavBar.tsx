@@ -4,7 +4,14 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Home, LogOut, MoreVertical, Settings, UserCircle } from "lucide-react";
+import {
+  BookOpen,
+  Home,
+  LogOut,
+  MoreVertical,
+  Settings,
+  UserCircle,
+} from "lucide-react";
 import { createClient } from "@/lib/client/supabase/client";
 import { useUser } from "@/lib/client/userContext";
 import { getCurrentUser } from "@/lib/api/getCurrentUser";
@@ -200,6 +207,32 @@ export function TopNavBar(): React.JSX.Element {
             >
               <Settings style={{ width: 16, height: 16, color: "#737373" }} />
               Settings
+            </Link>
+            <Link
+              href="/volunteers/instructions"
+              onClick={() => setMenuOpen(false)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "8px 12px",
+                borderRadius: "6px",
+                fontSize: "0.875rem",
+                color: "#171717",
+                textDecoration: "none",
+                transition: "background-color 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.backgroundColor =
+                  "#f5f5f5";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.backgroundColor =
+                  "transparent";
+              }}
+            >
+              <BookOpen style={{ width: 16, height: 16, color: "#737373" }} />
+              Instructions
             </Link>
             <button
               type="button"

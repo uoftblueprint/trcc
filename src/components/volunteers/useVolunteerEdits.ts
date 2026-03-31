@@ -19,11 +19,15 @@ interface UseVolunteerEditsProps {
   fetchInitialData: () => Promise<void>;
 }
 
-/** Single history step: set this cell to `value` when applied (undo or redo). */
-interface EditAction {
+interface EditStep {
   rowId: number;
   colId: string;
   value: unknown;
+}
+
+/** One undo/redo action can include one or many cell edits. */
+interface HistoryAction {
+  steps: EditStep[];
 }
 
 export interface UseVolunteerEditsReturn {
@@ -31,6 +35,9 @@ export interface UseVolunteerEditsReturn {
   saveErrors: string[];
   hasEdits: boolean;
   handleCellEdit: (rowId: number, colId: string, value: unknown) => void;
+  handleBulkEdit: (
+    edits: Array<{ rowId: number; colId: string; value: unknown }>
+  ) => void;
   handleSaveEdits: () => Promise<void>;
   handleCancelEdits: () => Promise<void>;
   canUndo: boolean;
@@ -80,8 +87,8 @@ export const useVolunteerEdits = ({
   const hasEdits: boolean = Object.keys(editedRows).length > 0;
   const hadEditsRef = useRef(false);
 
-  const undoStackRef = useRef<EditAction[]>([]);
-  const redoStackRef = useRef<EditAction[]>([]);
+  const undoStackRef = useRef<HistoryAction[]>([]);
+  const redoStackRef = useRef<HistoryAction[]>([]);
   const isUndoRedoRef = useRef(false);
   const editedRowsRef = useRef(editedRows);
   editedRowsRef.current = editedRows;
@@ -177,7 +184,7 @@ export const useVolunteerEdits = ({
         const priorValue = getCellValue(rowId, colId);
         undoStackRef.current = [
           ...undoStackRef.current.slice(-(MAX_HISTORY - 1)),
-          { rowId, colId, value: priorValue },
+          { steps: [{ rowId, colId, value: priorValue }] },
         ];
         redoStackRef.current = [];
       }
@@ -188,19 +195,48 @@ export const useVolunteerEdits = ({
     [getCellValue, applyEdit, syncHistoryStacks]
   );
 
+  const handleBulkEdit = useCallback(
+    (edits: Array<{ rowId: number; colId: string; value: unknown }>): void => {
+      if (edits.length === 0) return;
+
+      if (!isUndoRedoRef.current) {
+        const steps: EditStep[] = edits.map(({ rowId, colId }) => ({
+          rowId,
+          colId,
+          value: getCellValue(rowId, colId),
+        }));
+        undoStackRef.current = [
+          ...undoStackRef.current.slice(-(MAX_HISTORY - 1)),
+          { steps },
+        ];
+        redoStackRef.current = [];
+      }
+
+      edits.forEach(({ rowId, colId, value }) => {
+        const finalValue = normalizeValue(colId, value);
+        applyEdit(rowId, colId, finalValue);
+      });
+
+      syncHistoryStacks();
+    },
+    [getCellValue, applyEdit, syncHistoryStacks]
+  );
+
   const undo = useCallback((): void => {
     const action = undoStackRef.current.pop();
     if (!action) return;
 
-    const valueBeforeUndo = getCellValue(action.rowId, action.colId);
-    redoStackRef.current.push({
-      rowId: action.rowId,
-      colId: action.colId,
-      value: valueBeforeUndo,
-    });
+    const redoSteps: EditStep[] = action.steps.map((step) => ({
+      rowId: step.rowId,
+      colId: step.colId,
+      value: getCellValue(step.rowId, step.colId),
+    }));
+    redoStackRef.current.push({ steps: redoSteps });
 
     isUndoRedoRef.current = true;
-    applyEdit(action.rowId, action.colId, action.value);
+    action.steps.forEach((step) => {
+      applyEdit(step.rowId, step.colId, step.value);
+    });
     isUndoRedoRef.current = false;
     syncHistoryStacks();
   }, [getCellValue, applyEdit, syncHistoryStacks]);
@@ -209,15 +245,17 @@ export const useVolunteerEdits = ({
     const action = redoStackRef.current.pop();
     if (!action) return;
 
-    const valueBeforeRedo = getCellValue(action.rowId, action.colId);
-    undoStackRef.current.push({
-      rowId: action.rowId,
-      colId: action.colId,
-      value: valueBeforeRedo,
-    });
+    const undoSteps: EditStep[] = action.steps.map((step) => ({
+      rowId: step.rowId,
+      colId: step.colId,
+      value: getCellValue(step.rowId, step.colId),
+    }));
+    undoStackRef.current.push({ steps: undoSteps });
 
     isUndoRedoRef.current = true;
-    applyEdit(action.rowId, action.colId, action.value);
+    action.steps.forEach((step) => {
+      applyEdit(step.rowId, step.colId, step.value);
+    });
     isUndoRedoRef.current = false;
     syncHistoryStacks();
   }, [getCellValue, applyEdit, syncHistoryStacks]);
@@ -413,6 +451,7 @@ export const useVolunteerEdits = ({
     saveErrors,
     hasEdits,
     handleCellEdit,
+    handleBulkEdit,
     handleSaveEdits,
     handleCancelEdits,
     canUndo,

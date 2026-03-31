@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, {
+  useEffect,
+  useState,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -14,7 +20,11 @@ import clsx from "clsx";
 import toast from "react-hot-toast";
 import type { Volunteer } from "./types";
 import { useCellSelection } from "./useCellSelection";
-import { getBaseColumns, FILTERABLE_COLUMNS } from "./volunteerColumns";
+import {
+  getBaseColumns,
+  FILTERABLE_COLUMNS,
+  COLUMNS_CONFIG,
+} from "./volunteerColumns";
 import { AlertCircle } from "lucide-react";
 import { FilterBar } from "./FilterBar";
 import { TableToolbar } from "./TableToolbar";
@@ -33,6 +43,31 @@ import {
 } from "./utils";
 import { useVolunteersData } from "./useVolunteersData";
 import { useVolunteerEdits } from "./useVolunteerEdits";
+
+type PendingCellChange = {
+  colId: string;
+  label: string;
+  from: string;
+  to: string;
+};
+
+type PendingRowChange = {
+  volunteerId: number;
+  volunteerLabel: string;
+  changes: PendingCellChange[];
+};
+
+const formatPendingValue = (colId: string, value: unknown): string => {
+  if (value === null || value === undefined || value === "") return "(empty)";
+  if (colId === "opt_in_communication") {
+    if (value === true) return "Yes";
+    if (value === false) return "No";
+  }
+  if (Array.isArray(value)) {
+    return value.length > 0 ? value.map(String).join(", ") : "(empty)";
+  }
+  return String(value);
+};
 
 const VolunteersTableContent = ({
   role,
@@ -56,6 +91,7 @@ const VolunteersTableContent = ({
   const [isImportCSVOpen, setIsImportCSVOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [isChangesModalOpen, setIsChangesModalOpen] = useState(false);
 
   const {
     data,
@@ -85,6 +121,7 @@ const VolunteersTableContent = ({
     saveErrors,
     hasEdits,
     handleCellEdit,
+    handleBulkEdit,
     handleSaveEdits,
     handleCancelEdits,
     canUndo,
@@ -180,6 +217,43 @@ const VolunteersTableContent = ({
     return result;
   }, [allVolunteers, allRoles, allCohorts, editedRows]);
 
+  const pendingChanges = useMemo<PendingRowChange[]>(() => {
+    return Object.entries(editedRows)
+      .map(([id, partial]) => {
+        const volunteerId = Number(id);
+        const original = allVolunteers.find((v) => v.id === volunteerId);
+        if (!original) return null;
+
+        const volunteerLabel =
+          original.name_org?.trim() || original.pseudonym?.trim() || `ID ${id}`;
+
+        const changes: PendingCellChange[] = Object.entries(partial).map(
+          ([colId, nextValue]) => {
+            const colLabel =
+              COLUMNS_CONFIG.find((c) => String(c.id) === colId)?.label ??
+              colId;
+            const prevValue = original[colId as keyof Volunteer];
+            return {
+              colId,
+              label: colLabel,
+              from: formatPendingValue(colId, prevValue),
+              to: formatPendingValue(colId, nextValue),
+            };
+          }
+        );
+
+        if (changes.length === 0) return null;
+        return { volunteerId, volunteerLabel, changes };
+      })
+      .filter((row): row is PendingRowChange => row !== null)
+      .sort((a, b) => a.volunteerLabel.localeCompare(b.volunteerLabel));
+  }, [editedRows, allVolunteers]);
+
+  const pendingChangesCount = useMemo(
+    () => pendingChanges.reduce((acc, row) => acc + row.changes.length, 0),
+    [pendingChanges]
+  );
+
   const columns = useMemo<ColumnDef<Volunteer>[]>(
     () => [
       {
@@ -231,6 +305,7 @@ const VolunteersTableContent = ({
     onRowSelectionChange: setRowSelection,
     onGlobalFilterChange: setGlobalFilter,
     enableRowSelection: true,
+    autoResetPageIndex: false,
     enableMultiSort: true,
     isMultiSortEvent: () => true,
     globalFilterFn: (row, _columnId, filterValue) => {
@@ -249,11 +324,47 @@ const VolunteersTableContent = ({
   });
 
   const {
+    selectedCells,
     isSelected,
     handleCellMouseDown,
     handleCellMouseEnter,
     resetSelection,
   } = useCellSelection(table);
+  const clearValueForColumn = useCallback((colId: string): unknown => {
+    const col = COLUMNS_CONFIG.find((c) => String(c.id) === colId);
+    if (!col) return "";
+    if (col.filterType === "options") return col.isMulti ? [] : null;
+    return "";
+  }, []);
+
+  const clearSelectedCells = useCallback((): void => {
+    const selectedIds = Object.keys(selectedCells).filter(
+      (k) => selectedCells[k]
+    );
+    if (selectedIds.length === 0) return;
+
+    const bulkEdits: Array<{ rowId: number; colId: string; value: unknown }> =
+      [];
+    selectedIds.forEach((id) => {
+      const separatorIndex = id.indexOf("_");
+      if (separatorIndex === -1) return;
+      const rowKey = id.slice(0, separatorIndex);
+      const colId = id.slice(separatorIndex + 1);
+      if (!rowKey || !colId || colId === "select" || colId === "volunteer_id")
+        return;
+
+      const row = table.getRowModel().rows.find((r) => String(r.id) === rowKey);
+      const volunteerId = row?.original.id;
+      if (!volunteerId) return;
+
+      bulkEdits.push({
+        rowId: volunteerId,
+        colId,
+        value: clearValueForColumn(colId),
+      });
+    });
+    handleBulkEdit(bulkEdits);
+  }, [selectedCells, table, handleBulkEdit, clearValueForColumn]);
 
   useEffect(() => {
     resetSelection();
@@ -295,9 +406,14 @@ const VolunteersTableContent = ({
     try {
       const result = await removeVolunteersAction(selectedRowIds);
       if (result.failed > 0) {
-        toast.error(`${result.failed} volunteer(s) could not be deleted`, {
-          id: deleteToast,
-        });
+        const firstError = result.errors[0];
+        const message =
+          result.failed === 1 && firstError
+            ? firstError
+            : `${result.failed} volunteer(s) could not be deleted${
+                firstError ? ` (e.g. ${firstError})` : ""
+              }`;
+        toast.error(message, { id: deleteToast });
       } else {
         toast.success(`${result.succeeded} volunteer(s) deleted`, {
           id: deleteToast,
@@ -317,11 +433,20 @@ const VolunteersTableContent = ({
   };
 
   useEffect(() => {
-    if (!isAdmin || selectedRowIds.length === 0) return;
+    if (!isAdmin) return;
     const handleKeyDown = (e: KeyboardEvent): void => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (e.key === "Delete" || e.key === "Backspace") {
+        const hasSelectedCells = Object.keys(selectedCells).some(
+          (k) => selectedCells[k]
+        );
+        if (hasSelectedCells) {
+          e.preventDefault();
+          clearSelectedCells();
+          return;
+        }
+        if (selectedRowIds.length === 0) return;
         e.preventDefault();
         requestDeleteVolunteers();
       }
@@ -329,7 +454,7 @@ const VolunteersTableContent = ({
     window.addEventListener("keydown", handleKeyDown);
     return (): void => window.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, selectedRowIds]);
+  }, [isAdmin, selectedRowIds, selectedCells, clearSelectedCells]);
 
   useEffect(() => {
     const handleUndoRedo = (e: KeyboardEvent): void => {
@@ -387,6 +512,8 @@ const VolunteersTableContent = ({
         canRedo={canRedo}
         onUndo={undo}
         onRedo={redo}
+        pendingChangesCount={pendingChangesCount}
+        onViewChanges={() => setIsChangesModalOpen(true)}
       />
 
       {saveErrors.length > 0 && (
@@ -623,6 +750,75 @@ const VolunteersTableContent = ({
         onConfirm={handleDeleteSelected}
         onCancel={() => setDeleteModalOpen(false)}
       />
+
+      {isChangesModalOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/40 z-100"
+            onClick={() => setIsChangesModalOpen(false)}
+            aria-hidden
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="unsaved-changes-title"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-101 w-full max-w-2xl max-h-[85vh] bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden"
+          >
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h2
+                id="unsaved-changes-title"
+                className="text-lg font-semibold text-gray-900"
+              >
+                Unsaved Changes ({pendingChangesCount})
+              </h2>
+              <button
+                type="button"
+                onClick={() => setIsChangesModalOpen(false)}
+                className="px-3 py-1.5 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto space-y-4">
+              {pendingChanges.length === 0 ? (
+                <p className="text-sm text-gray-600">No pending changes.</p>
+              ) : (
+                pendingChanges.map((row) => (
+                  <section
+                    key={row.volunteerId}
+                    className="border border-gray-200 rounded-lg"
+                  >
+                    <div className="px-4 py-2 border-b border-gray-100 bg-gray-50 text-sm font-medium text-gray-900">
+                      {row.volunteerLabel} ({row.changes.length})
+                    </div>
+                    <div className="divide-y divide-gray-100">
+                      {row.changes.map((change) => (
+                        <div
+                          key={`${row.volunteerId}-${change.colId}`}
+                          className="px-4 py-2 text-sm grid grid-cols-12 gap-3"
+                        >
+                          <span className="col-span-3 text-gray-700 font-medium">
+                            {change.label}
+                          </span>
+                          <span className="col-span-4 text-gray-500 break-words">
+                            {change.from}
+                          </span>
+                          <span className="col-span-1 text-center text-gray-400">
+                            →
+                          </span>
+                          <span className="col-span-4 text-gray-900 break-words">
+                            {change.to}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ))
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
