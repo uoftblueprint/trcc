@@ -9,7 +9,10 @@ export async function GET(request: NextRequest): Promise<void> {
 
   const code = searchParams.get("code");
   const token_hash = searchParams.get("token_hash") ?? "";
-  const type = (searchParams.get("type") ?? "email") as EmailOtpType;
+  const typeParam = searchParams.get("type");
+  const type = (typeParam ?? "email") as EmailOtpType;
+  const next = searchParams.get("next");
+  const safeNext = next?.startsWith("/") ? next : null;
 
   const supabase = await createClient();
 
@@ -21,18 +24,13 @@ export async function GET(request: NextRequest): Promise<void> {
       return redirect("/auth/auth-code-error");
     }
 
-    // Detect recovery flow from the session's AMR (authentication method reference)
-    const user = data.session?.user as
-      | (typeof data.session.user & {
-          amr?: { method: string }[];
-        })
-      | undefined;
-    const isRecovery =
-      type === "recovery" ||
-      (Array.isArray(user?.amr) &&
-        user.amr.some((entry) => entry.method === "recovery"));
+    if (safeNext) {
+      return redirect(safeNext);
+    }
 
-    if (isRecovery) {
+    // Supabase PKCE recovery links may arrive with `code` but without a `type`.
+    // In that case, default to the reset password flow.
+    if (!typeParam || type === "recovery") {
       return redirect("/reset-password");
     }
 
@@ -47,6 +45,10 @@ export async function GET(request: NextRequest): Promise<void> {
 
   if (error) {
     return redirect("/auth/auth-code-error");
+  }
+
+  if (safeNext) {
+    return redirect(safeNext);
   }
 
   if (type === "recovery") {

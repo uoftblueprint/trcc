@@ -51,15 +51,26 @@ export async function POST(request: Request): Promise<Response> {
       request.headers.get("origin") ??
       "http://localhost:3000";
 
-    const redirectTo = `${baseUrl.replace(/\/$/, "")}/auth/confirm`;
-    console.log("[forgot-password] redirectTo:", redirectTo);
+    const callbackUrl = new URL("/auth/confirm", baseUrl.replace(/\/$/, ""));
+    callbackUrl.searchParams.set("next", "/reset-password");
 
     const { error } = await supabase.auth.resetPasswordForEmail(body.email, {
-      redirectTo,
+      redirectTo: callbackUrl.toString(),
     });
 
     if (error) {
       console.log("SUPABASE ERROR FULL:", error);
+
+      if (error.status === 429 || error.code === "over_email_send_rate_limit") {
+        return NextResponse.json(
+          {
+            error:
+              "Too many reset attempts. Please wait a few minutes before trying again.",
+          },
+          { status: 429 }
+        );
+      }
+
       return NextResponse.json(
         { error: JSON.stringify(error) },
         { status: 500 }
