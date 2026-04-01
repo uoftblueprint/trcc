@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  Fragment,
+} from "react";
 import { CellContext } from "@tanstack/react-table";
 import toast from "react-hot-toast";
 import { Volunteer } from "./types";
@@ -29,7 +35,6 @@ export const EditableCell = ({
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isNotesExpanded, setIsNotesExpanded] = useState<boolean>(false);
   const [value, setValue] = useState<unknown>(initialValue);
-  const [draftText, setDraftText] = useState<string>("");
   const [inputValue, setInputValue] = useState<string>("");
 
   const [modalCoords, setModalCoords] = useState<{
@@ -53,6 +58,9 @@ export const EditableCell = ({
     "current_roles",
     "future_interests",
   ].includes(info.column.id);
+
+  /** Forces a fresh DOM subtree when toggling edit mode; avoids ghost nodes from contentEditable + imperative textContent. */
+  const modeKey = isEditing ? "edit" : "view";
 
   useEffect(() => {
     if (isEditing && type === "text") return;
@@ -81,7 +89,6 @@ export const EditableCell = ({
     if (type === "text") {
       const text = String(value ?? "");
       draftTextRef.current = text;
-      setDraftText(text);
     }
     setIsEditing(true);
   };
@@ -214,6 +221,7 @@ export const EditableCell = ({
 
     return (
       <div
+        key={modeKey}
         ref={cellRef}
         className="relative w-full h-full flex items-center min-h-6 gap-1 flex-wrap overflow-hidden"
       >
@@ -316,7 +324,11 @@ export const EditableCell = ({
 
   if (isEditing && type === "text") {
     const commitAndExit = (): void => {
-      const text = draftText;
+      const text = (inlineEditorRef.current?.textContent ?? "").replace(
+        /\r/g,
+        ""
+      );
+      draftTextRef.current = text;
       setValue(text);
       handleSave(text);
     };
@@ -329,6 +341,7 @@ export const EditableCell = ({
     if (isNotes) {
       return (
         <div
+          key={modeKey}
           ref={inlineEditorRef}
           contentEditable
           suppressContentEditableWarning
@@ -336,7 +349,6 @@ export const EditableCell = ({
           onInput={(e: React.FormEvent<HTMLDivElement>): void => {
             const next = (e.currentTarget.textContent ?? "").replace(/\r/g, "");
             draftTextRef.current = next;
-            setDraftText(next);
           }}
           onBlur={commitAndExit}
           onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>): void => {
@@ -354,6 +366,7 @@ export const EditableCell = ({
 
     return (
       <div
+        key={modeKey}
         ref={inlineEditorRef}
         contentEditable
         suppressContentEditableWarning
@@ -361,7 +374,6 @@ export const EditableCell = ({
         onInput={(e: React.FormEvent<HTMLDivElement>): void => {
           const next = (e.currentTarget.textContent ?? "").replace(/\r/g, "");
           draftTextRef.current = next;
-          setDraftText(next);
         }}
         onBlur={commitAndExit}
         onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>): void => {
@@ -405,7 +417,7 @@ export const EditableCell = ({
   };
 
   return (
-    <>
+    <Fragment key={modeKey}>
       <div
         className="absolute inset-0 z-0 cursor-cell select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400"
         onDoubleClick={(e: React.MouseEvent<HTMLDivElement>) => {
@@ -433,6 +445,6 @@ export const EditableCell = ({
       <div className="relative z-10 w-full h-full min-h-6 cursor-text flex items-center gap-1 flex-wrap overflow-hidden pointer-events-none">
         {renderReadOnlyTags()}
       </div>
-    </>
+    </Fragment>
   );
 };

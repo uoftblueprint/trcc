@@ -79,9 +79,11 @@ export async function updateSession(
     url.search = "";
     url.searchParams.set("already_logged_in", "1");
     const redirectResponse = NextResponse.redirect(url);
-    supabaseResponse.cookies.getAll().forEach((cookie) => {
-      redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
-    });
+    for (const cookie of supabaseResponse.cookies.getAll()) {
+      // Single-arg form: pass full ResponseCookie so attributes (path, maxAge, etc.)
+      // are applied; the 3-arg form expects serialize options only as the third arg.
+      redirectResponse.cookies.set(cookie);
+    }
     return redirectResponse;
   }
 
