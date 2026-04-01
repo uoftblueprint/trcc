@@ -298,40 +298,36 @@ export function ManageStaffContent({
             />
           </div>
           <div>
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+            <h1
+              style={{
+                fontSize: "1.25rem",
+                fontWeight: 700,
+                color: "#171717",
+                margin: 0,
+              }}
             >
-              <h1
-                style={{
-                  fontSize: "1.25rem",
-                  fontWeight: 700,
-                  color: "#171717",
-                  margin: 0,
-                }}
-              >
-                Manage Staff
-              </h1>
-              <span
-                style={{
-                  fontSize: "0.75rem",
-                  fontWeight: 600,
-                  color: "#525252",
-                  backgroundColor: "#f5f5f5",
-                  padding: "2px 8px",
-                  borderRadius: "10px",
-                }}
-              >
-                {staffList.length}
-              </span>
-            </div>
+              Manage Users
+            </h1>
             <p
               style={{
                 fontSize: "0.8125rem",
                 color: "#737373",
-                margin: "0.125rem 0 0",
+                margin: "0.25rem 0 0",
+                lineHeight: 1.5,
+                maxWidth: "32rem",
               }}
             >
-              Add, edit, or remove staff accounts and roles.
+              <span
+                style={{ color: "#404040", fontWeight: 600 }}
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {staffList.length === 1
+                  ? "1 user"
+                  : `${staffList.length} users`}
+              </span>
+              <span style={{ color: "#a3a3a3" }}> · </span>
+              Add, edit, or remove users below.
             </p>
           </div>
         </div>
