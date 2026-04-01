@@ -189,7 +189,7 @@ export const TableToolbar = ({
             <button
               onClick={onDelete}
               disabled={isDeleting}
-              className="group flex items-center justify-start gap-2 w-10 hover:w-34 focus-visible:w-34 overflow-hidden px-3 py-2 bg-red-500 hover:bg-red-600 transition-all duration-200 rounded-lg text-sm font-medium text-white shadow-sm disabled:opacity-50"
+              className="group flex items-center justify-start gap-2 w-10 hover:w-34 focus-visible:w-34 overflow-hidden px-3 py-2 bg-red-200 hover:bg-red-300 transition-all duration-200 rounded-lg text-sm font-medium text-red-900 disabled:opacity-50"
             >
               <Trash2 className="w-4 h-4 shrink-0" />
               <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
@@ -233,7 +233,7 @@ export const TableToolbar = ({
           <button
             onClick={onSave}
             disabled={isSaving || !hasEdits}
-            className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-green-900 bg-green-200 hover:bg-green-300 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
           >
             {isSaving ? "Saving..." : "Save Changes"}
           </button>
