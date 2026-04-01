@@ -580,7 +580,7 @@ const VolunteersTableContent = ({
       )}
 
       {/* Filter Bar */}
-      <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm">
+      <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm min-w-0">
         <FilterBar
           filters={filters}
           setFilters={setFilters}

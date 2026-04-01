@@ -48,7 +48,7 @@ function NoProfileMessage(): React.JSX.Element {
           marginBottom: "0.75rem",
         }}
       >
-        Manage Staff
+        Manage Users
       </h1>
       <p style={{ color: "#525252", lineHeight: 1.5 }}>
         We couldn’t load your profile. Try signing out and back in. If this
@@ -70,7 +70,7 @@ function RoleNotAssignedMessage(): React.JSX.Element {
           marginBottom: "0.75rem",
         }}
       >
-        Manage Staff
+        Manage Users
       </h1>
       <p style={{ color: "#525252", lineHeight: 1.5 }}>
         Your account doesn’t have a role yet (admin or staff). Ask someone who

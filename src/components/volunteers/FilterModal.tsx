@@ -14,6 +14,20 @@ export const filterModalAlignRight = (element: HTMLElement): boolean => {
   return window.innerWidth - rect.left < MODAL_WIDTH_PX + SCREEN_BUFFER_PX;
 };
 
+function fixedPanelLeftPx(
+  anchor: DOMRectReadOnly,
+  alignRight: boolean
+): number {
+  const buf = SCREEN_BUFFER_PX;
+  const w = MODAL_WIDTH_PX;
+  if (alignRight) {
+    const left = anchor.right - w;
+    return Math.max(buf, Math.min(left, window.innerWidth - w - buf));
+  }
+  const left = anchor.left;
+  return Math.max(buf, Math.min(left, window.innerWidth - w - buf));
+}
+
 interface FilterModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -21,6 +35,8 @@ interface FilterModalProps {
   optionsData: Record<string, string[]>;
   initialFilter?: FilterTuple;
   alignRight?: boolean;
+  /** When set, the panel is `position:fixed` so it is not clipped by horizontal scroll parents. */
+  anchorRect?: DOMRectReadOnly | null;
 }
 
 export const FilterModal = ({
@@ -30,6 +46,7 @@ export const FilterModal = ({
   optionsData,
   initialFilter,
   alignRight = false,
+  anchorRect = null,
 }: FilterModalProps): React.JSX.Element | null => {
   const [activeStep, setActiveStep] = useState<
     "SELECT_COLUMN" | "SELECT_VALUES"
@@ -134,6 +151,8 @@ export const FilterModal = ({
 
   if (!isOpen) return null;
 
+  const useFixedPanel = anchorRect != null;
+
   return (
     <>
       {/* 25% Dim to background */}
@@ -148,9 +167,19 @@ export const FilterModal = ({
       <div
         data-volunteers-overlay
         className={clsx(
-          "absolute top-full mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-100 p-4 flex flex-col gap-3 z-50",
-          alignRight ? "right-0" : "left-0"
+          "w-72 bg-white rounded-xl shadow-xl border border-gray-100 p-4 flex flex-col gap-3 z-50",
+          useFixedPanel
+            ? "fixed"
+            : clsx("absolute top-full mt-2", alignRight ? "right-0" : "left-0")
         )}
+        style={
+          useFixedPanel
+            ? {
+                top: anchorRect.bottom + 8,
+                left: fixedPanelLeftPx(anchorRect, alignRight),
+              }
+            : undefined
+        }
       >
         {activeStep === "SELECT_COLUMN" ? (
           <ColumnSelector

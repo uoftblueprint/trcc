@@ -273,8 +273,7 @@ export const TableToolbar = ({
             data-volunteers-overlay={isCopyMenuOpen ? "" : undefined}
             className={clsx("relative", isCopyMenuOpen ? "z-50" : "z-10")}
           >
-            <button
-              type="button"
+            <ExpandableToolButton
               onClick={(e) => {
                 if (isCopyMenuOpen) {
                   setIsCopyMenuOpen(false);
@@ -285,12 +284,18 @@ export const TableToolbar = ({
                 );
                 setIsCopyMenuOpen(true);
               }}
-              className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 hover:border-purple-300 transition-colors rounded-lg text-sm font-medium text-gray-800 cursor-pointer"
+              forceExpanded={isCopyMenuOpen}
+              aria-label={`Copy ${selectedCellCount} selected cells, choose format`}
+              aria-expanded={isCopyMenuOpen}
+              aria-haspopup="menu"
+              className={neutralExpandable}
+              icon={<Copy className="w-4 h-4 shrink-0" />}
             >
-              <Copy className="w-4 h-4 shrink-0" />
-              <span>Copy ({selectedCellCount})</span>
-              <ChevronDown className="w-4 h-4 shrink-0 opacity-60" />
-            </button>
+              <span className="inline-flex items-center gap-1">
+                Copy ({selectedCellCount})
+                <ChevronDown className="w-3.5 h-3.5 shrink-0 opacity-60" />
+              </span>
+            </ExpandableToolButton>
             {isCopyMenuOpen && (
               <div
                 role="menu"
