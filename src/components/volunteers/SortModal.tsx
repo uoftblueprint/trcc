@@ -76,6 +76,7 @@ export const SortModal = ({
     <>
       <div className="fixed inset-0 z-40 bg-black/25" onMouseDown={onClose} />
       <div
+        data-volunteers-overlay
         className={clsx(
           "absolute top-full mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-100 p-4 flex flex-col gap-3 z-50",
           alignRight ? "right-0" : "left-0"
