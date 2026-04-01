@@ -4,10 +4,10 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BookOpen, X } from "lucide-react";
 import {
+  type HelpVariant,
   getHelpVariant,
   getHelpStorageKey,
   getHelpTitleAndIntro,
-  type HelpVariant,
   VolunteersHelpContent,
 } from "./volunteersHelpContent";
 

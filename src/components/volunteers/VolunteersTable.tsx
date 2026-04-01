@@ -43,6 +43,7 @@ import {
 } from "./utils";
 import { useVolunteersData } from "./useVolunteersData";
 import { useVolunteerEdits } from "./useVolunteerEdits";
+import type { CopyCellFormat } from "./copySelectedCells";
 
 type PendingCellChange = {
   colId: string;
@@ -351,6 +352,8 @@ const VolunteersTableContent = ({
     handleCellMouseDown,
     handleCellMouseEnter,
     resetSelection,
+    selectedCellCount,
+    copySelectedCells,
   } = useCellSelection(table);
   const clearValueForColumn = useCallback((colId: string): unknown => {
     const col = COLUMNS_CONFIG.find((c) => String(c.id) === colId);
@@ -387,6 +390,24 @@ const VolunteersTableContent = ({
     });
     handleBulkEdit(bulkEdits);
   }, [selectedCells, table, handleBulkEdit, clearValueForColumn]);
+
+  const handleCopyCells = useCallback(
+    async (format: CopyCellFormat): Promise<void> => {
+      const ok = await copySelectedCells(format);
+      if (ok) {
+        const label =
+          format === "tsv"
+            ? "Tab-separated"
+            : format === "csv"
+              ? "CSV"
+              : "Plain text";
+        toast.success(`Copied ${selectedCellCount} cell(s) (${label})`);
+      } else {
+        toast.error("Could not copy to clipboard");
+      }
+    },
+    [copySelectedCells, selectedCellCount]
+  );
 
   useEffect(() => {
     resetSelection();
@@ -535,6 +556,8 @@ const VolunteersTableContent = ({
           onRedo={redo}
           pendingChangesCount={pendingChangesCount}
           onViewChanges={() => setIsChangesModalOpen(true)}
+          selectedCellCount={selectedCellCount}
+          onCopyCells={handleCopyCells}
         />
       </div>
 
