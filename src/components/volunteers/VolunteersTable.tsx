@@ -295,6 +295,8 @@ const VolunteersTableContent = ({
   const table = useReactTable({
     data,
     columns,
+    /** Stable row identity avoids reusing row DOM/state when sort/page changes (default ids are row indices). */
+    getRowId: (row) => String(row.id),
     columnResizeMode: "onChange",
     state: { sorting, rowSelection, globalFilter: debouncedGlobalFilter },
     getCoreRowModel: getCoreRowModel(),
@@ -307,7 +309,11 @@ const VolunteersTableContent = ({
     enableRowSelection: true,
     autoResetPageIndex: false,
     enableMultiSort: true,
-    isMultiSortEvent: () => true,
+    /** Only Cmd (macOS) / Ctrl (Windows) adds another sort level; plain click replaces with a single-column sort. */
+    isMultiSortEvent: (e: unknown): boolean => {
+      const ev = e as MouseEvent;
+      return ev.metaKey || ev.ctrlKey;
+    },
     globalFilterFn: (row, _columnId, filterValue) => {
       const lowerFilter = String(filterValue).toLowerCase();
       return row.getAllCells().some((cell) => {

@@ -298,7 +298,7 @@ export const FilterBar = ({
 
         return (
           <div
-            key={index}
+            key={`${filter.field}-${filter.miniOp}-${filter.values.join("¦")}-${index}`}
             className={clsx(
               "relative group/filter",
               isCurrentlyEditing ? "z-50" : "z-10"
