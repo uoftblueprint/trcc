@@ -82,11 +82,17 @@ export const ImportCSVModal = ({
       />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="import-csv-modal-title"
           className="bg-white rounded-xl shadow-xl border border-gray-100 w-full max-w-md pointer-events-auto"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between p-5 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-900">
+            <h2
+              id="import-csv-modal-title"
+              className="text-sm font-semibold text-gray-900"
+            >
               Import from CSV
             </h2>
             <button

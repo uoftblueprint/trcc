@@ -270,6 +270,7 @@ export const TableToolbar = ({
         {selectedCellCount > 0 && (
           <div
             ref={copyMenuRef}
+            data-volunteers-overlay={isCopyMenuOpen ? "" : undefined}
             className={clsx("relative", isCopyMenuOpen ? "z-50" : "z-10")}
           >
             <button

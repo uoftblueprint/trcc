@@ -7,6 +7,7 @@ import {
   type CopyCellFormat,
 } from "./copySelectedCells";
 import { formatCellData } from "./utils";
+import { shouldDeferVolunteersTableCopyShortcut } from "./tableCopyShortcutContext";
 
 type CellCoords = {
   rowIndex: number;
@@ -180,22 +181,9 @@ export const useCellSelection = (
   }, [isDragging]);
 
   useEffect(() => {
-    const isEditableElement = (el: EventTarget | Element | null): boolean => {
-      if (!el) return false;
-      const element = el as HTMLElement;
-      const tagName = element.tagName;
-      if (!tagName) return false;
-
-      const editableTags = ["INPUT", "TEXTAREA", "SELECT"];
-      if (editableTags.includes(tagName)) return true;
-      if (element.isContentEditable) return true;
-      return false;
-    };
-
     const handleKeyDown = (e: KeyboardEvent): void => {
       if (
-        isEditableElement(e.target as Element | null) ||
-        isEditableElement(document.activeElement)
+        shouldDeferVolunteersTableCopyShortcut(e.target, document.activeElement)
       ) {
         return;
       }

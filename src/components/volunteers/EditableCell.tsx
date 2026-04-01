@@ -246,6 +246,7 @@ export const EditableCell = ({
 
         <div
           ref={popoverRef}
+          data-volunteers-overlay
           style={{
             position: "fixed",
             top: `${modalCoords.top}px`,
