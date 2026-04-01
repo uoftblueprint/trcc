@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import clsx from "clsx";
 import {
   Search,
@@ -12,11 +12,14 @@ import {
   Eye,
   X,
   Save,
+  Copy,
+  ChevronDown,
 } from "lucide-react";
 import { FilterTuple } from "@/lib/api/getVolunteersByMultipleColumns";
 import { FilterModal, filterModalAlignRight } from "./FilterModal";
 import { SortModal } from "./SortModal";
 import { SortingState } from "@tanstack/react-table";
+import type { CopyCellFormat } from "./copySelectedCells";
 
 /** Icon-only by default; label expands on hover / focus-visible. */
 function ExpandableToolButton({
@@ -85,6 +88,8 @@ interface TableToolbarProps {
   onRedo: () => void;
   pendingChangesCount: number;
   onViewChanges: () => void;
+  selectedCellCount: number;
+  onCopyCells: (format: CopyCellFormat) => void | Promise<void>;
 }
 
 export const TableToolbar = ({
@@ -111,11 +116,27 @@ export const TableToolbar = ({
   onRedo,
   pendingChangesCount,
   onViewChanges,
+  selectedCellCount,
+  onCopyCells,
 }: TableToolbarProps): React.JSX.Element => {
   const [isMainFilterOpen, setIsMainFilterOpen] = useState(false);
   const [mainFilterAlignRight, setMainFilterAlignRight] = useState(false);
   const [isSortModalOpen, setIsSortModalOpen] = useState(false);
   const [sortModalAlignRight, setSortModalAlignRight] = useState(false);
+  const [isCopyMenuOpen, setIsCopyMenuOpen] = useState(false);
+  const [copyMenuAlignRight, setCopyMenuAlignRight] = useState(false);
+  const copyMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isCopyMenuOpen) return;
+    const close = (e: MouseEvent): void => {
+      if (!copyMenuRef.current?.contains(e.target as Node)) {
+        setIsCopyMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", close);
+    return (): void => document.removeEventListener("mousedown", close);
+  }, [isCopyMenuOpen]);
 
   const handleOpenMainFilter = (e: React.MouseEvent): void => {
     if (isMainFilterOpen) {
@@ -246,6 +267,75 @@ export const TableToolbar = ({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 ml-auto justify-end">
+        {selectedCellCount > 0 && (
+          <div
+            ref={copyMenuRef}
+            className={clsx("relative", isCopyMenuOpen ? "z-50" : "z-10")}
+          >
+            <button
+              type="button"
+              onClick={(e) => {
+                if (isCopyMenuOpen) {
+                  setIsCopyMenuOpen(false);
+                  return;
+                }
+                setCopyMenuAlignRight(
+                  filterModalAlignRight(e.currentTarget as HTMLElement)
+                );
+                setIsCopyMenuOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 hover:border-purple-300 transition-colors rounded-lg text-sm font-medium text-gray-800 cursor-pointer"
+            >
+              <Copy className="w-4 h-4 shrink-0" />
+              <span>Copy ({selectedCellCount})</span>
+              <ChevronDown className="w-4 h-4 shrink-0 opacity-60" />
+            </button>
+            {isCopyMenuOpen && (
+              <div
+                role="menu"
+                className={clsx(
+                  "absolute top-full mt-1 w-56 rounded-lg border border-gray-200 bg-white py-1 shadow-lg",
+                  copyMenuAlignRight ? "right-0" : "left-0"
+                )}
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="w-full px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50 cursor-pointer"
+                  onClick={() => {
+                    void onCopyCells("tsv");
+                    setIsCopyMenuOpen(false);
+                  }}
+                >
+                  Tab-separated (Excel/Sheets)
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="w-full px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50 cursor-pointer"
+                  onClick={() => {
+                    void onCopyCells("csv");
+                    setIsCopyMenuOpen(false);
+                  }}
+                >
+                  CSV
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="w-full px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50 cursor-pointer"
+                  onClick={() => {
+                    void onCopyCells("plain");
+                    setIsCopyMenuOpen(false);
+                  }}
+                >
+                  Plain text (comma between cells)
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {role === "admin" && selectedCount > 0 && (
           <ExpandableToolButton
             onClick={onDelete}

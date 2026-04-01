@@ -1,6 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Table, Cell } from "@tanstack/react-table";
 import type { Volunteer } from "./types";
+import {
+  buildSelectedCellsText,
+  writeSelectedCellsToClipboard,
+  type CopyCellFormat,
+} from "./copySelectedCells";
 import { formatCellData } from "./utils";
 
 type CellCoords = {
@@ -10,6 +15,7 @@ type CellCoords = {
 
 export type UseCellSelectionReturn = {
   selectedCells: Record<string, boolean>;
+  selectedCellCount: number;
   isDragging: boolean;
   isSelected: (rowId: string, colId: string) => boolean;
   handleCellMouseDown: (
@@ -25,6 +31,7 @@ export type UseCellSelectionReturn = {
     colIndex: number
   ) => void;
   resetSelection: () => void;
+  copySelectedCells: (format: CopyCellFormat) => Promise<boolean>;
 };
 
 export const useCellSelection = (
@@ -270,6 +277,11 @@ export const useCellSelection = (
         navigator.clipboard
           .writeText(clipboardString)
           .catch((err) => console.error(err));
+        const text = buildSelectedCellsText(table, selectedCells, "tsv");
+        if (text == null) return;
+
+        e.preventDefault();
+        navigator.clipboard.writeText(text).catch((err) => console.error(err));
       }
     };
 
@@ -284,12 +296,24 @@ export const useCellSelection = (
     setLastClickedCell(null);
   }, []);
 
+  const copySelectedCells = useCallback(
+    (format: CopyCellFormat) =>
+      writeSelectedCellsToClipboard(table, selectedCells, format),
+    [table, selectedCells]
+  );
+
+  const selectedCellCount = Object.keys(selectedCells).filter(
+    (k) => selectedCells[k]
+  ).length;
+
   return {
     selectedCells,
+    selectedCellCount,
     isDragging,
     isSelected,
     handleCellMouseDown,
     handleCellMouseEnter,
     resetSelection,
+    copySelectedCells,
   };
 };

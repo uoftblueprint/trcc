@@ -70,8 +70,10 @@ function SharedSelectingCopyingFilters(): React.JSX.Element {
       <section>
         <h3 className="font-semibold text-gray-900 mb-1.5">Copying</h3>
         <p>
-          With cells selected, press <Kbd>⌘C</Kbd> or <Kbd>Ctrl+C</Kbd> to copy
-          values as tab-separated text—handy for emails or pasting into a sheet.
+          With cells selected, use <strong>Copy cells</strong> in the toolbar to
+          choose tab-separated (Excel), CSV, or plain comma-separated text. You
+          can also press <Kbd>⌘C</Kbd> or <Kbd>Ctrl+C</Kbd> for tab-separated
+          text—handy for pasting into a sheet.
         </p>
       </section>
 
