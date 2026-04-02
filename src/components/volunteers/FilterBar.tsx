@@ -1,19 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { FilterTuple } from "@/lib/api/getVolunteersByMultipleColumns";
-import {
-  ChevronDown,
-  Plus,
-  ArrowUpDown,
-  X,
-  ShieldCheck,
-  AlertTriangle,
-  ListFilter,
-} from "lucide-react";
+import { ChevronDown, Plus, X, ShieldCheck, AlertTriangle } from "lucide-react";
 import { SortingState } from "@tanstack/react-table";
 import clsx from "clsx";
 import { FILTERABLE_COLUMNS } from "./volunteerColumns";
 import { FilterModal, filterModalAlignRight } from "./FilterModal";
-import { SortModal } from "./SortModal";
 import { DEFAULT_OPT_IN_FILTER } from "./useVolunteersData";
 
 function isDefaultFilter(filter: FilterTuple): boolean {
@@ -150,18 +141,10 @@ export const FilterBar = ({
   const [newAnchorRect, setNewAnchorRect] = useState<DOMRectReadOnly | null>(
     null
   );
-  const [isSortModalOpen, setIsSortModalOpen] = useState(false);
-  const [sortAlignRight, setSortAlignRight] = useState(false);
   const [pendingWarning, setPendingWarning] = useState<{
     variant: OptInWarningVariant;
     action: () => void;
   } | null>(null);
-
-  useEffect(() => {
-    if (sorting.length === 0) {
-      setIsSortModalOpen(false);
-    }
-  }, [sorting.length]);
 
   const confirmWarning = useCallback(() => {
     pendingWarning?.action();
@@ -261,117 +244,65 @@ export const FilterBar = ({
   };
 
   return (
-    <div
-      className="flex flex-wrap items-center gap-3 min-w-0 py-1 relative sm:flex-nowrap"
-      role="toolbar"
-      aria-label="Table filters and sort"
-    >
-      {sorting.length > 0 && (
-        <>
+    <div className="relative min-w-0" role="toolbar" aria-label="Table filters">
+      <div className="flex min-w-0 flex-nowrap items-stretch gap-2 py-0.5 sm:gap-3">
+        {filters.length > 1 && (
           <div
-            className={clsx(
-              "relative shrink-0",
-              isSortModalOpen ? "z-50" : "z-10"
-            )}
+            className="flex shrink-0 items-center gap-2 ml-1 sm:gap-2.5"
+            role="group"
+            aria-labelledby="volunteers-filter-match-label"
           >
-            <button
-              type="button"
-              onClick={(e) => {
-                setSortAlignRight(
-                  filterModalAlignRight(e.currentTarget as HTMLElement)
-                );
-                setIsSortModalOpen(!isSortModalOpen);
-              }}
-              aria-expanded={isSortModalOpen}
-              aria-haspopup="dialog"
-              className={clsx(
-                "h-9 inline-flex items-center gap-2 rounded-lg px-3 text-sm font-semibold shadow-sm transition-colors cursor-pointer",
-                "bg-purple-700 text-white border border-purple-800/20 hover:bg-purple-800",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2"
-              )}
+            <span
+              id="volunteers-filter-match-label"
+              className="shrink-0 self-center whitespace-nowrap text-sm font-medium text-gray-600"
             >
-              <ArrowUpDown className="w-4 h-4 shrink-0 opacity-90" />
-              <span>Sort ({sorting.length})</span>
-              <ChevronDown
+              Match
+            </span>
+            <div className="inline-flex h-9 items-stretch rounded-lg bg-gray-100 p-1 ring-1 ring-inset ring-gray-200/80">
+              <button
+                type="button"
+                title="Only show rows that satisfy every active filter (AND)"
+                aria-pressed={globalOp === "AND"}
+                onClick={() => setGlobalOp("AND")}
                 className={clsx(
-                  "w-4 h-4 shrink-0 opacity-80 transition-transform",
-                  isSortModalOpen && "rotate-180"
+                  "inline-flex min-h-0 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-all duration-150 sm:px-3",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-100",
+                  globalOp === "AND"
+                    ? "bg-white text-gray-900 shadow-sm ring-1 ring-gray-200/90"
+                    : "text-gray-600 hover:text-gray-900"
                 )}
-              />
-            </button>
-
-            <SortModal
-              isOpen={isSortModalOpen}
-              onClose={() => setIsSortModalOpen(false)}
-              sorting={sorting}
-              setSorting={setSorting}
-              alignRight={sortAlignRight}
-            />
+              >
+                <span className="whitespace-nowrap">All</span>
+              </button>
+              <button
+                type="button"
+                title="Show rows that satisfy at least one active filter (OR)"
+                aria-pressed={globalOp === "OR"}
+                onClick={() => setGlobalOp("OR")}
+                className={clsx(
+                  "inline-flex min-h-0 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-all duration-150 sm:px-3",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-100",
+                  globalOp === "OR"
+                    ? "bg-white text-gray-900 shadow-sm ring-1 ring-gray-200/90"
+                    : "text-gray-600 hover:text-gray-900"
+                )}
+              >
+                <span className="whitespace-nowrap">Any</span>
+              </button>
+            </div>
           </div>
-          <div
-            className="hidden sm:block w-px h-7 bg-linear-to-b from-transparent via-gray-200 to-transparent shrink-0"
-            aria-hidden
-          />
-        </>
-      )}
-
-      {filters.length > 1 && (
-        <div
-          className="flex flex-col gap-0.5 shrink-0 sm:flex-row sm:items-center sm:gap-2"
-          role="group"
-          aria-label="How rows are matched to filters"
+        )}
+        <span
+          id="volunteers-filtered-by-label"
+          className="shrink-0 self-center whitespace-nowrap text-sm font-medium text-gray-600"
         >
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 whitespace-nowrap">
-            Match
-          </span>
-          <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5 shadow-sm">
-            <button
-              type="button"
-              title="Show only rows that match every active filter"
-              aria-pressed={globalOp === "AND"}
-              onClick={() => setGlobalOp("AND")}
-              className={clsx(
-                "rounded-md px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-1",
-                globalOp === "AND"
-                  ? "bg-purple-100 text-purple-900 shadow-sm"
-                  : "text-gray-600 hover:bg-gray-50"
-              )}
-            >
-              All filters
-            </button>
-            <button
-              type="button"
-              title="Show rows that match at least one active filter"
-              aria-pressed={globalOp === "OR"}
-              onClick={() => setGlobalOp("OR")}
-              className={clsx(
-                "rounded-md px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-1",
-                globalOp === "OR"
-                  ? "bg-purple-100 text-purple-900 shadow-sm"
-                  : "text-gray-600 hover:bg-gray-50"
-              )}
-            >
-              Any filter
-            </button>
-          </div>
-        </div>
-      )}
+          Filtered by:{" "}
+        </span>
 
-      <div className="flex min-w-0 flex-1 items-stretch gap-2 basis-full sm:basis-auto">
         <div
-          className={clsx(
-            "flex min-w-0 flex-1 items-center gap-2 overflow-x-auto overscroll-x-contain rounded-xl border px-2 py-1.5",
-            "border-purple-100 bg-linear-to-r from-purple-50/90 to-gray-50/80",
-            "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-          )}
+          className="flex min-w-0 flex-1 flex-nowrap items-center gap-2 overflow-x-auto overflow-y-visible scroll-smooth [-ms-overflow-style:none] [scrollbar-width:thin] sm:gap-3"
           aria-label="Active filters"
         >
-          <ListFilter
-            className="w-4 h-4 shrink-0 text-purple-500 opacity-80 hidden sm:block"
-            aria-hidden
-          />
           {filters.map((filter, index) => {
             const colDef = FILTERABLE_COLUMNS.find(
               (c) => c.id === filter.field
@@ -399,26 +330,24 @@ export const FilterBar = ({
                       : `Filter by ${colDef?.label ?? filter.field} — click to edit`
                   }
                   className={clsx(
-                    "h-8 rounded-lg px-2.5 text-sm font-medium flex items-center gap-2 border shadow-sm transition-all cursor-pointer",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2",
-                    isCurrentlyEditing &&
-                      "ring-2 ring-purple-500 ring-offset-1",
+                    "flex h-9 cursor-pointer items-center gap-2 rounded-lg border px-2.5 text-sm font-medium transition-colors",
+                    "focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-1",
                     isDefault
-                      ? "bg-emerald-50 text-emerald-900 border-emerald-200/90 hover:bg-emerald-100"
-                      : "bg-white text-gray-900 border-purple-200/80 hover:border-purple-300 hover:bg-purple-50/80"
+                      ? "border-emerald-200/90 bg-emerald-50 text-emerald-900 hover:bg-emerald-100"
+                      : "border-gray-200 bg-white text-gray-900 hover:border-gray-300 hover:bg-white"
                   )}
                 >
                   {isDefault ? (
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-gray-600" />
                   ) : (
                     Icon && (
-                      <Icon className="w-3.5 h-3.5 text-purple-600 shrink-0 opacity-90" />
+                      <Icon className="h-3.5 w-3.5 shrink-0 text-gray-600" />
                     )
                   )}
-                  <span className="whitespace-nowrap max-w-48 sm:max-w-64 truncate">
+                  <span className="max-w-48 truncate whitespace-nowrap sm:max-w-64">
                     {isDefault ? "Opt-in (default)" : colDef?.label}
                   </span>
-                  <ChevronDown className="w-3.5 h-3.5 shrink-0 text-gray-500" />
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-500" />
                 </button>
 
                 <FilterModal
@@ -439,70 +368,60 @@ export const FilterBar = ({
         </div>
 
         <div
-          className={clsx(
-            "relative shrink-0 self-center",
-            isAddingNew ? "z-50" : "z-10"
-          )}
+          className="relative z-20 flex shrink-0 flex-nowrap items-center gap-2 border-l border-gray-200 bg-white pl-2 shadow-[-10px_0_14px_-6px_rgba(0,0,0,0.06)] sm:gap-3 sm:pl-3"
+          aria-label="Filter actions"
         >
+          <div
+            className={clsx("relative shrink-0", isAddingNew ? "z-50" : "z-10")}
+          >
+            <button
+              type="button"
+              onClick={handleAddNewClick}
+              aria-expanded={isAddingNew}
+              aria-haspopup="dialog"
+              title="Add another filter"
+              className={clsx(
+                "inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg bg-purple-100 px-3 text-sm font-medium text-purple-700 transition-colors",
+                "hover:bg-purple-200/80",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2",
+                isAddingNew &&
+                  "bg-purple-200/90 ring-2 ring-purple-400 ring-offset-1"
+              )}
+            >
+              <Plus className="h-4 w-4 shrink-0" strokeWidth={2.25} />
+              New Filter
+            </button>
+
+            <FilterModal
+              isOpen={isAddingNew}
+              onClose={() => {
+                setIsAddingNew(false);
+                setNewAnchorRect(null);
+              }}
+              onApply={handleApplyNew}
+              optionsData={optionsData}
+              alignRight={newAlignRight}
+              anchorRect={isAddingNew ? newAnchorRect : null}
+            />
+          </div>
+
           <button
             type="button"
-            onClick={handleAddNewClick}
-            aria-expanded={isAddingNew}
-            aria-haspopup="dialog"
-            title="Add another filter"
-            className={clsx(
-              "h-9 inline-flex items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-all cursor-pointer",
-              "border-2 border-dashed border-purple-300 bg-white text-purple-800",
-              "hover:border-purple-500 hover:bg-purple-50 hover:text-purple-900",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2",
-              isAddingNew &&
-                "border-solid border-purple-500 bg-purple-50 shadow-sm"
-            )}
-          >
-            <Plus className="w-4 h-4 shrink-0" strokeWidth={2.5} />
-            Add filter
-          </button>
-
-          <FilterModal
-            isOpen={isAddingNew}
-            onClose={() => {
+            onClick={() => {
+              setFilters([DEFAULT_OPT_IN_FILTER]);
+              setSorting([]);
+              setEditingIndex(null);
+              setEditAnchorRect(null);
               setIsAddingNew(false);
               setNewAnchorRect(null);
             }}
-            onApply={handleApplyNew}
-            optionsData={optionsData}
-            alignRight={newAlignRight}
-            anchorRect={isAddingNew ? newAnchorRect : null}
-          />
+            title="Restore default filter and clear custom sort"
+            className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 rounded-lg px-2 border-l border-transparent text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-1"
+          >
+            <X className="h-4 w-4 shrink-0" strokeWidth={2} />
+            Reset all
+          </button>
         </div>
-      </div>
-
-      <div className="flex shrink-0 items-center gap-2 self-center">
-        <div
-          className="hidden sm:block w-px h-7 bg-linear-to-b from-transparent via-gray-200 to-transparent"
-          aria-hidden
-        />
-        <button
-          type="button"
-          onClick={() => {
-            setFilters([DEFAULT_OPT_IN_FILTER]);
-            setSorting([]);
-            setEditingIndex(null);
-            setEditAnchorRect(null);
-            setIsAddingNew(false);
-            setNewAnchorRect(null);
-            setIsSortModalOpen(false);
-          }}
-          title="Restore default filter and clear custom sort"
-          className={clsx(
-            "h-9 inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium",
-            "text-gray-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200 focus-visible:ring-offset-2"
-          )}
-        >
-          <X className="w-4 h-4 shrink-0" />
-          Clear & reset
-        </button>
       </div>
 
       <OptInWarningDialog

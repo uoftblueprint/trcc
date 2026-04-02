@@ -7,7 +7,6 @@ import { usePathname } from "next/navigation";
 const NAV_ITEMS = [
   { href: "/settings/account", label: "Account Info" },
   { href: "/settings/manage", label: "Manage Users" },
-  { href: "/volunteers/instructions", label: "Volunteers Instructions" },
 ] as const;
 
 export function SettingsNav(): React.JSX.Element {
@@ -36,7 +35,7 @@ export function SettingsNav(): React.JSX.Element {
               display: "block",
               padding: "0.625rem 1rem",
               border: !isActive ? "1px solid #d9dee8" : "none",
-              borderRadius: !isActive ? "6px" : "none",
+              borderRadius: "6px",
               backgroundColor: isActive
                 ? "var(--trcc-light-purple)"
                 : "transparent",

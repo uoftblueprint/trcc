@@ -14,7 +14,7 @@ export const filterModalAlignRight = (element: HTMLElement): boolean => {
   return window.innerWidth - rect.left < MODAL_WIDTH_PX + SCREEN_BUFFER_PX;
 };
 
-function fixedPanelLeftPx(
+export function fixedPanelLeftPx(
   anchor: DOMRectReadOnly,
   alignRight: boolean
 ): number {

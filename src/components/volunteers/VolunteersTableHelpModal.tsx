@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { BookOpen, X } from "lucide-react";
 import {
   type HelpVariant,
@@ -123,12 +122,6 @@ export function VolunteersTableHelpModal({
           >
             Got it
           </button>
-          <Link
-            href="/volunteers/instructions"
-            className="px-4 py-2 text-sm font-medium text-purple-700 bg-purple-100 hover:bg-purple-200 rounded-lg transition-colors cursor-pointer shrink-0"
-          >
-            Full instructions
-          </Link>
         </div>
       </div>
     </>
