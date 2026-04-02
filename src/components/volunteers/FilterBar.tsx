@@ -294,14 +294,14 @@ export const FilterBar = ({
         )}
         <span
           id="volunteers-filtered-by-label"
-          className="shrink-0 self-center whitespace-nowrap text-sm font-medium text-gray-600"
+          className="shrink-0 self-center whitespace-nowrap text-sm ml-1 font-medium text-gray-600"
         >
           Filtered by:{" "}
         </span>
 
         <div
           className="flex min-w-0 flex-1 flex-nowrap items-center gap-2 overflow-x-auto overflow-y-visible scroll-smooth [-ms-overflow-style:none] [scrollbar-width:thin] sm:gap-3"
-          aria-label="Active filters"
+          aria-label="Active filters and actions"
         >
           {filters.map((filter, index) => {
             const colDef = FILTERABLE_COLUMNS.find(
@@ -365,62 +365,65 @@ export const FilterBar = ({
               </div>
             );
           })}
-        </div>
 
-        <div
-          className="relative z-20 flex shrink-0 flex-nowrap items-center gap-2 border-l border-gray-200 bg-white pl-2 shadow-[-10px_0_14px_-6px_rgba(0,0,0,0.06)] sm:gap-3 sm:pl-3"
-          aria-label="Filter actions"
-        >
           <div
-            className={clsx("relative shrink-0", isAddingNew ? "z-50" : "z-10")}
+            className="sticky right-0 z-20 flex shrink-0 flex-nowrap items-center gap-2 border-l border-gray-200 bg-white py-0.5 pl-2 shadow-[-10px_0_14px_-6px_rgba(0,0,0,0.06)] sm:gap-3 sm:pl-3"
+            aria-label="Filter actions"
           >
-            <button
-              type="button"
-              onClick={handleAddNewClick}
-              aria-expanded={isAddingNew}
-              aria-haspopup="dialog"
-              title="Add another filter"
+            <div
               className={clsx(
-                "inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg bg-purple-100 px-3 text-sm font-medium text-purple-700 transition-colors",
-                "hover:bg-purple-200/80",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2",
-                isAddingNew &&
-                  "bg-purple-200/90 ring-2 ring-purple-400 ring-offset-1"
+                "relative shrink-0",
+                isAddingNew ? "z-50" : "z-10"
               )}
             >
-              <Plus className="h-4 w-4 shrink-0" strokeWidth={2.25} />
-              New Filter
-            </button>
+              <button
+                type="button"
+                onClick={handleAddNewClick}
+                aria-expanded={isAddingNew}
+                aria-haspopup="dialog"
+                title="Add another filter"
+                className={clsx(
+                  "inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg bg-purple-100 px-3 text-sm font-medium text-purple-700 transition-colors",
+                  "hover:bg-purple-200/80",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2",
+                  isAddingNew &&
+                    "bg-purple-200/90 ring-2 ring-purple-400 ring-offset-1"
+                )}
+              >
+                <Plus className="h-4 w-4 shrink-0" strokeWidth={2.25} />
+                New Filter
+              </button>
 
-            <FilterModal
-              isOpen={isAddingNew}
-              onClose={() => {
+              <FilterModal
+                isOpen={isAddingNew}
+                onClose={() => {
+                  setIsAddingNew(false);
+                  setNewAnchorRect(null);
+                }}
+                onApply={handleApplyNew}
+                optionsData={optionsData}
+                alignRight={newAlignRight}
+                anchorRect={isAddingNew ? newAnchorRect : null}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setFilters([DEFAULT_OPT_IN_FILTER]);
+                setSorting([]);
+                setEditingIndex(null);
+                setEditAnchorRect(null);
                 setIsAddingNew(false);
                 setNewAnchorRect(null);
               }}
-              onApply={handleApplyNew}
-              optionsData={optionsData}
-              alignRight={newAlignRight}
-              anchorRect={isAddingNew ? newAnchorRect : null}
-            />
+              title="Restore default filter and clear custom sort"
+              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 rounded-lg px-2 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-1"
+            >
+              <X className="h-4 w-4 shrink-0" strokeWidth={2} />
+              Reset all
+            </button>
           </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              setFilters([DEFAULT_OPT_IN_FILTER]);
-              setSorting([]);
-              setEditingIndex(null);
-              setEditAnchorRect(null);
-              setIsAddingNew(false);
-              setNewAnchorRect(null);
-            }}
-            title="Restore default filter and clear custom sort"
-            className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 rounded-lg px-2 border-l border-transparent text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-1"
-          >
-            <X className="h-4 w-4 shrink-0" strokeWidth={2} />
-            Reset all
-          </button>
         </div>
       </div>
 
