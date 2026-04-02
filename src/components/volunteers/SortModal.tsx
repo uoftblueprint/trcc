@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { COLUMNS_CONFIG } from "./volunteerColumns";
 import { SortingState } from "@tanstack/react-table";
 import { ColumnSelector } from "./ColumnSelector";
+import { fixedPanelLeftPx } from "./FilterModal";
 
 interface SortModalProps {
   isOpen: boolean;
@@ -12,6 +13,8 @@ interface SortModalProps {
   sorting: SortingState;
   setSorting: React.Dispatch<React.SetStateAction<SortingState>>;
   alignRight?: boolean;
+  /** When set, panel uses `position:fixed` so it is not clipped/misplaced inside scroll parents. */
+  anchorRect?: DOMRectReadOnly | null;
 }
 
 export const SortModal = ({
@@ -20,6 +23,7 @@ export const SortModal = ({
   sorting,
   setSorting,
   alignRight = false,
+  anchorRect = null,
 }: SortModalProps): React.JSX.Element | null => {
   const [editingIndex, setEditingIndex] = useState<number | "NEW" | null>(null);
 
@@ -28,6 +32,8 @@ export const SortModal = ({
   }, [isOpen, sorting.length]);
 
   if (!isOpen) return null;
+
+  const useFixedPanel = anchorRect != null;
 
   const handleRemoveSort = (index: number): void => {
     const newSorting = [...sorting];
@@ -78,9 +84,19 @@ export const SortModal = ({
       <div
         data-volunteers-overlay
         className={clsx(
-          "absolute top-full mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-100 p-4 flex flex-col gap-3 z-50",
-          alignRight ? "right-0" : "left-0"
+          "w-72 bg-white rounded-xl shadow-xl border border-gray-100 p-4 flex flex-col gap-3 z-50",
+          useFixedPanel
+            ? "fixed"
+            : clsx("absolute top-full mt-2", alignRight ? "right-0" : "left-0")
         )}
+        style={
+          useFixedPanel && anchorRect
+            ? {
+                top: anchorRect.bottom + 8,
+                left: fixedPanelLeftPx(anchorRect, alignRight),
+              }
+            : undefined
+        }
       >
         {editingIndex !== null ? (
           <ColumnSelector

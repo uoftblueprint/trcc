@@ -531,34 +531,49 @@ const VolunteersTableContent = ({
   return (
     <div className="w-full flex flex-col gap-3 min-h-150">
       <VolunteersTableHelpModal role={role} />
-      <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
-        <TableToolbar
-          globalFilter={globalFilter}
-          setGlobalFilter={setGlobalFilter}
-          filters={filters}
-          setFilters={setFilters}
-          sorting={sorting}
-          setSorting={setSorting}
-          filterOptions={filterOptions}
-          role={role}
-          selectedCount={selectedRowIds.length}
-          isDeleting={isDeleting}
-          onDelete={requestDeleteVolunteers}
-          onOpenAddVolunteer={() => setIsAddVolunteerOpen(true)}
-          onOpenImportCSV={() => setIsImportCSVOpen(true)}
-          hasEdits={hasEdits}
-          isSaving={isSaving}
-          onSave={handleSaveEdits}
-          onCancel={handleCancelEdits}
-          canUndo={canUndo}
-          canRedo={canRedo}
-          onUndo={undo}
-          onRedo={redo}
-          pendingChangesCount={pendingChangesCount}
-          onViewChanges={() => setIsChangesModalOpen(true)}
-          selectedCellCount={selectedCellCount}
-          onCopyCells={handleCopyCells}
-        />
+      <div className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="p-3">
+          <TableToolbar
+            globalFilter={globalFilter}
+            setGlobalFilter={setGlobalFilter}
+            filters={filters}
+            setFilters={setFilters}
+            sorting={sorting}
+            setSorting={setSorting}
+            filterOptions={filterOptions}
+            role={role}
+            selectedCount={selectedRowIds.length}
+            isDeleting={isDeleting}
+            onDelete={requestDeleteVolunteers}
+            onOpenAddVolunteer={() => setIsAddVolunteerOpen(true)}
+            onOpenImportCSV={() => setIsImportCSVOpen(true)}
+            hasEdits={hasEdits}
+            isSaving={isSaving}
+            onSave={handleSaveEdits}
+            onCancel={handleCancelEdits}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onUndo={undo}
+            onRedo={redo}
+            pendingChangesCount={pendingChangesCount}
+            onViewChanges={() => setIsChangesModalOpen(true)}
+            selectedCellCount={selectedCellCount}
+            onCopyCells={handleCopyCells}
+          />
+        </div>
+        {(filters.length > 0 || sorting.length > 0) && (
+          <div className="border-t border-gray-100 px-3 pb-3 pt-2">
+            <FilterBar
+              filters={filters}
+              setFilters={setFilters}
+              globalOp={globalOp}
+              setGlobalOp={setGlobalOp}
+              optionsData={filterOptions}
+              sorting={sorting}
+              setSorting={setSorting}
+            />
+          </div>
+        )}
       </div>
 
       {saveErrors.length > 0 && (
@@ -578,19 +593,6 @@ const VolunteersTableContent = ({
           </div>
         </div>
       )}
-
-      {/* Filter Bar */}
-      <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm min-w-0">
-        <FilterBar
-          filters={filters}
-          setFilters={setFilters}
-          globalOp={globalOp}
-          setGlobalOp={setGlobalOp}
-          optionsData={filterOptions}
-          sorting={sorting}
-          setSorting={setSorting}
-        />
-      </div>
 
       {/* Table Content */}
       {loading ? (
