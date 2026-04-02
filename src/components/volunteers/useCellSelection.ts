@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Table, Cell } from "@tanstack/react-table";
 import type { Volunteer } from "./types";
 import {
-  buildSelectedCellsText,
   writeSelectedCellsToClipboard,
   type CopyCellFormat,
 } from "./copySelectedCells";
@@ -189,60 +188,42 @@ export const useCellSelection = (
       }
 
       if ((e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C")) {
-        const selectedIds = Object.keys(selectedCells).filter(
+        const hasCellSelection = Object.keys(selectedCells).some(
           (k) => selectedCells[k]
         );
+
+        if (hasCellSelection) {
+          e.preventDefault();
+          void writeSelectedCellsToClipboard(table, selectedCells, "tsv");
+          return;
+        }
+
+        const rowSelection = table.getState().rowSelection;
+        const selectedRowKeys = Object.keys(rowSelection).filter(
+          (key) => rowSelection[key]
+        );
+        if (selectedRowKeys.length === 0) return;
+
+        e.preventDefault();
+
+        const tableRows = table.getRowModel().rows;
+        const visibleColumns = table.getVisibleLeafColumns();
+        const copyableColumns = visibleColumns.filter((c) => c.id !== "select");
         const rowsMap = new Map<
           string,
           { colIndex: number; value: string }[]
         >();
-        const tableRows = table.getRowModel().rows;
-        const visibleColumns = table.getVisibleLeafColumns();
-        const rowSelection = table.getState().rowSelection;
 
-        if (selectedIds.length > 0) {
-          e.preventDefault();
-          selectedIds.forEach((id) => {
-            const separatorIndex = id.indexOf("_");
-            if (separatorIndex === -1) return;
-
-            const rowId = id.slice(0, separatorIndex);
-            const colId = id.slice(separatorIndex + 1);
-
-            if (!rowId || !colId) return;
-
-            const row = tableRows.find((r) => String(r.id) === rowId);
-            const colIndex = visibleColumns.findIndex((c) => c.id === colId);
-
-            if (row && colIndex !== -1) {
-              const cellValue = row.getValue(colId);
-              const formattedValue = formatCellData(cellValue);
-              if (!rowsMap.has(rowId)) rowsMap.set(rowId, []);
-              rowsMap.get(rowId)?.push({ colIndex, value: formattedValue });
-            }
-          });
-        } else {
-          const selectedRowKeys = Object.keys(rowSelection).filter(
-            (key) => rowSelection[key]
-          );
-          if (selectedRowKeys.length === 0) return;
-
-          e.preventDefault();
-          const copyableColumns = visibleColumns.filter(
-            (c) => c.id !== "select"
-          );
-
-          tableRows
-            .filter((row) => rowSelection[row.id])
-            .forEach((row) => {
-              const rowId = String(row.id);
-              const rowValues = copyableColumns.map((col, idx) => {
-                const cellValue = row.getValue(col.id);
-                return { colIndex: idx, value: formatCellData(cellValue) };
-              });
-              rowsMap.set(rowId, rowValues);
+        tableRows
+          .filter((row) => rowSelection[row.id])
+          .forEach((row) => {
+            const rowId = String(row.id);
+            const rowValues = copyableColumns.map((col, idx) => {
+              const cellValue = row.getValue(col.id);
+              return { colIndex: idx, value: formatCellData(cellValue) };
             });
-        }
+            rowsMap.set(rowId, rowValues);
+          });
 
         if (rowsMap.size === 0) return;
 
@@ -262,14 +243,9 @@ export const useCellSelection = (
           })
           .join("\n");
 
-        navigator.clipboard
+        void navigator.clipboard
           .writeText(clipboardString)
           .catch((err) => console.error(err));
-        const text = buildSelectedCellsText(table, selectedCells, "tsv");
-        if (text == null) return;
-
-        e.preventDefault();
-        navigator.clipboard.writeText(text).catch((err) => console.error(err));
       }
     };
 
