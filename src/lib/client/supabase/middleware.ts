@@ -16,9 +16,13 @@ function isPublicPath(pathname: string): boolean {
 export async function updateSession(
   request: NextRequest
 ): Promise<NextResponse> {
-  // If request carries a `code` param (e.g. Supabase recovery link),
-  // forward to /auth/confirm so the PKCE exchange happens correctly.
-  if (request.nextUrl.searchParams.has("code")) {
+  // If request carries a `code` param outside of /auth/confirm (e.g. Supabase
+  // sending the recovery link to the app root), forward to /auth/confirm so
+  // the PKCE exchange happens correctly.
+  if (
+    request.nextUrl.searchParams.has("code") &&
+    !request.nextUrl.pathname.startsWith("/auth/confirm")
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/confirm";
     return NextResponse.redirect(url);

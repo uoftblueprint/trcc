@@ -51,8 +51,11 @@ export async function POST(request: Request): Promise<Response> {
       request.headers.get("origin") ??
       "http://localhost:3000";
 
+    const redirectTo = `${baseUrl.replace(/\/$/, "")}/auth/confirm`;
+    console.log("[forgot-password] redirectTo:", redirectTo);
+
     const { error } = await supabase.auth.resetPasswordForEmail(body.email, {
-      redirectTo: `${baseUrl.replace(/\/$/, "")}/auth/confirm`,
+      redirectTo,
     });
 
     if (error) {
