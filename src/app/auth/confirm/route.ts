@@ -15,14 +15,24 @@ export async function GET(request: NextRequest): Promise<void> {
 
   // PKCE flow: Supabase sends a `code` instead of `token_hash`
   if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
       return redirect("/auth/auth-code-error");
     }
 
-    // recovery type is passed as a query param alongside the code
-    if (type === "recovery") {
+    // Detect recovery flow from the session's AMR (authentication method reference)
+    const user = data.session?.user as
+      | (typeof data.session.user & {
+          amr?: { method: string }[];
+        })
+      | undefined;
+    const isRecovery =
+      type === "recovery" ||
+      (Array.isArray(user?.amr) &&
+        user.amr.some((entry) => entry.method === "recovery"));
+
+    if (isRecovery) {
       return redirect("/reset-password");
     }
 
