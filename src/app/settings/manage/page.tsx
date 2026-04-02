@@ -31,10 +31,8 @@ function mapUserToStaffRow(user: {
   };
 }
 
-function canManageStaff(
-  role: "admin" | "staff" | null
-): role is "admin" | "staff" {
-  return role === "admin" || role === "staff";
+function canManageStaff(role: "admin" | "staff" | null): role is "admin" {
+  return role === "admin";
 }
 
 function NoProfileMessage(): React.JSX.Element {
@@ -59,7 +57,11 @@ function NoProfileMessage(): React.JSX.Element {
   );
 }
 
-function RoleNotAssignedMessage(): React.JSX.Element {
+function AccessDeniedMessage({
+  role,
+}: {
+  role: "admin" | "staff" | null;
+}): React.JSX.Element {
   return (
     <div style={{ maxWidth: "36rem" }}>
       <h1
@@ -73,8 +75,9 @@ function RoleNotAssignedMessage(): React.JSX.Element {
         Manage Users
       </h1>
       <p style={{ color: "#525252", lineHeight: 1.5 }}>
-        Your account doesn’t have a role yet (admin or staff). Ask someone who
-        can edit the database to update your role.
+        {role === "staff"
+          ? "Only administrators can manage users."
+          : "Your account doesn’t have a role yet (admin or staff). Ask someone who can edit the database to update your role."}
       </p>
     </div>
   );
@@ -86,7 +89,7 @@ export default async function ManageStaffPage(): Promise<React.JSX.Element> {
     return <NoProfileMessage />;
   }
   if (!canManageStaff(currentUser.role)) {
-    return <RoleNotAssignedMessage />;
+    return <AccessDeniedMessage role={currentUser.role} />;
   }
 
   let initialData: StaffRow[] = [];
