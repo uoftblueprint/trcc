@@ -17,6 +17,27 @@ export const DEFAULT_OPT_IN_FILTER: FilterTuple = {
   values: ["Yes"],
 };
 
+function formatFilterTupleForApi(f: FilterTuple): FilterTuple {
+  if (f.field === "cohorts") {
+    return {
+      ...f,
+      values: (f.values as string[]).map((v) => {
+        const [term, year] = v.split(" ");
+        return [term, year] as [string, string];
+      }),
+    };
+  }
+  if (f.field === DEFAULT_OPT_IN_FILTER.field) {
+    return {
+      ...f,
+      values: (f.values as string[]).map((v) =>
+        String(v).toLowerCase() === "yes" ? "true" : "false"
+      ),
+    };
+  }
+  return f;
+}
+
 interface UseVolunteersDataProps {
   isAdmin: boolean;
   editedRowsRef: React.RefObject<Record<number, Partial<Volunteer>>>;
@@ -144,31 +165,53 @@ export const useVolunteersData = ({
       setLoading(true);
 
       try {
-        const formattedFilters: FilterTuple[] = debouncedFilters.map((f) => {
-          if (f.field === "cohorts") {
-            return {
-              ...f,
-              values: (f.values as string[]).map((v) => {
-                const [term, year] = v.split(" ");
-                return [term, year] as [string, string];
-              }),
-            };
-          }
-          if (f.field === "opt_in_communication") {
-            return {
-              ...f,
-              values: (f.values as string[]).map((v) =>
-                String(v).toLowerCase() === "yes" ? "true" : "false"
-              ),
-            };
-          }
-          return f;
-        });
-
-        const filterResult = await getVolunteersByMultipleColumns(
-          formattedFilters,
-          debouncedGlobalOp
+        const optInFilters = debouncedFilters.filter(
+          (f) => f.field === DEFAULT_OPT_IN_FILTER.field
         );
+        const columnFilters = debouncedFilters.filter(
+          (f) => f.field !== DEFAULT_OPT_IN_FILTER.field
+        );
+
+        const formatList = (list: FilterTuple[]): FilterTuple[] =>
+          list.map(formatFilterTupleForApi);
+
+        let filterResult: Awaited<
+          ReturnType<typeof getVolunteersByMultipleColumns>
+        >;
+
+        if (columnFilters.length === 0) {
+          filterResult = await getVolunteersByMultipleColumns(
+            formatList(optInFilters),
+            "AND"
+          );
+        } else if (optInFilters.length === 0) {
+          filterResult = await getVolunteersByMultipleColumns(
+            formatList(columnFilters),
+            debouncedGlobalOp
+          );
+        } else {
+          const [columnResult, optInResult] = await Promise.all([
+            getVolunteersByMultipleColumns(
+              formatList(columnFilters),
+              debouncedGlobalOp
+            ),
+            getVolunteersByMultipleColumns(formatList(optInFilters), "AND"),
+          ]);
+
+          if (columnResult.error) {
+            filterResult = columnResult;
+          } else if (optInResult.error) {
+            filterResult = optInResult;
+          } else {
+            const inner = new Set(columnResult.data || []);
+            const opted = new Set(optInResult.data || []);
+            const intersected: number[] = [];
+            for (const id of inner) {
+              if (opted.has(id)) intersected.push(id);
+            }
+            filterResult = { data: intersected };
+          }
+        }
 
         if (!ignore) {
           if (filterResult.error) throw new Error(filterResult.error);

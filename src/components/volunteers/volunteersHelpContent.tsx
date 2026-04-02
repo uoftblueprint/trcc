@@ -84,7 +84,9 @@ function SharedSelectingCopyingFilters(): React.JSX.Element {
         <p>
           Use <strong>Filter</strong> and <strong>Sort</strong> above the table.
           The default opt-in filter limits who appears until you change it—check
-          warnings before removing it.
+          warnings before removing it. <strong>Match all / any</strong> only
+          combines the other column filters; an opt-in filter is always applied
+          on top of that.
         </p>
       </section>
     </>
