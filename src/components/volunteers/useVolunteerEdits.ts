@@ -39,7 +39,7 @@ export interface UseVolunteerEditsReturn {
     edits: Array<{ rowId: number; colId: string; value: unknown }>
   ) => void;
   handleSaveEdits: () => Promise<void>;
-  handleCancelEdits: () => Promise<void>;
+  handleCancelEdits: () => void;
   canUndo: boolean;
   canRedo: boolean;
   undo: () => void;
@@ -174,7 +174,7 @@ export const useVolunteerEdits = ({
         if (showTrackingToast) {
           queueMicrotask((): void => {
             toast("Tracking changes — save when ready", {
-              icon: "✏️",
+              icon: "edit",
               id: "tracking-edits",
             });
           });
@@ -466,16 +466,15 @@ export const useVolunteerEdits = ({
     }
   };
 
-  const handleCancelEdits = async (): Promise<void> => {
-    setLoading(true);
+  const handleCancelEdits = (): void => {
     setEditedRows({});
     setSaveErrors([]);
     hadEditsRef.current = false;
     undoStackRef.current = [];
     redoStackRef.current = [];
     syncHistoryStacks();
-    toast("Changes discarded", { icon: "↩️" });
-    await fetchInitialData();
+    setData(allVolunteers.map((v) => v));
+    toast("Changes discarded");
   };
 
   return {

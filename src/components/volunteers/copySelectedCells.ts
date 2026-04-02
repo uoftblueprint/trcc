@@ -74,6 +74,29 @@ export function buildSelectedCellsText(
   return rowStrings.join("\n");
 }
 
+export function writeToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text);
+  }
+  // Fallback for non-secure contexts (e.g. HTTP)
+  return new Promise((resolve, reject) => {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand("copy");
+      resolve();
+    } catch (err) {
+      reject(err);
+    } finally {
+      document.body.removeChild(textarea);
+    }
+  });
+}
+
 export async function writeSelectedCellsToClipboard(
   table: Table<Volunteer>,
   selectedCells: Record<string, boolean>,
@@ -82,7 +105,7 @@ export async function writeSelectedCellsToClipboard(
   const text = buildSelectedCellsText(table, selectedCells, format);
   if (text == null) return false;
   try {
-    await navigator.clipboard.writeText(text);
+    await writeToClipboard(text);
     return true;
   } catch (err) {
     console.error(err);

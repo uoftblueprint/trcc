@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Volunteer, CohortRow, RoleRow } from "./types";
 import {
   FilterTuple,
@@ -89,6 +89,9 @@ export const useVolunteersData = ({
   const [globalFilter, setGlobalFilter] = useState<string>("");
   const debouncedGlobalFilter = useDebounce(globalFilter, 300);
 
+  const prevFiltersRef = useRef<FilterTuple[]>(debouncedFilters);
+  const prevGlobalOpRef = useRef<"AND" | "OR">(debouncedGlobalOp);
+
   const fetchInitialData = useCallback(async (): Promise<void> => {
     try {
       const volunteerData = await getVolunteersTable();
@@ -146,9 +149,18 @@ export const useVolunteersData = ({
     const applyFilters = async (): Promise<void> => {
       if (!allVolunteers || allVolunteers.length === 0) return;
 
-      setGlobalFilter("");
-      setSorting([]);
-      setRowSelection({});
+      const filtersChanged =
+        JSON.stringify(debouncedFilters) !==
+          JSON.stringify(prevFiltersRef.current) ||
+        debouncedGlobalOp !== prevGlobalOpRef.current;
+
+      if (filtersChanged) {
+        setGlobalFilter("");
+        setSorting([]);
+        setRowSelection({});
+        prevFiltersRef.current = debouncedFilters;
+        prevGlobalOpRef.current = debouncedGlobalOp;
+      }
 
       if (debouncedFilters.length === 0) {
         setData(

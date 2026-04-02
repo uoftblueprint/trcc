@@ -277,6 +277,9 @@ async function filterIdsByGeneral(
   op: string,
   values: string[]
 ): Promise<Set<number>> {
+  const uniqueValues = Array.from(new Set(values));
+  if (uniqueValues.length === 0) return new Set<number>();
+
   let query = client.from("Volunteers").select("id");
 
   if (TEXT_SUBSTRING_MATCH_FIELDS.has(field)) {
@@ -304,13 +307,10 @@ async function filterIdsByGeneral(
   } else if (op === OP.OR) {
     query = query.in(field, values);
   } else {
-    const uniqueValues = Array.from(new Set(values));
-
+    // AND on non–substring fields: exact match only (one value)
     if (uniqueValues.length > 1) return new Set<number>();
-
     const value = uniqueValues[0];
     if (value === undefined) return new Set<number>();
-
     query = query.eq(field, value);
   }
 

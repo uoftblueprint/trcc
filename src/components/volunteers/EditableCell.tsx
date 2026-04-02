@@ -204,7 +204,7 @@ export const EditableCell = ({
         const toastId = `new-tag-${info.column.id}-${newTag.toLowerCase()}`;
         toast(`New tag "${newTag}" created — remember to save your changes.`, {
           id: toastId,
-          icon: "🏷️",
+          icon: "tag",
           duration: 4000,
         });
       }

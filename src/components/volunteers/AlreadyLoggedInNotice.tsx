@@ -20,7 +20,7 @@ export function AlreadyLoggedInNotice(): null {
   useEffect(() => {
     if (searchParams.get(QUERY_KEY) !== "1") return;
 
-    toast("You are already logged in.", { id: TOAST_ID, icon: "ℹ️" });
+    toast("You are already logged in.", { id: TOAST_ID });
 
     const next = new URLSearchParams(searchParams.toString());
     next.delete(QUERY_KEY);

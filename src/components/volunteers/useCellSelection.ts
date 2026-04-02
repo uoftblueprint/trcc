@@ -3,6 +3,7 @@ import { Table, Cell } from "@tanstack/react-table";
 import type { Volunteer } from "./types";
 import {
   writeSelectedCellsToClipboard,
+  writeToClipboard,
   type CopyCellFormat,
 } from "./copySelectedCells";
 import { formatCellData } from "./utils";
@@ -246,6 +247,9 @@ export const useCellSelection = (
         void navigator.clipboard
           .writeText(clipboardString)
           .catch((err) => console.error(err));
+          
+        e.preventDefault();
+        writeToClipboard(clipboardString).catch((err) => console.error(err));
       }
     };
 
