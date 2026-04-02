@@ -16,6 +16,10 @@ function isDefaultFilter(filter: FilterTuple): boolean {
   );
 }
 
+function columnFilterCount(filters: FilterTuple[]): number {
+  return filters.filter((f) => f.field !== DEFAULT_OPT_IN_FILTER.field).length;
+}
+
 type OptInWarningVariant = "remove" | "include-no";
 
 const VARIANT_CONTENT: Record<
@@ -246,7 +250,7 @@ export const FilterBar = ({
   return (
     <div className="relative min-w-0" role="toolbar" aria-label="Table filters">
       <div className="flex min-w-0 flex-nowrap items-stretch gap-2 py-0.5 sm:gap-3">
-        {filters.length > 1 && (
+        {columnFilterCount(filters) > 1 && (
           <div
             className="flex shrink-0 items-center gap-2 ml-1 sm:gap-2.5"
             role="group"
@@ -261,7 +265,7 @@ export const FilterBar = ({
             <div className="inline-flex h-9 items-stretch rounded-lg bg-gray-100 p-1 ring-1 ring-inset ring-gray-200/80">
               <button
                 type="button"
-                title="Only show rows that satisfy every active filter (AND)"
+                title="Every column filter must match. Opt-in communication (when present) always applies in addition."
                 aria-pressed={globalOp === "AND"}
                 onClick={() => setGlobalOp("AND")}
                 className={clsx(
@@ -276,7 +280,7 @@ export const FilterBar = ({
               </button>
               <button
                 type="button"
-                title="Show rows that satisfy at least one active filter (OR)"
+                title="At least one column filter must match. Opt-in communication (when present) always applies in addition."
                 aria-pressed={globalOp === "OR"}
                 onClick={() => setGlobalOp("OR")}
                 className={clsx(
