@@ -163,7 +163,7 @@ function MultiRoleField({
           type="text"
           className="flex-1 min-w-40 border-0 bg-transparent py-1 px-1 text-sm outline-none placeholder:text-gray-400"
           placeholder={
-            values.length > 0 ? "Add another…" : "Type a role, then Enter"
+            values.length > 0 ? "Add another…" : "Type a role, then press Enter"
           }
           value={draft}
           list={suggestionOptions.length > 0 ? datalistId : undefined}
