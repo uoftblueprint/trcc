@@ -69,6 +69,22 @@ const formatPendingValue = (colId: string, value: unknown): string => {
   return String(value);
 };
 
+/** Skip table shortcuts when the user is typing in an input or contentEditable (e.g. inline cell edit). */
+function isKeyboardTargetInsideEditableField(
+  target: EventTarget | null
+): boolean {
+  if (!target || !(target instanceof Node)) return false;
+  const node =
+    target.nodeType === Node.TEXT_NODE
+      ? target.parentElement
+      : (target as Element);
+  if (!node || !(node instanceof HTMLElement)) return false;
+  const tag = node.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+  if (node.isContentEditable) return true;
+  return node.closest("[contenteditable='true']") !== null;
+}
+
 const VolunteersTableContent = ({
   role,
 }: {
@@ -441,8 +457,7 @@ const VolunteersTableContent = ({
   useEffect(() => {
     if (!isAdmin) return;
     const handleKeyDown = (e: KeyboardEvent): void => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (isKeyboardTargetInsideEditableField(e.target)) return;
       if (e.key === "Delete" || e.key === "Backspace") {
         const hasSelectedCells = Object.keys(selectedCells).some(
           (k) => selectedCells[k]
@@ -464,8 +479,7 @@ const VolunteersTableContent = ({
 
   useEffect(() => {
     const handleUndoRedo = (e: KeyboardEvent): void => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (isKeyboardTargetInsideEditableField(e.target)) return;
 
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key === "z" && !e.shiftKey) {
@@ -732,6 +746,7 @@ const VolunteersTableContent = ({
       <AddVolunteerModal
         isOpen={isAddVolunteerOpen}
         onClose={() => setIsAddVolunteerOpen(false)}
+        optionsData={filterOptions}
         onSuccess={() => {
           toast.success("Volunteer added");
           setLoading(true);

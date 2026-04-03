@@ -168,6 +168,11 @@ export const COLUMNS_CONFIG: ColumnConfig[] = [
   },
 ];
 
+/** Table columns shown in the New Volunteer form (excludes server-assigned ID). */
+export const NEW_VOLUNTEER_FORM_COLUMNS = COLUMNS_CONFIG.filter(
+  (col) => col.id !== ("volunteer_id" as keyof Volunteer)
+);
+
 export const FILTERABLE_COLUMNS = COLUMNS_CONFIG.filter(
   (col) => col.filterType !== null
 ).map((col) => ({

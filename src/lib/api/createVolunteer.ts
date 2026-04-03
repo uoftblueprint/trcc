@@ -22,17 +22,16 @@ export type CohortInput = {
   term: CohortTerm;
 };
 
-// Type for the volunteer data we expect to receive
+// Volunteer payload (position is not collected in UI; DB stores null)
 export type VolunteerInput = Omit<
   TablesInsert<"Volunteers">,
-  "id" | "created_at" | "updated_at"
+  "id" | "created_at" | "updated_at" | "position"
 >;
 
-// Combined input type for creating a volunteer with role and cohort
 export type CreateVolunteerInput = {
   volunteer: VolunteerInput;
-  role: RoleInput;
-  cohort: CohortInput;
+  roles: RoleInput[];
+  cohorts: CohortInput[];
 };
 
 // Validation error type
@@ -51,17 +50,11 @@ export type CreateVolunteerResponse =
       dbError?: unknown;
     };
 
-/**
- * Validates volunteer input data
- * @param data - The volunteer data to validate
- * @returns An array of validation errors (empty if valid)
- */
 function validateVolunteerData(
   data: Record<string, unknown>
 ): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  // name_org
   if (!data["name_org"] || typeof data["name_org"] !== "string") {
     errors.push({
       field: "volunteer.name_org",
@@ -74,7 +67,6 @@ function validateVolunteerData(
     });
   }
 
-  // email
   if (data["email"] !== undefined && data["email"] !== null) {
     if (typeof data["email"] !== "string") {
       errors.push({
@@ -84,7 +76,6 @@ function validateVolunteerData(
     }
   }
 
-  // phone
   if (data["phone"] !== undefined && data["phone"] !== null) {
     if (typeof data["phone"] !== "string") {
       errors.push({
@@ -94,7 +85,6 @@ function validateVolunteerData(
     }
   }
 
-  // opt_in_communication (optional; when provided must be boolean)
   if (
     data["opt_in_communication"] !== undefined &&
     data["opt_in_communication"] !== null
@@ -107,13 +97,7 @@ function validateVolunteerData(
     }
   }
 
-  // optional string fields
-  const optionalStringFields = [
-    "position",
-    "pronouns",
-    "pseudonym",
-    "notes",
-  ] as const;
+  const optionalStringFields = ["pronouns", "pseudonym", "notes"] as const;
   for (const field of optionalStringFields) {
     if (data[field] !== undefined && data[field] !== null) {
       if (typeof data[field] !== "string") {
@@ -128,11 +112,6 @@ function validateVolunteerData(
   return errors;
 }
 
-/**
- * Validates role input data
- * @param role - The role data to validate
- * @returns An array of validation errors (empty if valid)
- */
 function validateRoleInput(role: unknown): ValidationError[] {
   const errors: ValidationError[] = [];
 
@@ -146,7 +125,6 @@ function validateRoleInput(role: unknown): ValidationError[] {
 
   const roleData = role as Record<string, unknown>;
 
-  // name
   if (!roleData["name"] || typeof roleData["name"] !== "string") {
     errors.push({
       field: "role.name",
@@ -159,7 +137,6 @@ function validateRoleInput(role: unknown): ValidationError[] {
     });
   }
 
-  // type
   if (!roleData["type"] || typeof roleData["type"] !== "string") {
     errors.push({
       field: "role.type",
@@ -179,11 +156,6 @@ function validateRoleInput(role: unknown): ValidationError[] {
   return errors;
 }
 
-/**
- * Validates cohort input data
- * @param cohort - The cohort data to validate
- * @returns An array of validation errors (empty if valid)
- */
 function validateCohortInput(cohort: unknown): ValidationError[] {
   const errors: ValidationError[] = [];
 
@@ -197,7 +169,6 @@ function validateCohortInput(cohort: unknown): ValidationError[] {
 
   const cohortData = cohort as Record<string, unknown>;
 
-  // year
   if (cohortData["year"] === undefined || cohortData["year"] === null) {
     errors.push({
       field: "cohort.year",
@@ -213,7 +184,6 @@ function validateCohortInput(cohort: unknown): ValidationError[] {
     });
   }
 
-  // term
   if (!cohortData["term"] || typeof cohortData["term"] !== "string") {
     errors.push({
       field: "cohort.term",
@@ -233,11 +203,38 @@ function validateCohortInput(cohort: unknown): ValidationError[] {
   return errors;
 }
 
-/**
- * Validates the complete input for creating a volunteer
- * @param input - The input data to validate
- * @returns An array of validation errors (empty if valid)
- */
+function validateRolesArray(roles: unknown): ValidationError[] {
+  if (!Array.isArray(roles)) {
+    return [{ field: "roles", message: "roles must be an array" }];
+  }
+  const errors: ValidationError[] = [];
+  roles.forEach((r, i) => {
+    for (const e of validateRoleInput(r)) {
+      errors.push({
+        field: e.field.replace(/^role/, `roles[${i}]`),
+        message: e.message,
+      });
+    }
+  });
+  return errors;
+}
+
+function validateCohortsArray(cohorts: unknown): ValidationError[] {
+  if (!Array.isArray(cohorts)) {
+    return [{ field: "cohorts", message: "cohorts must be an array" }];
+  }
+  const errors: ValidationError[] = [];
+  cohorts.forEach((c, i) => {
+    for (const e of validateCohortInput(c)) {
+      errors.push({
+        field: e.field.replace(/^cohort/, `cohorts[${i}]`),
+        message: e.message,
+      });
+    }
+  });
+  return errors;
+}
+
 function validateInput(input: unknown): ValidationError[] {
   const errors: ValidationError[] = [];
 
@@ -251,7 +248,6 @@ function validateInput(input: unknown): ValidationError[] {
 
   const data = input as Record<string, unknown>;
 
-  // Validate volunteer data
   if (!data["volunteer"] || typeof data["volunteer"] !== "object") {
     errors.push({
       field: "volunteer",
@@ -263,18 +259,12 @@ function validateInput(input: unknown): ValidationError[] {
     );
   }
 
-  // Validate role
-  errors.push(...validateRoleInput(data["role"]));
-
-  // Validate cohort
-  errors.push(...validateCohortInput(data["cohort"]));
+  errors.push(...validateRolesArray(data["roles"]));
+  errors.push(...validateCohortsArray(data["cohorts"]));
 
   return errors;
 }
 
-/**
- * Builds the volunteer JSON payload for the RPC (only allowed columns).
- */
 function volunteerToJson(volunteer: VolunteerInput): Record<string, unknown> {
   return {
     name_org: volunteer.name_org,
@@ -282,25 +272,18 @@ function volunteerToJson(volunteer: VolunteerInput): Record<string, unknown> {
     pronouns: volunteer.pronouns ?? null,
     email: volunteer.email ?? null,
     phone: volunteer.phone ?? null,
-    position: volunteer.position ?? null,
     opt_in_communication: volunteer.opt_in_communication ?? true,
     notes: volunteer.notes ?? null,
   };
 }
 
 /**
- * Creates a new volunteer in the database with associated role and cohort.
- * Runs in a single transaction: either all tables are updated or none.
- * If the role or cohort does not exist, it is created.
- *
- * @param input - The volunteer, role, and cohort data to insert
- * @returns A response object indicating success or failure
+ * Creates a volunteer with optional many roles and cohorts in one DB transaction.
  */
 export async function createVolunteer(
   input: CreateVolunteerInput
 ): Promise<CreateVolunteerResponse> {
   try {
-    // Validate input
     const validationErrors = validateInput(input);
     if (validationErrors.length > 0) {
       return {
@@ -310,17 +293,15 @@ export async function createVolunteer(
       };
     }
 
-    const { volunteer, role, cohort } = input;
+    const { volunteer, roles, cohorts } = input;
     const client = await createClient();
 
     const { data: volunteerId, error } = await client.rpc(
-      "create_volunteer_with_role_and_cohort",
+      "create_volunteer_with_roles_and_cohorts",
       {
         p_volunteer: volunteerToJson(volunteer) as Json,
-        p_role_name: role.name,
-        p_role_type: role.type,
-        p_cohort_year: cohort.year,
-        p_cohort_term: cohort.term,
+        p_roles: roles as unknown as Json,
+        p_cohorts: cohorts as unknown as Json,
       }
     );
 

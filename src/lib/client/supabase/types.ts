@@ -241,6 +241,14 @@ export type Database = {
         };
         Returns: number;
       };
+      create_volunteer_with_roles_and_cohorts: {
+        Args: {
+          p_cohorts: Json;
+          p_roles: Json;
+          p_volunteer: Json;
+        };
+        Returns: number;
+      };
       upsert_volunteer_with_roles_and_cohorts: {
         Args: {
           p_name: string | null;
