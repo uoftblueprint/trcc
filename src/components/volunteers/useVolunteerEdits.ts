@@ -118,40 +118,54 @@ export const useVolunteerEdits = ({
     [allVolunteers]
   );
 
-  const applyEdit = useCallback(
-    (rowId: number, colId: string, finalValue: unknown): void => {
+  const cellMatchesOriginal = useCallback(
+    (rowId: number, colId: string, finalValue: unknown): boolean => {
       const originalRow = allVolunteers.find((v) => v.id === rowId);
       const originalValue = originalRow
         ? originalRow[colId as keyof Volunteer]
         : undefined;
 
-      let matchesOriginal = false;
       if (Array.isArray(finalValue) && Array.isArray(originalValue)) {
-        matchesOriginal =
+        return (
           JSON.stringify([...(finalValue as string[])].sort()) ===
-          JSON.stringify([...(originalValue as string[])].sort());
-      } else if (Array.isArray(finalValue) || Array.isArray(originalValue)) {
-        matchesOriginal = false;
-      } else {
-        const norm = (v: unknown): string =>
-          v === null || v === undefined ? "" : String(v);
-        matchesOriginal = norm(finalValue) === norm(originalValue);
+          JSON.stringify([...(originalValue as string[])].sort())
+        );
       }
+      if (Array.isArray(finalValue) || Array.isArray(originalValue)) {
+        return false;
+      }
+      const norm = (v: unknown): string =>
+        v === null || v === undefined ? "" : String(v);
+      return norm(finalValue) === norm(originalValue);
+    },
+    [allVolunteers]
+  );
+
+  /**
+   * Applies many cell updates in one setEditedRows + one setData pass so multi-cell
+   * operations (bulk delete, undo) never lose merges when several columns on one row change.
+   */
+  const applyEditsBatch = useCallback(
+    (edits: Array<{ rowId: number; colId: string; value: unknown }>): void => {
+      if (edits.length === 0) return;
 
       setEditedRows((prev) => {
-        const next = { ...prev };
-        if (matchesOriginal) {
-          if (next[rowId]) {
-            const rowObj = { ...(next[rowId] as Record<string, unknown>) };
-            delete rowObj[colId];
-            if (Object.keys(rowObj).length === 0) {
-              delete next[rowId];
-            } else {
-              next[rowId] = rowObj as Partial<Volunteer>;
+        const next: Record<number, Partial<Volunteer>> = { ...prev };
+        for (const { rowId, colId, value: finalValue } of edits) {
+          const matchesOriginal = cellMatchesOriginal(rowId, colId, finalValue);
+          if (matchesOriginal) {
+            if (next[rowId]) {
+              const rowObj = { ...(next[rowId] as Record<string, unknown>) };
+              delete rowObj[colId];
+              if (Object.keys(rowObj).length === 0) {
+                delete next[rowId];
+              } else {
+                next[rowId] = rowObj as Partial<Volunteer>;
+              }
             }
+          } else {
+            next[rowId] = { ...(next[rowId] || {}), [colId]: finalValue };
           }
-        } else {
-          next[rowId] = { ...(next[rowId] || {}), [colId]: finalValue };
         }
 
         const willHaveEdits = Object.keys(next).length > 0;
@@ -169,11 +183,19 @@ export const useVolunteerEdits = ({
         return next;
       });
 
-      setData((prev) =>
-        prev.map((r) => (r.id === rowId ? { ...r, [colId]: finalValue } : r))
-      );
+      setData((prev) => {
+        const byRow = new Map<number, Record<string, unknown>>();
+        for (const { rowId, colId, value: finalValue } of edits) {
+          if (!byRow.has(rowId)) byRow.set(rowId, {});
+          byRow.get(rowId)![colId] = finalValue;
+        }
+        return prev.map((r) => {
+          const patch = byRow.get(r.id);
+          return patch ? ({ ...r, ...patch } as Volunteer) : r;
+        });
+      });
     },
-    [setData, setEditedRows, allVolunteers]
+    [setData, setEditedRows, cellMatchesOriginal]
   );
 
   const handleCellEdit = useCallback(
@@ -189,10 +211,10 @@ export const useVolunteerEdits = ({
         redoStackRef.current = [];
       }
 
-      applyEdit(rowId, colId, finalValue);
+      applyEditsBatch([{ rowId, colId, value: finalValue }]);
       syncHistoryStacks();
     },
-    [getCellValue, applyEdit, syncHistoryStacks]
+    [getCellValue, applyEditsBatch, syncHistoryStacks]
   );
 
   const handleBulkEdit = useCallback(
@@ -212,14 +234,16 @@ export const useVolunteerEdits = ({
         redoStackRef.current = [];
       }
 
-      edits.forEach(({ rowId, colId, value }) => {
-        const finalValue = normalizeValue(colId, value);
-        applyEdit(rowId, colId, finalValue);
-      });
+      const normalized = edits.map(({ rowId, colId, value }) => ({
+        rowId,
+        colId,
+        value: normalizeValue(colId, value),
+      }));
+      applyEditsBatch(normalized);
 
       syncHistoryStacks();
     },
-    [getCellValue, applyEdit, syncHistoryStacks]
+    [getCellValue, applyEditsBatch, syncHistoryStacks]
   );
 
   const undo = useCallback((): void => {
@@ -234,12 +258,16 @@ export const useVolunteerEdits = ({
     redoStackRef.current.push({ steps: redoSteps });
 
     isUndoRedoRef.current = true;
-    action.steps.forEach((step) => {
-      applyEdit(step.rowId, step.colId, step.value);
-    });
+    applyEditsBatch(
+      action.steps.map((step) => ({
+        rowId: step.rowId,
+        colId: step.colId,
+        value: step.value,
+      }))
+    );
     isUndoRedoRef.current = false;
     syncHistoryStacks();
-  }, [getCellValue, applyEdit, syncHistoryStacks]);
+  }, [getCellValue, applyEditsBatch, syncHistoryStacks]);
 
   const redo = useCallback((): void => {
     const action = redoStackRef.current.pop();
@@ -253,12 +281,16 @@ export const useVolunteerEdits = ({
     undoStackRef.current.push({ steps: undoSteps });
 
     isUndoRedoRef.current = true;
-    action.steps.forEach((step) => {
-      applyEdit(step.rowId, step.colId, step.value);
-    });
+    applyEditsBatch(
+      action.steps.map((step) => ({
+        rowId: step.rowId,
+        colId: step.colId,
+        value: step.value,
+      }))
+    );
     isUndoRedoRef.current = false;
     syncHistoryStacks();
-  }, [getCellValue, applyEdit, syncHistoryStacks]);
+  }, [getCellValue, applyEditsBatch, syncHistoryStacks]);
 
   const handleSaveEdits = async (): Promise<void> => {
     setIsSaving(true);

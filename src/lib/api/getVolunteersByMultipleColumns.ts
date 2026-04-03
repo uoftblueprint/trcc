@@ -11,6 +11,16 @@ const OP = {
 
 const VALID_COHORT_TERM_REGEX = /^(Fall|Spring|Summer|Winter)$/i;
 
+/** General columns where filter text should match like table search: case-insensitive substring. */
+const TEXT_SUBSTRING_MATCH_FIELDS = new Set<string>([
+  "name_org",
+  "pseudonym",
+  "email",
+  "phone",
+  "position",
+  "notes",
+]);
+
 const ALLOWED_FIELDS = [
   "name_org",
   "pseudonym",
@@ -257,6 +267,10 @@ async function filterIdsByCohorts(
   return filterMatchingIds(mappedCohorts, op, targetValues);
 }
 
+function ilikeSubstringPattern(term: string): string {
+  return `%${term}%`;
+}
+
 async function filterIdsByGeneral(
   client: SupabaseClient<Database>,
   field: string,
@@ -265,7 +279,29 @@ async function filterIdsByGeneral(
 ): Promise<Set<number>> {
   let query = client.from("Volunteers").select("id");
 
-  if (op === OP.OR) {
+  if (TEXT_SUBSTRING_MATCH_FIELDS.has(field)) {
+    const patterns = values.map((v) => ilikeSubstringPattern(v));
+    if (op === OP.OR) {
+      if (patterns.length === 1) {
+        const p = patterns[0];
+        if (p === undefined) return new Set<number>();
+        query = query.ilike(field, p);
+      } else {
+        query = query.ilikeAnyOf(field, patterns);
+      }
+    } else {
+      const uniquePatterns = Array.from(
+        new Set(values.map((v) => ilikeSubstringPattern(v)))
+      );
+      if (uniquePatterns.length > 1) {
+        query = query.ilikeAllOf(field, uniquePatterns);
+      } else {
+        const p = uniquePatterns[0];
+        if (p === undefined) return new Set<number>();
+        query = query.ilike(field, p);
+      }
+    }
+  } else if (op === OP.OR) {
     query = query.in(field, values);
   } else {
     const uniqueValues = Array.from(new Set(values));

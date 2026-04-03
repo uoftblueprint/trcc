@@ -18,8 +18,8 @@ describe("createVolunteer", () => {
   // Test validation - missing volunteer data
   it("should fail when volunteer data is missing", async () => {
     const input = {
-      role: { name: "Test Role", type: "current" },
-      cohort: { year: 2024, term: "Fall" },
+      roles: [{ name: "Test Role", type: "current" }],
+      cohorts: [{ year: 2024, term: "Fall" }],
     } as CreateVolunteerInput;
 
     const result = await createVolunteer(input);
@@ -40,8 +40,8 @@ describe("createVolunteer", () => {
       volunteer: {
         email: "test@example.com",
       } as CreateVolunteerInput["volunteer"],
-      role: { name: "Test Role", type: "current" },
-      cohort: { year: 2024, term: "Fall" },
+      roles: [{ name: "Test Role", type: "current" }],
+      cohorts: [{ year: 2024, term: "Fall" }],
     };
 
     const result = await createVolunteer(input);
@@ -59,8 +59,8 @@ describe("createVolunteer", () => {
   it("should fail when name_org is empty", async () => {
     const input: CreateVolunteerInput = {
       volunteer: { name_org: "   " },
-      role: { name: "Test Role", type: "current" },
-      cohort: { year: 2024, term: "Fall" },
+      roles: [{ name: "Test Role", type: "current" }],
+      cohorts: [{ year: 2024, term: "Fall" }],
     };
 
     const result = await createVolunteer(input);
@@ -77,18 +77,18 @@ describe("createVolunteer", () => {
     }
   });
 
-  // Test validation - missing role
-  it("should fail when role is missing", async () => {
+  // Test validation - roles must be an array
+  it("should fail when roles is missing or not an array", async () => {
     const input = {
       volunteer: { name_org: "Test Volunteer" },
-      cohort: { year: 2024, term: "Fall" },
-    } as CreateVolunteerInput;
+      cohorts: [],
+    } as unknown as CreateVolunteerInput;
 
     const result = await createVolunteer(input);
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.validationErrors!.some((e) => e.field === "role")).toBe(
+      expect(result.validationErrors!.some((e) => e.field === "roles")).toBe(
         true
       );
     }
@@ -98,8 +98,8 @@ describe("createVolunteer", () => {
   it("should fail when role type is invalid", async () => {
     const input = {
       volunteer: { name_org: "Test Volunteer" },
-      role: { name: "Test Role", type: "invalid_type" },
-      cohort: { year: 2024, term: "Fall" },
+      roles: [{ name: "Test Role", type: "invalid_type" }],
+      cohorts: [{ year: 2024, term: "Fall" }],
     } as unknown as CreateVolunteerInput;
 
     const result = await createVolunteer(input);
@@ -107,23 +107,23 @@ describe("createVolunteer", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(
-        result.validationErrors!.some((e) => e.field === "role.type")
+        result.validationErrors!.some((e) => e.field === "roles[0].type")
       ).toBe(true);
     }
   });
 
-  // Test validation - missing cohort
-  it("should fail when cohort is missing", async () => {
+  // Test validation - cohorts must be an array
+  it("should fail when cohorts is missing or not an array", async () => {
     const input = {
       volunteer: { name_org: "Test Volunteer" },
-      role: { name: "Test Role", type: "current" },
-    } as CreateVolunteerInput;
+      roles: [{ name: "Test Role", type: "current" }],
+    } as unknown as CreateVolunteerInput;
 
     const result = await createVolunteer(input);
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.validationErrors!.some((e) => e.field === "cohort")).toBe(
+      expect(result.validationErrors!.some((e) => e.field === "cohorts")).toBe(
         true
       );
     }
@@ -133,8 +133,8 @@ describe("createVolunteer", () => {
   it("should fail when cohort term is invalid", async () => {
     const input = {
       volunteer: { name_org: "Test Volunteer" },
-      role: { name: "Test Role", type: "current" },
-      cohort: { year: 2024, term: "autumn" },
+      roles: [{ name: "Test Role", type: "current" }],
+      cohorts: [{ year: 2024, term: "autumn" }],
     } as unknown as CreateVolunteerInput;
 
     const result = await createVolunteer(input);
@@ -142,7 +142,7 @@ describe("createVolunteer", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(
-        result.validationErrors!.some((e) => e.field === "cohort.term")
+        result.validationErrors!.some((e) => e.field === "cohorts[0].term")
       ).toBe(true);
     }
   });
@@ -151,8 +151,8 @@ describe("createVolunteer", () => {
   it("should fail when cohort year is not an integer", async () => {
     const input: CreateVolunteerInput = {
       volunteer: { name_org: "Test Volunteer" },
-      role: { name: "Test Role", type: "current" },
-      cohort: { year: 2024.5, term: "Fall" },
+      roles: [{ name: "Test Role", type: "current" }],
+      cohorts: [{ year: 2024.5, term: "Fall" }],
     };
 
     const result = await createVolunteer(input);
@@ -161,7 +161,7 @@ describe("createVolunteer", () => {
     if (!result.success) {
       expect(
         result.validationErrors!.some(
-          (e) => e.field === "cohort.year" && e.message.includes("integer")
+          (e) => e.field === "cohorts[0].year" && e.message.includes("integer")
         )
       ).toBe(true);
     }
@@ -241,8 +241,8 @@ describe("createVolunteer", () => {
           name_org: "TEST_Integration_Volunteer",
           email: "integration@example.com",
         },
-        role: { name: role!.name, type: role!.type as "current" },
-        cohort: { year: cohort!.year, term: cohort!.term as "Fall" },
+        roles: [{ name: role!.name, type: role!.type as "current" }],
+        cohorts: [{ year: cohort!.year, term: cohort!.term as "Fall" }],
       };
 
       const result = await createVolunteer(input);
@@ -260,8 +260,8 @@ describe("createVolunteer", () => {
           name_org: "TEST_Integration_Volunteer",
           email: "integration@example.com",
         },
-        role: { name: "TEST_AutoCreated_Role", type: "current" },
-        cohort: { year: TEST_YEAR, term: "Fall" },
+        roles: [{ name: "TEST_AutoCreated_Role", type: "current" }],
+        cohorts: [{ year: TEST_YEAR, term: "Fall" }],
       };
 
       const result = await createVolunteer(input);
@@ -284,8 +284,8 @@ describe("createVolunteer", () => {
           name_org: "TEST_Integration_Volunteer",
           email: "integration@example.com",
         },
-        role: { name: "TEST_Integration_Role", type: "current" },
-        cohort: { year: nonexistentYear, term: "Fall" },
+        roles: [{ name: "TEST_Integration_Role", type: "current" }],
+        cohorts: [{ year: nonexistentYear, term: "Fall" }],
       };
 
       const result = await createVolunteer(input);
@@ -305,8 +305,8 @@ describe("createVolunteer", () => {
     it("successfully creates a volunteer with just name_org", async () => {
       const input: CreateVolunteerInput = {
         volunteer: { name_org: "TEST_Integration_Volunteer" },
-        role: { name: "TEST_Integration_Role", type: "current" },
-        cohort: { year: TEST_YEAR, term: "Fall" },
+        roles: [],
+        cohorts: [],
       };
 
       const result = await createVolunteer(input);
@@ -324,8 +324,8 @@ describe("createVolunteer", () => {
             name_org: "TEST_RPC_Junction_Volunteer",
             email: "rpc-junction@example.com",
           },
-          role: { name: "TEST_RPC_Junction_Role", type: "prior" },
-          cohort: { year: TEST_YEAR, term: "Spring" },
+          roles: [{ name: "TEST_RPC_Junction_Role", type: "prior" }],
+          cohorts: [{ year: TEST_YEAR, term: "Spring" }],
         };
 
         const result = await createVolunteer(input);
@@ -364,8 +364,8 @@ describe("createVolunteer", () => {
             name_org: "TEST_RPC_Volunteer_One",
             email: "one@example.com",
           },
-          role: { name: roleName, type: "current" },
-          cohort: { year: TEST_YEAR, term: "Summer" },
+          roles: [{ name: roleName, type: "current" }],
+          cohorts: [{ year: TEST_YEAR, term: "Summer" }],
         };
         const result1 = await createVolunteer(input1);
         expect(result1.success).toBe(true);
@@ -376,8 +376,8 @@ describe("createVolunteer", () => {
             name_org: "TEST_RPC_Volunteer_Two",
             email: "two@example.com",
           },
-          role: { name: roleName, type: "current" },
-          cohort: { year: TEST_YEAR, term: "Summer" },
+          roles: [{ name: roleName, type: "current" }],
+          cohorts: [{ year: TEST_YEAR, term: "Summer" }],
         };
         const result2 = await createVolunteer(input2);
         expect(result2.success).toBe(true);
@@ -408,8 +408,8 @@ describe("createVolunteer", () => {
             name_org: "TEST_RPC_Cohort_Vol_One",
             email: "cohort1@example.com",
           },
-          role: { name: "TEST_RPC_Cohort_Role", type: "future_interest" },
-          cohort: { year: cohortYear, term: cohortTerm },
+          roles: [{ name: "TEST_RPC_Cohort_Role", type: "future_interest" }],
+          cohorts: [{ year: cohortYear, term: cohortTerm }],
         };
         const result1 = await createVolunteer(input1);
         expect(result1.success).toBe(true);
@@ -420,8 +420,8 @@ describe("createVolunteer", () => {
             name_org: "TEST_RPC_Cohort_Vol_Two",
             email: "cohort2@example.com",
           },
-          role: { name: "TEST_RPC_Cohort_Role", type: "future_interest" },
-          cohort: { year: cohortYear, term: cohortTerm },
+          roles: [{ name: "TEST_RPC_Cohort_Role", type: "future_interest" }],
+          cohorts: [{ year: cohortYear, term: cohortTerm }],
         };
         const result2 = await createVolunteer(input2);
         expect(result2.success).toBe(true);
@@ -454,12 +454,11 @@ describe("createVolunteer", () => {
             pronouns: "they/them",
             email: "full@example.com",
             phone: "555-1234",
-            position: "volunteer",
             opt_in_communication: false,
             notes: "Test notes for RPC",
           },
-          role: { name: "TEST_RPC_Full_Role", type: "current" },
-          cohort: { year: TEST_YEAR, term: "Fall" },
+          roles: [{ name: "TEST_RPC_Full_Role", type: "current" }],
+          cohorts: [{ year: TEST_YEAR, term: "Fall" }],
         };
 
         const result = await createVolunteer(input);
@@ -481,7 +480,7 @@ describe("createVolunteer", () => {
         expect(volunteer!.pronouns).toBe("they/them");
         expect(volunteer!.email).toBe("full@example.com");
         expect(volunteer!.phone).toBe("555-1234");
-        expect(volunteer!.position).toBe("volunteer");
+        expect(volunteer!.position).toBeNull();
         expect(volunteer!.opt_in_communication).toBe(false);
         expect(volunteer!.notes).toBe("Test notes for RPC");
       });
@@ -494,8 +493,8 @@ describe("createVolunteer", () => {
               name_org: `TEST_RPC_Term_${term}`,
               email: `term-${term.toLowerCase()}@example.com`,
             },
-            role: { name: "TEST_RPC_Term_Role", type: "current" },
-            cohort: { year: TEST_YEAR, term },
+            roles: [{ name: "TEST_RPC_Term_Role", type: "current" }],
+            cohorts: [{ year: TEST_YEAR, term }],
           };
           const result = await createVolunteer(input);
           expect(result.success).toBe(true);
@@ -525,8 +524,8 @@ describe("createVolunteer", () => {
               name_org: `TEST_RPC_Type_${type}`,
               email: `type-${type}@example.com`,
             },
-            role: { name: `TEST_RPC_Type_Role_${type}`, type },
-            cohort: { year: TEST_YEAR, term: "Fall" },
+            roles: [{ name: `TEST_RPC_Type_Role_${type}`, type }],
+            cohorts: [{ year: TEST_YEAR, term: "Fall" }],
           };
           const result = await createVolunteer(input);
           expect(result.success).toBe(true);
