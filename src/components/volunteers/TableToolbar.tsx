@@ -6,6 +6,7 @@ import {
   ArrowUpDown,
   Import,
   Plus,
+  Tags,
   Trash2,
   Undo2,
   Redo2,
@@ -36,6 +37,7 @@ interface TableToolbarProps {
   onDelete: () => void;
   onOpenAddVolunteer: () => void;
   onOpenImportCSV: () => void;
+  onOpenManageTags: () => void;
   hasEdits: boolean;
   isSaving: boolean;
   onSave: () => void;
@@ -66,6 +68,7 @@ export const TableToolbar = ({
   onDelete,
   onOpenAddVolunteer,
   onOpenImportCSV,
+  onOpenManageTags,
   hasEdits,
   isSaving,
   onSave,
@@ -279,14 +282,14 @@ export const TableToolbar = ({
                   setSortModalAlignRight(filterModalAlignRight(el));
                   setIsSortModalOpen(true);
                 }}
+                className={clsx(
+                  sorting.length > 0 ? neutralBtnActive : neutralBtn
+                )}
                 aria-label={
                   sorting.length > 0
                     ? `Sort (${sorting.length} rules)`
                     : "Sort volunteers"
                 }
-                className={clsx(
-                  sorting.length > 0 ? neutralBtnActive : neutralBtn
-                )}
               >
                 <span className="relative inline-flex shrink-0">
                   <ArrowUpDown className="h-4 w-4 shrink-0" />
@@ -313,27 +316,93 @@ export const TableToolbar = ({
 
             {role === "admin" && (
               <button
-                type="button"
                 onClick={onOpenAddVolunteer}
-                aria-label="Add new volunteer"
-                className="inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border-0 bg-purple-700 px-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-purple-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2"
+                className="group flex items-center justify-start gap-2 w-10 hover:w-36 focus-visible:w-36 overflow-hidden px-3 py-2 bg-accent-purple hover:bg-dark-accent-purple transition-all duration-200 rounded-lg text-sm font-medium text-white shadow-sm"
               >
-                <Plus className="h-4 w-4 shrink-0" />
-                New Volunteer
+                <Plus className="w-4 h-4 shrink-0" />
+                <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
+                  New Volunteer
+                </span>
+              </button>
+            )}
+
+            {role === "admin" && (
+              <button
+                onClick={onOpenImportCSV}
+                className="group flex items-center justify-start gap-2 w-10 hover:w-40 focus-visible:w-40 overflow-hidden px-3 py-2 bg-primary-purple hover:bg-secondary-purple transition-all duration-200 rounded-lg text-sm font-medium text-gray-900"
+              >
+                <Import className="w-4 h-4 shrink-0" />
+                <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
+                  Import from CSV
+                </span>
               </button>
             )}
 
             {role === "admin" && (
               <button
                 type="button"
-                onClick={onOpenImportCSV}
-                aria-label="Import volunteers from CSV"
-                className="inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-purple-200 bg-purple-50 px-3 text-sm font-medium text-purple-800 transition-colors hover:bg-purple-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2"
+                onClick={onOpenManageTags}
+                className="group flex items-center justify-start gap-2 w-10 hover:w-36 focus-visible:w-36 overflow-hidden px-3 py-2 bg-primary-purple hover:bg-secondary-purple transition-all duration-200 rounded-lg text-sm font-medium text-gray-900"
               >
-                <Import className="h-4 w-4 shrink-0" />
-                Import CSV
+                <Tags className="w-4 h-4 shrink-0" />
+                <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
+                  Manage tags
+                </span>
               </button>
             )}
+
+            {(role === "admin" && selectedCount > 0) ||
+            hasEdits ||
+            canUndo ||
+            canRedo ? (
+              <div className="flex items-center gap-2 ml-auto animate-in fade-in slide-in-from-right-2 duration-200">
+                {role === "admin" && selectedCount > 0 && (
+                  <button
+                    onClick={onDelete}
+                    disabled={isDeleting}
+                    className="group flex items-center justify-start gap-2 w-10 hover:w-34 focus-visible:w-34 overflow-hidden px-3 py-2 bg-red-200 hover:bg-red-300 transition-all duration-200 rounded-lg text-sm font-medium text-red-900 disabled:opacity-50"
+                  >
+                    <Trash2 className="w-4 h-4 shrink-0" />
+                    <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
+                      {isDeleting ? "Deleting..." : "Delete"}
+                    </span>
+                  </button>
+                )}
+                {hasEdits && (
+                  <button
+                    onClick={onSave}
+                    className="group flex items-center justify-start gap-2 w-10 hover:w-32 focus-visible:w-32 overflow-hidden px-3 py-2 bg-green-200 hover:bg-green-300 transition-all duration-200 rounded-lg text-sm font-medium text-green-900"
+                  >
+                    <Save className="w-4 h-4 shrink-0" />
+                    <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
+                      Save
+                    </span>
+                  </button>
+                )}
+                {canUndo && (
+                  <button
+                    onClick={onUndo}
+                    className="group flex items-center justify-start gap-2 w-10 hover:w-24 focus-visible:w-24 overflow-hidden px-3 py-2 bg-gray-100 hover:bg-gray-200 transition-all duration-200 rounded-lg text-sm font-medium text-gray-700"
+                  >
+                    <Undo2 className="w-4 h-4 shrink-0" />
+                    <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
+                      Undo
+                    </span>
+                  </button>
+                )}
+                {canRedo && (
+                  <button
+                    onClick={onRedo}
+                    className="group flex items-center justify-start gap-2 w-10 hover:w-24 focus-visible:w-24 overflow-hidden px-3 py-2 bg-gray-100 hover:bg-gray-200 transition-all duration-200 rounded-lg text-sm font-medium text-gray-700"
+                  >
+                    <Redo2 className="w-4 h-4 shrink-0" />
+                    <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
+                      Redo
+                    </span>
+                  </button>
+                )}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

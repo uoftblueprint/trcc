@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/client/supabase";
+import { createAdminClient } from "@/lib/client/supabase/server";
 import type { Tables, TablesUpdate } from "@/lib/client/supabase/types";
 
 const ROLE_TYPES = ["prior", "current", "future_interest"] as const;
@@ -88,7 +88,7 @@ export async function updateRole(
     };
   }
 
-  const client = await createClient();
+  const client = createAdminClient();
   const { data, error } = await client
     .from("Roles")
     .update(validation.updates)

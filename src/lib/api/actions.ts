@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/client/supabase/server";
+import { createAdminClient, createClient } from "@/lib/client/supabase/server";
 import { import_csv } from "./import_csv";
 import {
   createVolunteer,
@@ -19,6 +19,12 @@ import { removeUser } from "./removeUser";
 import { updateUser } from "./updateUser";
 import { getCurrentUserServer } from "./getCurrentUserServer";
 import { updateCurrentUserAccount, type ValidationError } from "./updateUser";
+import { createRole } from "./createRole";
+import { createCohort } from "./createCohort";
+import { updateRole } from "./updateRole";
+import { updateCohort } from "./updateCohort";
+import { removeRoleById } from "./removeRole";
+import { removeCohort } from "./removeCohort";
 
 type ImportCSVResponse = Awaited<ReturnType<typeof import_csv>>;
 
@@ -198,4 +204,141 @@ export async function removeUserAction(
 
   revalidatePath("/settings/manage");
   return { success: true };
+}
+
+function revalidateVolunteerTags(): void {
+  revalidatePath("/volunteers");
+}
+
+export async function createRoleTagAction(input: {
+  name: string;
+  type: string;
+  is_active?: boolean;
+}): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
+  const res = await createRole({
+    name: input.name.trim(),
+    type: input.type.trim(),
+    is_active: input.is_active ?? true,
+  });
+  if (!res.success) {
+    return { success: false, error: res.error };
+  }
+  revalidateVolunteerTags();
+  return { success: true };
+}
+
+export async function updateRoleTagAction(
+  roleId: number,
+  body: Record<string, unknown>
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
+  const res = await updateRole(roleId, body);
+  if (res.status !== 200) {
+    return { success: false, error: res.body.error };
+  }
+  revalidateVolunteerTags();
+  return { success: true };
+}
+
+export async function removeRoleTagAction(
+  roleId: number
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
+  const res = await removeRoleById(roleId);
+  if (!res.success) {
+    return { success: false, error: res.error };
+  }
+  revalidateVolunteerTags();
+  return { success: true };
+}
+
+export async function createCohortTagAction(input: {
+  term: string;
+  year: number;
+  is_active?: boolean;
+}): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
+  try {
+    await createCohort({
+      term: input.term,
+      year: input.year,
+      is_active: input.is_active ?? true,
+    });
+  } catch (e) {
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : "Failed to create cohort",
+    };
+  }
+  revalidateVolunteerTags();
+  return { success: true };
+}
+
+export async function updateCohortTagAction(
+  cohortId: number,
+  body: Record<string, unknown>
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
+  const res = await updateCohort(cohortId, body);
+  if (res.status !== 200) {
+    return { success: false, error: res.body.error };
+  }
+  revalidateVolunteerTags();
+  return { success: true };
+}
+
+export async function removeCohortTagAction(
+  year: number,
+  term: string
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
+  const res = await removeCohort(year, term);
+  if (!res.success) {
+    return { success: false, error: res.error };
+  }
+  revalidateVolunteerTags();
+  return { success: true };
+}
+
+export async function removeAllRoleTagsAction(): Promise<
+  { success: true; removed: number } | { success: false; error: string }
+> {
+  await requireAdmin();
+  const client = createAdminClient();
+  const { data: rows, error } = await client.from("Roles").select("id");
+  if (error) {
+    return { success: false, error: error.message };
+  }
+  const ids = (rows ?? []).map((r) => r.id);
+  if (ids.length === 0) {
+    return { success: true, removed: 0 };
+  }
+  const { error: delErr } = await client.from("Roles").delete().in("id", ids);
+  if (delErr) {
+    return { success: false, error: delErr.message };
+  }
+  revalidateVolunteerTags();
+  return { success: true, removed: ids.length };
+}
+
+export async function removeAllCohortTagsAction(): Promise<
+  { success: true; removed: number } | { success: false; error: string }
+> {
+  await requireAdmin();
+  const client = createAdminClient();
+  const { data: rows, error } = await client.from("Cohorts").select("id");
+  if (error) {
+    return { success: false, error: error.message };
+  }
+  const ids = (rows ?? []).map((r) => r.id);
+  if (ids.length === 0) {
+    return { success: true, removed: 0 };
+  }
+  const { error: delErr } = await client.from("Cohorts").delete().in("id", ids);
+  if (delErr) {
+    return { success: false, error: delErr.message };
+  }
+  revalidateVolunteerTags();
+  return { success: true, removed: ids.length };
 }
