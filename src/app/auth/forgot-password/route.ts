@@ -1,6 +1,40 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/client/supabase/server";
 
+/** When testing forgot-password on localhost, use the request Origin so the email link matches dev (PKCE redirect_uri). */
+function passwordResetBaseUrl(request: Request): string {
+  const originHeader = request.headers.get("origin");
+  if (originHeader) {
+    try {
+      const parsed = new URL(originHeader);
+      if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
+        return parsed.origin;
+      }
+    } catch {
+      /* use env / defaults below */
+    }
+  }
+
+  const fromEnv = process.env["NEXT_PUBLIC_SITE_URL"]?.replace(/\/$/, "");
+  if (fromEnv && fromEnv !== "undefined") {
+    try {
+      return new URL(fromEnv).origin;
+    } catch {
+      /* invalid env URL, fall through */
+    }
+  }
+
+  if (originHeader) {
+    try {
+      return new URL(originHeader).origin;
+    } catch {
+      /* fall through */
+    }
+  }
+
+  return "http://localhost:3000";
+}
+
 export async function POST(request: Request): Promise<Response> {
   let body;
 
@@ -46,16 +80,17 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const baseUrl =
-      process.env["NEXT_PUBLIC_SITE_URL"] ??
-      request.headers.get("origin") ??
-      "http://localhost:3000";
+    const baseUrl = passwordResetBaseUrl(request);
 
-    const callbackUrl = new URL("/auth/confirm", baseUrl.replace(/\/$/, ""));
-    callbackUrl.searchParams.set("next", "/reset-password");
+    // No trailing slash: Next.js may 308 /reset-password/ → /reset-password, breaking PKCE
+    // if Supabase issued the code for a different path shape.
+    const redirectTo = new URL(
+      "/reset-password",
+      baseUrl.replace(/\/$/, "")
+    ).toString();
 
     const { error } = await supabase.auth.resetPasswordForEmail(body.email, {
-      redirectTo: callbackUrl.toString(),
+      redirectTo,
     });
 
     if (error) {

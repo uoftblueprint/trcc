@@ -105,9 +105,36 @@ describe("Forgot Password Route", () => {
       expect(mockResetPasswordForEmail).toHaveBeenCalledWith(
         "admin@example.com",
         expect.objectContaining({
-          redirectTo: expect.stringContaining("/auth/confirm"),
+          redirectTo: expect.stringContaining("/reset-password"),
         })
       );
+    });
+
+    it("prefers localhost Origin over NEXT_PUBLIC_SITE_URL for redirectTo (local PKCE)", async () => {
+      mockResetPasswordForEmail.mockResolvedValue({ error: null });
+      const prev = process.env["NEXT_PUBLIC_SITE_URL"];
+      process.env["NEXT_PUBLIC_SITE_URL"] = "https://trcc-tau.vercel.app";
+
+      const request = new Request("http://localhost/api/auth/forgot-password", {
+        method: "POST",
+        headers: { origin: "http://localhost:3001" },
+        body: JSON.stringify({ email: "admin@example.com" }),
+      });
+
+      await POST(request);
+
+      expect(mockResetPasswordForEmail).toHaveBeenCalledWith(
+        "admin@example.com",
+        expect.objectContaining({
+          redirectTo: "http://localhost:3001/reset-password",
+        })
+      );
+
+      if (prev === undefined) {
+        delete process.env["NEXT_PUBLIC_SITE_URL"];
+      } else {
+        process.env["NEXT_PUBLIC_SITE_URL"] = prev;
+      }
     });
 
     it("returns 500 when Supabase returns an error", async () => {
@@ -165,7 +192,7 @@ describe("Forgot Password Route", () => {
           const { error } = await regularClient.auth.resetPasswordForEmail(
             `test-unknown-${Date.now()}@example.com`,
             {
-              redirectTo: `${process.env["NEXT_PUBLIC_SITE_URL"] ?? "http://localhost:3000"}/auth/confirm`,
+              redirectTo: `${process.env["NEXT_PUBLIC_SITE_URL"] ?? "http://localhost:3000"}/reset-password`,
             }
           );
 
@@ -188,7 +215,7 @@ describe("Forgot Password Route", () => {
           try {
             const { error: resetError } =
               await regularClient.auth.resetPasswordForEmail(testEmail, {
-                redirectTo: `${process.env["NEXT_PUBLIC_SITE_URL"] ?? "http://localhost:3000"}/auth/confirm`,
+                redirectTo: `${process.env["NEXT_PUBLIC_SITE_URL"] ?? "http://localhost:3000"}/reset-password`,
               });
 
             expect(resetError).toBeNull();
