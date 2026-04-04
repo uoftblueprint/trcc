@@ -116,8 +116,20 @@ describe("Reset Password", () => {
   });
 
   describe("PKCE code exchange — auth/confirm route (unit)", () => {
+    /** Route reads `data.session` after exchange; Supabase returns `{ data, error }`. */
+    const exchangeOk = (
+      session: { user?: object } | null = null
+    ): Promise<{
+      data: { session: { user?: object } | null };
+      error: null;
+    }> =>
+      Promise.resolve({
+        data: { session },
+        error: null,
+      });
+
     it("redirects to /reset-password for valid recovery code", async () => {
-      mockExchangeCodeForSession.mockResolvedValue({ error: null });
+      mockExchangeCodeForSession.mockImplementation(() => exchangeOk(null));
 
       const request = makeConfirmRequest({
         code: "valid-pkce-code",
@@ -148,7 +160,9 @@ describe("Reset Password", () => {
     });
 
     it("redirects to /volunteers for non-recovery code", async () => {
-      mockExchangeCodeForSession.mockResolvedValue({ error: null });
+      mockExchangeCodeForSession.mockImplementation(() =>
+        exchangeOk({ user: {} })
+      );
 
       const request = makeConfirmRequest({
         code: "valid-pkce-code",
@@ -161,7 +175,7 @@ describe("Reset Password", () => {
     });
 
     it("prefers code over token_hash when both are present", async () => {
-      mockExchangeCodeForSession.mockResolvedValue({ error: null });
+      mockExchangeCodeForSession.mockImplementation(() => exchangeOk(null));
 
       const request = makeConfirmRequest({
         code: "valid-pkce-code",
