@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/client/supabase";
+import { createAdminClient } from "@/lib/client/supabase/server";
 import type { Database } from "@/lib/client/supabase/types";
 
 type Cohort = Database["public"]["Tables"]["Cohorts"]["Row"];
@@ -45,7 +45,7 @@ export async function createCohort(data: unknown): Promise<Cohort[]> {
     is_active: record["is_active"] as boolean,
   };
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data: insertedData, error } = await supabase
     .from("Cohorts")

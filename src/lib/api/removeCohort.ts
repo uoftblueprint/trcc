@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/client/supabase";
+import { createAdminClient } from "@/lib/client/supabase/server";
 
 /**
  * Removes a cohort from the database by year and term.
@@ -25,7 +25,7 @@ export async function removeCohort(
   year: number,
   term: string
 ): Promise<RemoveCohortResponse> {
-  const client = await createClient();
+  const client = createAdminClient();
 
   try {
     const { data, error } = await client

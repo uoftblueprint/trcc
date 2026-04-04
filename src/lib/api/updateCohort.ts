@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/client/supabase";
+import { createAdminClient } from "@/lib/client/supabase/server";
 import type { Tables, TablesUpdate } from "@/lib/client/supabase/types";
 
 type CohortPatch = Pick<TablesUpdate<"Cohorts">, "term" | "year" | "is_active">;
@@ -82,7 +82,7 @@ export async function updateCohort(
     };
   }
 
-  const client = await createClient();
+  const client = createAdminClient();
 
   const { data: existingCohort, error: existingCohortError } = await client
     .from("Cohorts")

@@ -30,6 +30,7 @@ import { FilterBar } from "./FilterBar";
 import { TableToolbar } from "./TableToolbar";
 import { TablePagination } from "./TablePagination";
 import { AddVolunteerModal } from "./AddVolunteerModal";
+import { ManageTagsModal } from "./ManageTagsModal";
 import { ImportCSVModal } from "./ImportCSVModal";
 import { DeleteVolunteersConfirmModal } from "./DeleteVolunteersConfirmModal";
 import { VolunteersTableHelpModal } from "./VolunteersTableHelpModal";
@@ -106,6 +107,7 @@ const VolunteersTableContent = ({
 
   const [isAddVolunteerOpen, setIsAddVolunteerOpen] = useState(false);
   const [isImportCSVOpen, setIsImportCSVOpen] = useState(false);
+  const [isManageTagsOpen, setIsManageTagsOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [isChangesModalOpen, setIsChangesModalOpen] = useState(false);
@@ -162,8 +164,11 @@ const VolunteersTableContent = ({
       if (col.type === "options") options[col.id] = new Set();
     });
 
-    allCohorts.forEach((c) => options["cohorts"]?.add(`${c.term} ${c.year}`));
+    allCohorts.forEach((c) => {
+      if (c.is_active) options["cohorts"]?.add(`${c.term} ${c.year}`);
+    });
     allRoles.forEach((r) => {
+      if (!r.is_active) return;
       if (r.type === "current") options["current_roles"]?.add(r.name);
       if (r.type === "prior") options["prior_roles"]?.add(r.name);
       if (r.type === "future_interest")
@@ -547,6 +552,7 @@ const VolunteersTableContent = ({
             onDelete={requestDeleteVolunteers}
             onOpenAddVolunteer={() => setIsAddVolunteerOpen(true)}
             onOpenImportCSV={() => setIsImportCSVOpen(true)}
+            onOpenManageTags={() => setIsManageTagsOpen(true)}
             hasEdits={hasEdits}
             isSaving={isSaving}
             onSave={handleSaveEdits}
@@ -789,6 +795,17 @@ const VolunteersTableContent = ({
         onClose={() => setIsImportCSVOpen(false)}
         onSuccess={() => {
           toast.success("CSV imported successfully");
+          setLoading(true);
+          fetchInitialData();
+        }}
+      />
+
+      <ManageTagsModal
+        isOpen={isManageTagsOpen}
+        onClose={() => setIsManageTagsOpen(false)}
+        roles={allRoles}
+        cohorts={allCohorts}
+        onRefresh={() => {
           setLoading(true);
           fetchInitialData();
         }}

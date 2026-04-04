@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/client/supabase";
+import { createAdminClient } from "@/lib/client/supabase/server";
 import type { Database } from "@/lib/client/supabase/types";
 
 type RoleRow = Database["public"]["Tables"]["Roles"]["Row"];
@@ -153,7 +153,7 @@ export async function createRole(input: unknown): Promise<CreateRoleResponse> {
     }
 
     const roleInputs = buildRoleInputs(input);
-    const client = await createClient();
+    const client = createAdminClient();
 
     const { data, error } = await client
       .from("Roles")
