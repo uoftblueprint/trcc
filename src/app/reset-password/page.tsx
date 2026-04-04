@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, type ReactElement } from "react";
+import { useLayoutEffect, useState, type ReactElement } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/client/supabase/client";
+import { exchangePkceRecoveryCode } from "@/lib/client/supabase/pkceRecoveryExchange";
 import styles from "@/styles/login.module.css";
 
 type AlertState = { type: "success" | "error"; message: string } | null;
@@ -16,6 +17,43 @@ export default function Page(): ReactElement {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [alert, setAlert] = useState<AlertState>(null);
   const [updating, setUpdating] = useState(false);
+  const [bootstrapping, setBootstrapping] = useState(true);
+  const [bootMessage, setBootMessage] = useState("Loading…");
+
+  useLayoutEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("code");
+    if (!code) {
+      setBootstrapping(false);
+      return;
+    }
+
+    setBootMessage("Verifying reset link…");
+
+    let cancelled = false;
+    void (async (): Promise<void> => {
+      const result = await exchangePkceRecoveryCode(code);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (!result.ok) {
+        setAlert({
+          type: "error",
+          message: result.message,
+        });
+        setBootstrapping(false);
+        return;
+      }
+
+      void router.replace("/reset-password");
+      setBootstrapping(false);
+    })();
+
+    return (): void => {
+      cancelled = true;
+    };
+  }, [router]);
 
   const updatePassword = async (
     event: React.FormEvent<HTMLFormElement>
@@ -64,6 +102,19 @@ export default function Page(): ReactElement {
       setUpdating(false);
     }
   };
+
+  if (bootstrapping) {
+    return (
+      <main className={styles["container"]}>
+        <div className={styles["content"]}>
+          <h1 className={styles["title"]}>Reset Password</h1>
+          <p className={styles["forgotPasswordBlurb"]} role="status">
+            {bootMessage}
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className={styles["container"]}>
