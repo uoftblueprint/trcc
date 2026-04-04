@@ -6,7 +6,7 @@ export type CopyCellFormat = "tsv" | "csv" | "plain";
 
 function escapeCsvField(value: string): string {
   if (/[",\n\r]/.test(value)) {
-    const q = "\"";
+    const q = '"';
     return q + value.split(q).join(q + q) + q;
   }
   return value;
