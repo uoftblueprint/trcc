@@ -18,7 +18,7 @@ export async function GET(request: NextRequest): Promise<void> {
 
   // PKCE flow: Supabase sends a `code` instead of `token_hash`
   if (code) {
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
       return redirect("/auth/auth-code-error");
