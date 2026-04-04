@@ -31,13 +31,13 @@ describe("middleware: code param redirect", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "test-key");
   });
 
-  it("redirects /?code=xxx to /auth/confirm preserving params", async () => {
+  it("redirects /?code=xxx to /reset-password preserving params (PKCE recovery)", async () => {
     const req = makeRequest("http://localhost:3000/?code=abc123");
     const res = await updateSession(req as never);
     expect(res.status).toBe(307);
     const location = res.headers.get("location")!;
     const locationUrl = new URL(location);
-    expect(locationUrl.pathname).toBe("/auth/confirm");
+    expect(locationUrl.pathname).toBe("/reset-password");
     expect(locationUrl.searchParams.get("code")).toBe("abc123");
   });
 
@@ -49,13 +49,13 @@ describe("middleware: code param redirect", () => {
     expect(new URL(location).pathname).toBe("/volunteers");
   });
 
-  it("redirects /some-page?code=xyz to /auth/confirm", async () => {
+  it("redirects /some-page?code=xyz to /login when path is not a PKCE salvage route", async () => {
     const req = makeRequest("http://localhost:3000/some-page?code=xyz");
     const res = await updateSession(req as never);
     expect(res.status).toBe(307);
     const location = res.headers.get("location")!;
     const locationUrl = new URL(location);
-    expect(locationUrl.pathname).toBe("/auth/confirm");
+    expect(locationUrl.pathname).toBe("/login");
     expect(locationUrl.searchParams.get("code")).toBe("xyz");
   });
 });
