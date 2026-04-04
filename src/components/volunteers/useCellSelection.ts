@@ -247,7 +247,7 @@ export const useCellSelection = (
         void navigator.clipboard
           .writeText(clipboardString)
           .catch((err) => console.error(err));
-          
+
         e.preventDefault();
         writeToClipboard(clipboardString).catch((err) => console.error(err));
       }
