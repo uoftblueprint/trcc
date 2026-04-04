@@ -14,7 +14,7 @@ const eslintConfig = [
     extends: ["next/core-web-vitals", "next/typescript", "prettier"],
     rules: {
       semi: ["error"],
-      quotes: ["error", "double"],
+      quotes: ["error", "double", { avoidEscape: true }],
       "padding-line-between-statements": [
         "error",
         {

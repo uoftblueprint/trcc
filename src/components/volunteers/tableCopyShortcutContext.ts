@@ -22,8 +22,8 @@ export function shouldDeferVolunteersTableCopyShortcut(
 
   for (const el of unique) {
     if (isFormOrEditableElement(el)) return true;
-    if (el.closest("[aria-modal=\"true\"]")) return true;
-    if (el.closest("[role=\"dialog\"]")) return true;
+    if (el.closest('[aria-modal="true"]')) return true;
+    if (el.closest('[role="dialog"]')) return true;
     if (el.closest("[data-volunteers-overlay]")) return true;
   }
   return false;
