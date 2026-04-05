@@ -16,7 +16,9 @@ export default function VolunteersPage(): React.JSX.Element {
             <Users className="w-5 h-5 text-purple-700" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 m-0">Volunteers</h1>
+            <h1 className="text-xl font-bold text-gray-900 m-0">
+              Volunteers Dashboard
+            </h1>
             <p className="text-xs text-gray-500 mt-0.5">
               Manage volunteer records, filters, and updates.
             </p>
