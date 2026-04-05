@@ -2,6 +2,7 @@
 
 import React, {
   useEffect,
+  useLayoutEffect,
   useState,
   useMemo,
   useRef,
@@ -350,6 +351,21 @@ const VolunteersTableContent = ({
       });
     },
   });
+
+  const pageSize = table.getState().pagination.pageSize;
+
+  /** With `autoResetPageIndex: false`, filters/data shrink can leave pageIndex past the last page (e.g. “Page 2 of 1”). */
+  useLayoutEffect(() => {
+    const pageCount = table.getPageCount();
+    const idx = table.getState().pagination.pageIndex;
+    if (pageCount <= 0) {
+      if (idx > 0) table.setPageIndex(0);
+      return;
+    }
+    if (idx >= pageCount) {
+      table.setPageIndex(pageCount - 1);
+    }
+  }, [table, data, debouncedGlobalFilter, sorting, pageSize]);
 
   const {
     selectedCells,
