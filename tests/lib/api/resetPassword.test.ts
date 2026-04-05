@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
+import { NextRequest } from "next/server";
 import {
   createServiceTestClient,
   createAdminTestClient,
@@ -16,21 +17,8 @@ vi.mock("@/lib/client/supabase/server", () => ({
 }));
 
 import { createClient } from "@/lib/client/supabase/server";
-
-// next/navigation redirect() throws a special error to halt execution
-const redirectError = (url: string): never => {
-  const err = new Error(`NEXT_REDIRECT: ${url}`);
-  err.name = "RedirectError";
-  Object.assign(err, { url });
-  throw err;
-};
-
-vi.mock("next/navigation", () => ({
-  redirect: vi.fn((url: string) => redirectError(url)),
-}));
-
-import { redirect } from "next/navigation";
 import { GET } from "@/app/auth/confirm/route";
+import { PASSWORD_RESET_GATE_COOKIE } from "@/lib/auth/passwordResetGateConstants";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -43,12 +31,12 @@ beforeEach(() => {
   });
 });
 
-function makeConfirmRequest(params: Record<string, string>): Request {
+function makeConfirmRequest(params: Record<string, string>): NextRequest {
   const url = new URL("http://localhost/auth/confirm");
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
   }
-  return new Request(url.toString(), { method: "GET" });
+  return new NextRequest(url);
 }
 
 describe("Reset Password", () => {
@@ -61,13 +49,18 @@ describe("Reset Password", () => {
         type: "recovery",
       });
 
-      await expect(GET(request as never)).rejects.toThrow("NEXT_REDIRECT");
+      const res = await GET(request);
+
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toContain("/reset-password");
+      expect(res.headers.get("set-cookie")).toContain(
+        `${PASSWORD_RESET_GATE_COOKIE}=1`
+      );
 
       expect(mockVerifyOtp).toHaveBeenCalledWith({
         type: "recovery",
         token_hash: "valid-token-hash",
       });
-      expect(redirect).toHaveBeenCalledWith("/reset-password");
     });
 
     it("redirects to /auth/auth-code-error for invalid token", async () => {
@@ -80,9 +73,10 @@ describe("Reset Password", () => {
         type: "recovery",
       });
 
-      await expect(GET(request as never)).rejects.toThrow("NEXT_REDIRECT");
+      const res = await GET(request);
 
-      expect(redirect).toHaveBeenCalledWith("/auth/auth-code-error");
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toContain("/auth/auth-code-error");
     });
 
     it("redirects to /auth/auth-code-error when token_hash is missing", async () => {
@@ -92,13 +86,15 @@ describe("Reset Password", () => {
 
       const request = makeConfirmRequest({ type: "recovery" });
 
-      await expect(GET(request as never)).rejects.toThrow("NEXT_REDIRECT");
+      const res = await GET(request);
+
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toContain("/auth/auth-code-error");
 
       expect(mockVerifyOtp).toHaveBeenCalledWith({
         type: "recovery",
         token_hash: "",
       });
-      expect(redirect).toHaveBeenCalledWith("/auth/auth-code-error");
     });
 
     it("redirects to /volunteers for non-recovery token types", async () => {
@@ -109,9 +105,10 @@ describe("Reset Password", () => {
         type: "email",
       });
 
-      await expect(GET(request as never)).rejects.toThrow("NEXT_REDIRECT");
+      const res = await GET(request);
 
-      expect(redirect).toHaveBeenCalledWith("/volunteers");
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toContain("/volunteers");
     });
   });
 
@@ -136,12 +133,17 @@ describe("Reset Password", () => {
         type: "recovery",
       });
 
-      await expect(GET(request as never)).rejects.toThrow("NEXT_REDIRECT");
+      const res = await GET(request);
+
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toContain("/reset-password");
+      expect(res.headers.get("set-cookie")).toContain(
+        `${PASSWORD_RESET_GATE_COOKIE}=1`
+      );
 
       expect(mockExchangeCodeForSession).toHaveBeenCalledWith(
         "valid-pkce-code"
       );
-      expect(redirect).toHaveBeenCalledWith("/reset-password");
     });
 
     it("redirects to /auth/auth-code-error for invalid code", async () => {
@@ -154,9 +156,10 @@ describe("Reset Password", () => {
         type: "recovery",
       });
 
-      await expect(GET(request as never)).rejects.toThrow("NEXT_REDIRECT");
+      const res = await GET(request);
 
-      expect(redirect).toHaveBeenCalledWith("/auth/auth-code-error");
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toContain("/auth/auth-code-error");
     });
 
     it("redirects to /volunteers for non-recovery code", async () => {
@@ -169,9 +172,29 @@ describe("Reset Password", () => {
         type: "email",
       });
 
-      await expect(GET(request as never)).rejects.toThrow("NEXT_REDIRECT");
+      const res = await GET(request);
 
-      expect(redirect).toHaveBeenCalledWith("/volunteers");
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toContain("/volunteers");
+    });
+
+    it("does not follow protocol-relative next (open redirect)", async () => {
+      mockExchangeCodeForSession.mockImplementation(() =>
+        exchangeOk({ user: {} })
+      );
+
+      const request = makeConfirmRequest({
+        code: "valid-pkce-code",
+        type: "email",
+        next: "//evil.example/phish",
+      });
+
+      const res = await GET(request);
+
+      expect(res.status).toBe(307);
+      const loc = res.headers.get("location") ?? "";
+      expect(loc).toContain("/volunteers");
+      expect(loc).not.toContain("evil.example");
     });
 
     it("prefers code over token_hash when both are present", async () => {
@@ -183,13 +206,18 @@ describe("Reset Password", () => {
         type: "recovery",
       });
 
-      await expect(GET(request as never)).rejects.toThrow("NEXT_REDIRECT");
+      const res = await GET(request);
+
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toContain("/reset-password");
+      expect(res.headers.get("set-cookie")).toContain(
+        `${PASSWORD_RESET_GATE_COOKIE}=1`
+      );
 
       expect(mockExchangeCodeForSession).toHaveBeenCalledWith(
         "valid-pkce-code"
       );
       expect(mockVerifyOtp).not.toHaveBeenCalled();
-      expect(redirect).toHaveBeenCalledWith("/reset-password");
     });
   });
 
