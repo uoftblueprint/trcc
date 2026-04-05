@@ -120,7 +120,6 @@ export interface VolunteersShortcutsModalProps {
     edits: Array<{ rowId: number; colId: string; value: unknown }>
   ) => void;
   onRefresh: () => void | Promise<void>;
-  onOpenImportCsv: () => void;
   onJumpToVolunteerRow: (volunteerId: number) => void;
   onApplyMissingEmailFilter: () => void;
   onApplyMissingPhoneFilter: () => void;
@@ -138,7 +137,6 @@ export const VolunteersShortcutsModal = ({
   selectedVolunteers,
   onBulkEdit,
   onRefresh,
-  onOpenImportCsv: _onOpenImportCsv,
   onJumpToVolunteerRow,
   onApplyMissingEmailFilter,
   onApplyMissingPhoneFilter,
