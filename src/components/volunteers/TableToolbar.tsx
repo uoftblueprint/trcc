@@ -351,10 +351,7 @@ export const TableToolbar = ({
               </button>
             )}
 
-            {(role === "admin" && selectedCount > 0) ||
-            hasEdits ||
-            canUndo ||
-            canRedo ? (
+            {(role === "admin" && selectedCount > 0) || hasEdits ? (
               <div className="flex items-center gap-2 ml-auto animate-in fade-in slide-in-from-right-2 duration-200">
                 {role === "admin" && selectedCount > 0 && (
                   <button
@@ -376,28 +373,6 @@ export const TableToolbar = ({
                     <Save className="w-4 h-4 shrink-0" />
                     <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
                       Save
-                    </span>
-                  </button>
-                )}
-                {canUndo && (
-                  <button
-                    onClick={onUndo}
-                    className="group flex items-center justify-start gap-2 w-10 hover:w-24 focus-visible:w-24 overflow-hidden px-3 py-2 bg-gray-100 hover:bg-gray-200 transition-all duration-200 rounded-lg text-sm font-medium text-gray-700"
-                  >
-                    <Undo2 className="w-4 h-4 shrink-0" />
-                    <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
-                      Undo
-                    </span>
-                  </button>
-                )}
-                {canRedo && (
-                  <button
-                    onClick={onRedo}
-                    className="group flex items-center justify-start gap-2 w-10 hover:w-24 focus-visible:w-24 overflow-hidden px-3 py-2 bg-gray-100 hover:bg-gray-200 transition-all duration-200 rounded-lg text-sm font-medium text-gray-700"
-                  >
-                    <Redo2 className="w-4 h-4 shrink-0" />
-                    <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
-                      Redo
                     </span>
                   </button>
                 )}
