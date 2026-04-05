@@ -931,7 +931,6 @@ const VolunteersTableContent = ({
           setLoading(true);
           await fetchInitialData();
         }}
-        onOpenImportCsv={() => setIsImportCSVOpen(true)}
         onJumpToVolunteerRow={jumpToVolunteerRow}
         onApplyMissingEmailFilter={applyMissingEmailFilter}
         onApplyMissingPhoneFilter={applyMissingPhoneFilter}
