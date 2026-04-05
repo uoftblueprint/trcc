@@ -252,11 +252,11 @@ function CohortField({
             onRemove={() => removeAt(i)}
           />
         ))}
-        <div className="flex flex-1 min-w-[min(100%,12rem)] flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <select
             value={term}
             onChange={(e) => setTerm(e.target.value as CohortTerm)}
-            className="rounded-md border border-gray-200 bg-gray-50/80 py-1.5 pl-2 pr-7 text-sm text-gray-900 outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-500/30"
+            className="w-23 shrink-0 rounded-md border border-gray-200 bg-gray-50/80 py-1.5 pl-1.5 pr-6 text-sm text-gray-900 outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-500/30"
             aria-label="Cohort term"
           >
             {COHORT_TERMS.map((t) => (
@@ -277,7 +277,7 @@ function CohortField({
                 addDraft();
               }
             }}
-            className="w-24 rounded-md border border-gray-200 bg-gray-50/80 py-1.5 px-2 text-sm tabular-nums outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-500/30"
+            className="w-16 shrink-0 rounded-md border border-gray-200 bg-gray-50/80 py-1.5 px-1.5 text-center text-sm tabular-nums outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-500/30"
             aria-label="Cohort year"
           />
           <button

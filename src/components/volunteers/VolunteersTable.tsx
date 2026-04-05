@@ -34,6 +34,7 @@ import { ManageTagsModal } from "./ManageTagsModal";
 import { ImportCSVModal } from "./ImportCSVModal";
 import { DeleteVolunteersConfirmModal } from "./DeleteVolunteersConfirmModal";
 import { VolunteersTableHelpModal } from "./VolunteersTableHelpModal";
+import { VolunteersShortcutsModal } from "./VolunteersShortcutsModal";
 import { getCurrentUser } from "@/lib/api/getCurrentUser";
 import { removeVolunteersAction } from "@/lib/api/actions";
 import {
@@ -45,6 +46,11 @@ import {
 import { useVolunteersData } from "./useVolunteersData";
 import { useVolunteerEdits } from "./useVolunteerEdits";
 import type { CopyCellFormat } from "./copySelectedCells";
+import {
+  BLANK_FIELD_FILTER_VALUE,
+  CONTACT_INCOMPLETE_FIELD,
+  CONTACT_INCOMPLETE_FILTER_VALUE,
+} from "@/lib/volunteerFilterShortcuts";
 
 type PendingCellChange = {
   colId: string;
@@ -111,6 +117,7 @@ const VolunteersTableContent = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [isChangesModalOpen, setIsChangesModalOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
 
   const {
     data,
@@ -438,6 +445,121 @@ const VolunteersTableContent = ({
     });
   }, [selectedRowIds, data]);
 
+  const selectedVolunteers = useMemo(() => {
+    return selectedRowIds
+      .map((id) => data.find((v) => v.id === id))
+      .filter((v): v is Volunteer => v !== undefined);
+  }, [selectedRowIds, data]);
+
+  const applyMissingEmailFilter = useCallback(() => {
+    setGlobalOp("AND");
+    setFilters((prev) => {
+      const rest = prev.filter(
+        (f) => f.field !== "email" && f.field !== CONTACT_INCOMPLETE_FIELD
+      );
+      return [
+        ...rest,
+        {
+          field: "email",
+          miniOp: "OR",
+          values: [BLANK_FIELD_FILTER_VALUE],
+        },
+      ];
+    });
+    setIsShortcutsOpen(false);
+  }, [setFilters, setGlobalOp]);
+
+  const applyMissingPhoneFilter = useCallback(() => {
+    setGlobalOp("AND");
+    setFilters((prev) => {
+      const rest = prev.filter(
+        (f) => f.field !== "phone" && f.field !== CONTACT_INCOMPLETE_FIELD
+      );
+      return [
+        ...rest,
+        {
+          field: "phone",
+          miniOp: "OR",
+          values: [BLANK_FIELD_FILTER_VALUE],
+        },
+      ];
+    });
+    setIsShortcutsOpen(false);
+  }, [setFilters, setGlobalOp]);
+
+  const applyMissingEmailOrPhoneFilter = useCallback(() => {
+    setGlobalOp("AND");
+    setFilters((prev) => {
+      const rest = prev.filter(
+        (f) =>
+          f.field !== "email" &&
+          f.field !== "phone" &&
+          f.field !== CONTACT_INCOMPLETE_FIELD
+      );
+      return [
+        ...rest,
+        {
+          field: CONTACT_INCOMPLETE_FIELD,
+          miniOp: "OR",
+          values: [CONTACT_INCOMPLETE_FILTER_VALUE],
+        },
+      ];
+    });
+    setIsShortcutsOpen(false);
+  }, [setFilters, setGlobalOp]);
+
+  const jumpToVolunteerRow = useCallback(
+    (volunteerId: number) => {
+      setIsShortcutsOpen(false);
+
+      const prePagRows = table.getPrePaginationRowModel().rows;
+      const rowIndex = prePagRows.findIndex(
+        (r) => r.original.id === volunteerId
+      );
+
+      if (rowIndex === -1) {
+        toast.error(
+          "That volunteer is not in the current table results. Clear search or change filters, then try again."
+        );
+        return;
+      }
+
+      const { pageSize, pageIndex } = table.getState().pagination;
+      const targetPage = Math.floor(rowIndex / pageSize);
+      if (targetPage !== pageIndex) {
+        table.setPageIndex(targetPage);
+      }
+
+      const highlightRow = (el: Element): void => {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (el instanceof HTMLElement) {
+          el.classList.add("ring-2", "ring-purple-400", "ring-inset");
+          window.setTimeout(() => {
+            el.classList.remove("ring-2", "ring-purple-400", "ring-inset");
+          }, 2200);
+        }
+      };
+
+      const tryScroll = (attempt: number): void => {
+        const el = document.querySelector(
+          `[data-volunteer-row-id="${volunteerId}"]`
+        );
+        if (el) {
+          highlightRow(el);
+          return;
+        }
+        if (attempt >= 12) {
+          toast.error("Could not scroll to that row. Try again.");
+          return;
+        }
+        window.requestAnimationFrame(() => tryScroll(attempt + 1));
+      };
+
+      window.requestAnimationFrame(() => tryScroll(0));
+    },
+    [table]
+  );
+
   const requestDeleteVolunteers = (): void => {
     if (selectedRowIds.length === 0) return;
     setDeleteModalOpen(true);
@@ -557,6 +679,7 @@ const VolunteersTableContent = ({
             onDelete={requestDeleteVolunteers}
             onOpenAddVolunteer={() => setIsAddVolunteerOpen(true)}
             onOpenImportCSV={() => setIsImportCSVOpen(true)}
+            onOpenShortcuts={() => setIsShortcutsOpen(true)}
             onOpenManageTags={() => setIsManageTagsOpen(true)}
             hasEdits={hasEdits}
             isSaving={isSaving}
@@ -697,6 +820,7 @@ const VolunteersTableContent = ({
                   return rows.map((row, rowIndex) => (
                     <tr
                       key={row.id}
+                      data-volunteer-row-id={row.original.id}
                       data-state={row.getIsSelected() ? "selected" : undefined}
                       className={clsx(
                         "group transition-colors border-b border-gray-100 bg-white hover:bg-gray-50",
@@ -793,6 +917,26 @@ const VolunteersTableContent = ({
           setLoading(true);
           fetchInitialData();
         }}
+      />
+
+      <VolunteersShortcutsModal
+        isOpen={isShortcutsOpen}
+        onClose={() => setIsShortcutsOpen(false)}
+        isAdmin={isAdmin}
+        visibleVolunteers={data}
+        allVolunteers={allVolunteers}
+        selectedVolunteers={selectedVolunteers}
+        onBulkEdit={handleBulkEdit}
+        onRefresh={async () => {
+          setLoading(true);
+          await fetchInitialData();
+        }}
+        onOpenImportCsv={() => setIsImportCSVOpen(true)}
+        onJumpToVolunteerRow={jumpToVolunteerRow}
+        onApplyMissingEmailFilter={applyMissingEmailFilter}
+        onApplyMissingPhoneFilter={applyMissingPhoneFilter}
+        onApplyMissingEmailOrPhoneFilter={applyMissingEmailOrPhoneFilter}
+        pronounOptions={filterOptions["pronouns"] ?? []}
       />
 
       <ImportCSVModal

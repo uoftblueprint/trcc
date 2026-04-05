@@ -61,6 +61,24 @@ describe("validateMultipleColumnFilter (unit)", () => {
       expect(result.error).toMatch(/Invalid filter field name/);
   });
 
+  it("accepts contact_incomplete shortcut filter", async () => {
+    const filtersList: FilterTuple[] = [
+      { field: "contact_incomplete", miniOp: "OR", values: ["true"] },
+    ];
+    const result = await validateMultipleColumnFilter(filtersList, "AND");
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects invalid contact_incomplete values", async () => {
+    const filtersList: FilterTuple[] = [
+      { field: "contact_incomplete", miniOp: "OR", values: ["no"] },
+    ];
+    const result = await validateMultipleColumnFilter(filtersList, "AND");
+    expect(result.valid).toBe(false);
+    if (!result.valid)
+      expect(result.error).toMatch(/Invalid contact_incomplete/);
+  });
+
   it("rejects invalid values array", async () => {
     const filtersList: FilterTuple[] = [
       { field: "prior_roles", miniOp: "OR", values: [] },
