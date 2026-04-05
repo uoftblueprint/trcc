@@ -482,6 +482,8 @@ const VolunteersTableContent = ({
 
   useEffect(() => {
     if (!isAdmin) return;
+    /** Capture phase: run before focused EditableCell (tabIndex=0) handles Delete, which would
+     * call handleCellEdit for one cell and then handleBulkEdit would snapshot wrong priors for it. */
     const handleKeyDown = (e: KeyboardEvent): void => {
       if (isKeyboardTargetInsideEditableField(e.target)) return;
       if (e.key === "Delete" || e.key === "Backspace") {
@@ -490,16 +492,19 @@ const VolunteersTableContent = ({
         );
         if (hasSelectedCells) {
           e.preventDefault();
+          e.stopPropagation();
           clearSelectedCells();
           return;
         }
         if (selectedRowIds.length === 0) return;
         e.preventDefault();
+        e.stopPropagation();
         requestDeleteVolunteers();
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return (): void => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, true);
+    return (): void =>
+      window.removeEventListener("keydown", handleKeyDown, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, selectedRowIds, selectedCells, clearSelectedCells]);
 
