@@ -141,6 +141,7 @@ describe("db: import_csv (integration)", () => {
     expect(response.parseErrors[0]?.message).toContain(
       "missing required header"
     );
+    expect(response.parseWarnings).toHaveLength(0);
     expect(response.dbErrors).toHaveLength(0);
   });
 
@@ -181,6 +182,7 @@ describe("db: import_csv (integration)", () => {
     expect(response.summary.dbSucceeded).toBe(1);
     expect(response.summary.dbFailed).toBe(0);
     expect(response.parseErrors).toHaveLength(0);
+    expect(response.parseWarnings).toHaveLength(0);
     expect(response.dbErrors).toHaveLength(0);
 
     const { data: volunteer, error: volunteerError } = await client
@@ -288,6 +290,7 @@ describe("db: import_csv (integration)", () => {
     expect(response.summary.dbSucceeded).toBe(1);
     expect(response.summary.dbFailed).toBe(0);
     expect(response.parseErrors).toHaveLength(0);
+    expect(response.parseWarnings).toHaveLength(0);
     expect(response.dbErrors).toHaveLength(0);
 
     const { data: volunteer } = await client
@@ -315,17 +318,62 @@ describe("db: import_csv (integration)", () => {
     );
   });
 
-  it("returns parse errors for a row missing name, with unrecognized position, invalid email, and bad cohort season", async () => {
+  it("imports volunteer with no cohort link when cohort format is invalid", async () => {
+    const volunteerName = `${TEST_NAME_PREFIX}_cohort_warn`;
+    const volunteerData = {
+      name: volunteerName,
+      pronouns: "",
+      position: "staff",
+      cohort: "2026Winter",
+      email: "test_import_cohort_warn@example.com",
+      phone: "",
+      roles: {
+        accompaniment: "no",
+        chat: "no",
+        f2f: "no",
+        frontDesk: "no",
+        grants: "no",
+        trainingTeam: "no",
+        boardMember: "no",
+      },
+      notes: "",
+    };
+
+    const csv = buildVolunteerStrCSV([volunteerData]);
+    const response = await import_csv(csv);
+
+    expect(response.status).toBe("success");
+    expect(response.summary.dbSucceeded).toBe(1);
+    expect(response.parseErrors).toHaveLength(0);
+    expect(response.parseWarnings).toHaveLength(1);
+    expect(response.parseWarnings[0]?.column).toBe("cohort");
+    expect(response.parseWarnings[0]?.value).toBe("2026Winter");
+
+    const { data: volunteer, error: vErr } = await client
+      .from("Volunteers")
+      .select("id")
+      .eq("name_org", volunteerName)
+      .single();
+
+    expect(vErr).toBeNull();
+    const { data: vcRows, error: vcErr } = await client
+      .from("VolunteerCohorts")
+      .select("volunteer_id")
+      .eq("volunteer_id", volunteer!.id);
+
+    expect(vcErr).toBeNull();
+    expect(vcRows).toHaveLength(0);
+  });
+
+  it("returns parse errors for a row missing name, invalid email, and bad cohort season", async () => {
     // Blank VOLUNTEER -> parse error (required)
-    // "INVALID POSITION" -> does not contain EBU/CL/Staff -> position parse error
-    // "not-an-email" -> email parse error
-    // "${TEST_YEAR} Monsoon" -> unrecognized season -> cohort parse error
-    const TEST_POSITION_MUST_FAIL = "INVALID POSITION";
+    // Invalid email / bad cohort would be warnings on a valid row; this row fails on name only
+    const TEST_POSITION_ANY = "INVALID POSITION";
 
     const volunteerData = {
       name: "",
       pronouns: "they/them",
-      position: `${TEST_POSITION_MUST_FAIL}`,
+      position: `${TEST_POSITION_ANY}`,
       cohort: `${TEST_YEAR} Monsoon`,
       email: "TEST_IMPORT_not-an-email",
       phone: "555-0102",
@@ -352,21 +400,22 @@ describe("db: import_csv (integration)", () => {
     expect(response.summary.dbFailed).toBe(0);
     expect(response.parseErrors.every((e) => e.rowIndex === 0)).toBe(true);
     expect(response.parseErrors.map((e) => e.column)).toEqual(
-      expect.arrayContaining(["volunteer", "position", "email", "cohort"])
+      expect.arrayContaining(["volunteer"])
     );
+    expect(response.parseWarnings).toHaveLength(0);
 
     const { data: volunteer } = await client
       .from("Volunteers")
       .select("id, position")
-      .eq("TEST_IMPORT_CSV_not-an-email", "email")
-      .single();
+      .eq("email", "TEST_IMPORT_not-an-email")
+      .maybeSingle();
 
     expect(volunteer).toBeNull();
   });
 
-  it("returns partial_success for mixed valid and invalid rows and inserts only the valid one", async () => {
+  it("imports both rows when one has invalid email, and reports an email warning", async () => {
     // Row 0: valid — "1. CL (First Year)" position, "3.Interested" in F2F, "4. No" elsewhere
-    // Row 1: invalid — bad email; everything else valid
+    // Row 1: bad email — still imported with null email and a parse warning
     const volunteerValid = `${TEST_NAME_PREFIX}_mixed_valid`;
     const volunteerInvalid = `${TEST_NAME_PREFIX}_mixed_invalid`;
 
@@ -411,23 +460,30 @@ describe("db: import_csv (integration)", () => {
     const csv = buildVolunteerStrCSV([volunteerData1, volunteerData2]);
     const response = await import_csv(csv);
 
-    expect(response.status).toBe("partial_success");
+    expect(response.status).toBe("success");
     expect(response.summary.totalRows).toBe(2);
-    expect(response.summary.parsedSucceeded).toBe(1);
-    expect(response.summary.parseFailed).toBe(1);
-    expect(response.summary.dbSucceeded).toBe(1);
+    expect(response.summary.parsedSucceeded).toBe(2);
+    expect(response.summary.parseFailed).toBe(0);
+    expect(response.summary.dbSucceeded).toBe(2);
     expect(response.summary.dbFailed).toBe(0);
-    expect(response.parseErrors.every((e) => e.rowIndex === 1)).toBe(true);
-    expect(response.parseErrors.some((e) => e.column === "email")).toBe(true);
+    expect(response.parseErrors).toHaveLength(0);
+    expect(response.parseWarnings.some((w) => w.column === "email")).toBe(true);
 
     const { data: volunteers, error } = await client
       .from("Volunteers")
-      .select("name_org")
-      .like("name_org", `${TEST_NAME_PREFIX}_mixed_%`);
+      .select("name_org, email")
+      .like("name_org", `${TEST_NAME_PREFIX}_mixed_%`)
+      .order("name_org");
 
     expect(error).toBeNull();
-    expect(volunteers).toHaveLength(1);
-    expect(volunteers![0]?.name_org).toBe(`${TEST_NAME_PREFIX}_mixed_valid`);
+    expect(volunteers).toHaveLength(2);
+    const byName = Object.fromEntries(
+      (volunteers ?? []).map((v) => [v.name_org, v.email])
+    );
+    expect(byName[`${TEST_NAME_PREFIX}_mixed_valid`]).toBe(
+      "test_import_mixed_valid@example.com"
+    );
+    expect(byName[`${TEST_NAME_PREFIX}_mixed_invalid`]).toBeNull();
   });
 
   it("records Papa Parse row errors and skips the malformed row from DB writes", async () => {
@@ -450,6 +506,7 @@ describe("db: import_csv (integration)", () => {
     expect(response.parseErrors.some((e) => typeof e.code === "string")).toBe(
       true
     );
+    expect(response.parseWarnings).toHaveLength(0);
 
     const { data: volunteers, error } = await client
       .from("Volunteers")
@@ -489,6 +546,7 @@ describe("db: import_csv (integration)", () => {
     expect(response.summary.dbSucceeded).toBe(2);
     expect(response.summary.dbFailed).toBe(0);
     expect(response.parseErrors).toHaveLength(1);
+    expect(response.parseWarnings).toHaveLength(0);
     expect(response.dbErrors).toHaveLength(0);
 
     // 1. verify both volunteers were created correctly

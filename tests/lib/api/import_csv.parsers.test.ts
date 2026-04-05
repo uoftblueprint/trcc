@@ -61,13 +61,40 @@ describe("import_csv helper functions", () => {
       expect(result.roles).toEqual([]);
     });
 
-    it("returns false for unsupported non-empty position", () => {
+    it("parses plain Volunteer as volunteer position", () => {
       const result = createEmptyVolunteer();
       const ok = parsePosition("Volunteer", result);
 
-      expect(ok).toBe(false);
-      expect(result.position).toBeNull();
+      expect(ok).toBe(true);
+      expect(result.position).toBe("volunteer");
       expect(result.roles).toEqual([]);
+    });
+
+    it("parses Coordinator and other titles as volunteer by default", () => {
+      const r1 = createEmptyVolunteer();
+      expect(parsePosition("Coordinator", r1)).toBe(true);
+      expect(r1.position).toBe("volunteer");
+
+      const r2 = createEmptyVolunteer();
+      expect(parsePosition("Program Lead", r2)).toBe(true);
+      expect(r2.position).toBe("volunteer");
+    });
+
+    it("parses member substring as member position", () => {
+      const result = createEmptyVolunteer();
+      expect(parsePosition("Board Member", result)).toBe(true);
+      expect(result.position).toBe("member");
+      expect(result.roles).toEqual([]);
+    });
+
+    it("returns false for empty or whitespace-only position", () => {
+      const r1 = createEmptyVolunteer();
+      expect(parsePosition("", r1)).toBe(false);
+      expect(r1.position).toBeNull();
+
+      const r2 = createEmptyVolunteer();
+      expect(parsePosition("   ", r2)).toBe(false);
+      expect(r2.position).toBeNull();
     });
   });
 
@@ -168,6 +195,7 @@ describe("import_csv helper functions", () => {
 
       expect(parsed.ok).toBe(true);
       if (parsed.ok) {
+        expect(parsed.rowWarnings).toEqual([]);
         expect(parsed.parsedVolunteer.index).toBe(7);
         expect(parsed.parsedVolunteer.name_org).toBe("Jane Doe");
         expect(parsed.parsedVolunteer.position).toBe("staff");
@@ -183,30 +211,64 @@ describe("import_csv helper functions", () => {
       }
     });
 
-    it("returns multiple parse errors for same row index", () => {
+    it("returns cohort warning and null cohort when cohort text is invalid but row is otherwise valid", () => {
+      const rowData: Record<string, string | undefined> = {
+        volunteer: "Pat Lee",
+        email: "pat@example.com",
+        position: "Staff",
+        cohort: "2026Winter",
+      };
+
+      const parsed = parseRow(rowData, 8);
+
+      expect(parsed.ok).toBe(true);
+      if (parsed.ok) {
+        expect(parsed.parsedVolunteer.cohort).toBeNull();
+        expect(parsed.rowWarnings).toHaveLength(1);
+        expect(parsed.rowWarnings[0]?.column).toBe("cohort");
+        expect(parsed.rowWarnings[0]?.value).toBe("2026Winter");
+        expect(parsed.rowWarnings[0]?.message).toContain("Cohort not applied");
+      }
+    });
+
+    it("returns email and role issues as warnings when row is otherwise valid", () => {
+      const rowData: Record<string, string | undefined> = {
+        volunteer: "Sam Example",
+        email: "not-an-email",
+        position: "Staff",
+        cohort: "2024 Fall",
+        chat: "example",
+      };
+
+      const parsed = parseRow(rowData, 12);
+
+      expect(parsed.ok).toBe(true);
+      if (parsed.ok) {
+        expect(parsed.parsedVolunteer.email).toBeNull();
+        expect(parsed.parsedVolunteer.roles).toEqual([]);
+        expect(parsed.rowWarnings.length).toBeGreaterThanOrEqual(2);
+        expect(parsed.rowWarnings.map((w) => w.column)).toEqual(
+          expect.arrayContaining(["email", "chat"])
+        );
+      }
+    });
+
+    it("returns only volunteer as fatal error when other fields are soft-warnings", () => {
       const rowData: Record<string, string | undefined> = {
         volunteer: "",
         email: "bad-email",
         position: "invalid",
         cohort: "2025 ???",
-        accompaniment: "maybe",
+        accompaniment: "unknown-status",
       };
 
       const parsed = parseRow(rowData, 3);
 
       expect(parsed.ok).toBe(false);
       if (!parsed.ok) {
-        expect(parsed.rowParseErrors.length).toBeGreaterThanOrEqual(4);
+        expect(parsed.rowParseErrors.length).toBe(1);
+        expect(parsed.rowParseErrors[0]?.column).toBe("volunteer");
         expect(parsed.rowParseErrors.every((e) => e.rowIndex === 3)).toBe(true);
-        expect(parsed.rowParseErrors.map((e) => e.column)).toEqual(
-          expect.arrayContaining([
-            "volunteer",
-            "position",
-            "email",
-            "cohort",
-            "accompaniment",
-          ])
-        );
       }
     });
   });
@@ -237,8 +299,44 @@ describe("import_csv helper functions", () => {
 
       expect(out.volunteers).toHaveLength(1);
       expect(out.volunteers[0]?.index).toBe(0);
+      expect(out.rowWarnings).toEqual([]);
       expect(out.rowErrors.length).toBeGreaterThan(0);
       expect(out.rowErrors.every((e) => e.rowIndex === 5)).toBe(true);
+    });
+
+    it("collects cohort warnings from successful rows", () => {
+      const out = parseRows([
+        {
+          rowIndex: 1,
+          rowData: {
+            volunteer: "A",
+            email: "a@example.com",
+            cohort: "Winter2021",
+          },
+        },
+      ]);
+
+      expect(out.volunteers).toHaveLength(1);
+      expect(out.volunteers[0]?.cohort).toBeNull();
+      expect(out.rowWarnings).toHaveLength(1);
+      expect(out.rowWarnings[0]?.rowIndex).toBe(1);
+      expect(out.rowWarnings[0]?.column).toBe("cohort");
+    });
+
+    it("collects email warnings from successful rows", () => {
+      const out = parseRows([
+        {
+          rowIndex: 2,
+          rowData: {
+            volunteer: "B",
+            email: "bogus",
+          },
+        },
+      ]);
+
+      expect(out.volunteers).toHaveLength(1);
+      expect(out.volunteers[0]?.email).toBeNull();
+      expect(out.rowWarnings.some((w) => w.column === "email")).toBe(true);
     });
   });
 
@@ -256,29 +354,27 @@ describe("import_csv helper functions", () => {
     });
 
     it("returns empty array with case-insensitive matching", () => {
-      const headers = ["Volunteer", "Email", "Position", "Cohort"];
+      const headers = ["Volunteer", "Email"];
       expect(validateHeaders(headers)).toEqual([]);
     });
 
     it("returns missing headers when required ones are absent", () => {
       const headers = ["PRONOUNS", "PHONE"];
       const missing = validateHeaders(headers);
-      expect(missing).toEqual(
-        expect.arrayContaining(["volunteer", "email", "position", "cohort"])
-      );
+      expect(missing).toEqual(expect.arrayContaining(["volunteer", "email"]));
     });
 
     it("returns only the specific missing headers", () => {
       const headers = ["VOLUNTEER", "COHORT"];
       const missing = validateHeaders(headers);
       expect(missing).toContain("email");
-      expect(missing).toContain("position");
-      expect(missing).not.toContain("volunteer");
+      expect(missing).not.toContain("position");
       expect(missing).not.toContain("cohort");
+      expect(missing).not.toContain("volunteer");
     });
 
     it("returns all required headers for empty input", () => {
-      expect(validateHeaders([])).toHaveLength(4);
+      expect(validateHeaders([])).toHaveLength(2);
     });
   });
 });
