@@ -14,8 +14,19 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "TRCC Dashboard",
-  description: "TRCC volunteer management dashboard",
+  metadataBase: new URL(
+    process.env["NEXT_PUBLIC_SITE_URL"] ?? "http://localhost:3000"
+  ),
+  title: {
+    default: "TRCC Dashboard | Toronto Rape Crisis Centre",
+    template: "%s | TRCC Dashboard",
+  },
+  applicationName: "TRCC Dashboard",
+  icons: {
+    icon: [{ url: "/trcc-logo.png", type: "image/png" }],
+    shortcut: "/trcc-logo.png",
+    apple: [{ url: "/trcc-logo.png", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({
