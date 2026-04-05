@@ -31,7 +31,7 @@ export const CSV_IMPORT_OPTIONAL_COLUMNS = [
     note: "Optional. CL / EBU / Staff / Training are recognized for special roles; other titles (e.g. Volunteer, Coordinator) are saved as volunteer or member when the word “member” appears.",
   },
   {
-    header: "notes (copied from prior traning sheet)",
+    header: "notes",
     label: "Notes",
     note: "Use this column name (any capitals are fine). It matches the old membership spreadsheet.",
   },
