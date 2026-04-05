@@ -1,4 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { Volunteer, CohortRow, RoleRow } from "./types";
 import {
   FilterTuple,
@@ -63,6 +70,10 @@ export interface UseVolunteersDataReturn {
   rowSelection: RowSelectionState;
   setRowSelection: React.Dispatch<React.SetStateAction<RowSelectionState>>;
   fetchInitialData: () => Promise<void>;
+  /** Increment to re-run filter → display sync (e.g. after discarding edits) without refetching all volunteers. */
+  bumpDisplayRefresh: () => void;
+  refreshRolesAndCohorts: () => Promise<void>;
+  setAllVolunteers: Dispatch<SetStateAction<Volunteer[]>>;
   debouncedFilters: FilterTuple[];
 }
 
@@ -72,6 +83,7 @@ export const useVolunteersData = ({
 }: UseVolunteersDataProps): UseVolunteersDataReturn => {
   const [data, setData] = useState<Volunteer[]>([]);
   const [allVolunteers, setAllVolunteers] = useState<Volunteer[]>([]);
+  const [displayRefreshEpoch, setDisplayRefreshEpoch] = useState(0);
   const [loading, setLoading] = useState<boolean>(true);
 
   const [allRoles, setAllRoles] = useState<RoleRow[]>([]);
@@ -133,6 +145,21 @@ export const useVolunteersData = ({
       }
     } catch (error) {
       console.error("Error fetching volunteer data:", error);
+    }
+  }, [isAdmin]);
+
+  const bumpDisplayRefresh = useCallback((): void => {
+    setDisplayRefreshEpoch((e) => e + 1);
+  }, []);
+
+  const refreshRolesAndCohorts = useCallback(async (): Promise<void> => {
+    if (!isAdmin) return;
+    try {
+      const [roles, cohorts] = await Promise.all([getRoles(), getCohorts()]);
+      setAllRoles(roles);
+      setAllCohorts(cohorts);
+    } catch (e) {
+      console.error("Error refreshing roles/cohorts:", e);
     }
   }, [isAdmin]);
 
@@ -250,7 +277,13 @@ export const useVolunteersData = ({
     return (): void => {
       ignore = true;
     };
-  }, [debouncedFilters, debouncedGlobalOp, allVolunteers, editedRowsRef]);
+  }, [
+    debouncedFilters,
+    debouncedGlobalOp,
+    allVolunteers,
+    editedRowsRef,
+    displayRefreshEpoch,
+  ]);
 
   return {
     data,
@@ -272,6 +305,9 @@ export const useVolunteersData = ({
     rowSelection,
     setRowSelection,
     fetchInitialData,
+    bumpDisplayRefresh,
+    refreshRolesAndCohorts,
+    setAllVolunteers,
     debouncedFilters,
   };
 };

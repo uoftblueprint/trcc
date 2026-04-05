@@ -1,5 +1,7 @@
-import { useState, useCallback, useRef } from "react";
+import { createElement, useState, useCallback, useRef } from "react";
+import { flushSync } from "react-dom";
 import toast from "react-hot-toast";
+import { Pencil } from "lucide-react";
 import { Volunteer, RoleRow, CohortRow } from "./types";
 import { updateVolunteer } from "@/lib/api/updateVolunteer";
 import { createRole } from "@/lib/api/createRole";
@@ -15,8 +17,12 @@ interface UseVolunteerEditsProps {
   allRoles: RoleRow[];
   allCohorts: CohortRow[];
   setData: React.Dispatch<React.SetStateAction<Volunteer[]>>;
-  setLoading: (l: boolean) => void;
+  setAllVolunteers: React.Dispatch<React.SetStateAction<Volunteer[]>>;
+  bumpDisplayRefresh: () => void;
+  refreshRolesAndCohorts: () => Promise<void>;
   fetchInitialData: () => Promise<void>;
+  /** Ref mirrored to `editedRows` for filter pipeline (useVolunteersData); cleared on cancel before display refresh. */
+  syncedEditedRowsRef: React.RefObject<Record<number, Partial<Volunteer>>>;
 }
 
 interface EditStep {
@@ -47,6 +53,22 @@ export interface UseVolunteerEditsReturn {
 }
 
 const MAX_HISTORY = 100;
+
+function mergeSavedVolunteersIntoAll(
+  prev: Volunteer[],
+  editsSnapshot: Record<number, Partial<Volunteer>>,
+  remainingEdits: Record<number, Partial<Volunteer>>
+): Volunteer[] {
+  const failedIds = new Set(
+    Object.keys(remainingEdits).map((k) => Number.parseInt(k, 10))
+  );
+  return prev.map((v) => {
+    if (failedIds.has(v.id) || !editsSnapshot[v.id]) {
+      return v;
+    }
+    return { ...v, ...editsSnapshot[v.id] };
+  });
+}
 
 const normalizeValue = (colId: string, value: unknown): unknown => {
   if (colId === "pronouns") {
@@ -79,8 +101,11 @@ export const useVolunteerEdits = ({
   allRoles,
   allCohorts,
   setData,
-  setLoading,
+  setAllVolunteers,
+  bumpDisplayRefresh,
+  refreshRolesAndCohorts,
   fetchInitialData,
+  syncedEditedRowsRef,
 }: UseVolunteerEditsProps): UseVolunteerEditsReturn => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveErrors, setSaveErrors] = useState<string[]>([]);
@@ -174,7 +199,10 @@ export const useVolunteerEdits = ({
         if (showTrackingToast) {
           queueMicrotask((): void => {
             toast("Tracking changes — save when ready", {
-              icon: "edit",
+              icon: createElement(Pencil, {
+                className: "h-5 w-5 shrink-0 text-gray-700",
+                "aria-hidden": true,
+              }),
               id: "tracking-edits",
             });
           });
@@ -294,11 +322,13 @@ export const useVolunteerEdits = ({
 
   const handleSaveEdits = async (): Promise<void> => {
     setIsSaving(true);
-    setLoading(true);
     setSaveErrors([]);
     const savingToast = toast.loading("Saving changes...");
     const currentErrors: string[] = [];
     const remainingEdits = { ...editedRows };
+    const editsSnapshot = { ...editedRows };
+    let referenceDataDirty = false;
+    let usedFullRefetchAfterFatalError = false;
 
     try {
       const knownCohortTerms = new Set(
@@ -326,6 +356,7 @@ export const useVolunteerEdits = ({
                 is_active: true,
               });
               knownCohortTerms.add(cohortKey);
+              referenceDataDirty = true;
             }
           }
         }
@@ -345,6 +376,7 @@ export const useVolunteerEdits = ({
                   `Failed to create role ${cleanName}: ${res.error}`
                 );
               knownRoles.add(roleKey);
+              referenceDataDirty = true;
             }
           }
         };
@@ -444,36 +476,60 @@ export const useVolunteerEdits = ({
           ? err.message
           : "A fatal error occurred during tag creation.";
       currentErrors.push(errorMessage);
+      try {
+        await fetchInitialData();
+        usedFullRefetchAfterFatalError = true;
+      } catch (fetchErr) {
+        console.error("Refetch after save failure failed:", fetchErr);
+      }
     }
 
     setEditedRows(remainingEdits);
+    syncedEditedRowsRef.current = remainingEdits;
     if (currentErrors.length > 0) setSaveErrors(currentErrors);
     else setSaveErrors([]);
 
-    await fetchInitialData();
-    setIsSaving(false);
-    hadEditsRef.current = Object.keys(remainingEdits).length > 0;
-    undoStackRef.current = [];
-    redoStackRef.current = [];
-    syncHistoryStacks();
+    try {
+      if (!usedFullRefetchAfterFatalError) {
+        setAllVolunteers((prev) =>
+          mergeSavedVolunteersIntoAll(prev, editsSnapshot, remainingEdits)
+        );
+        if (referenceDataDirty) {
+          try {
+            await refreshRolesAndCohorts();
+          } catch (e) {
+            console.error("Error refreshing roles/cohorts after save:", e);
+          }
+        }
+      }
+    } finally {
+      setIsSaving(false);
+      hadEditsRef.current = Object.keys(remainingEdits).length > 0;
+      undoStackRef.current = [];
+      redoStackRef.current = [];
+      syncHistoryStacks();
 
-    if (currentErrors.length > 0) {
-      toast.error(`${currentErrors.length} update(s) failed`, {
-        id: savingToast,
-      });
-    } else {
-      toast.success("All changes saved", { id: savingToast });
+      if (currentErrors.length > 0) {
+        toast.error(`${currentErrors.length} update(s) failed`, {
+          id: savingToast,
+        });
+      } else {
+        toast.success("All changes saved", { id: savingToast });
+      }
     }
   };
 
   const handleCancelEdits = (): void => {
-    setEditedRows({});
+    flushSync(() => {
+      setEditedRows({});
+    });
+    syncedEditedRowsRef.current = {};
     setSaveErrors([]);
     hadEditsRef.current = false;
     undoStackRef.current = [];
     redoStackRef.current = [];
     syncHistoryStacks();
-    setData(allVolunteers.map((v) => v));
+    bumpDisplayRefresh();
     toast("Changes discarded");
   };
 
