@@ -140,6 +140,9 @@ const VolunteersTableContent = ({
     setRowSelection,
     debouncedGlobalFilter,
     fetchInitialData,
+    bumpDisplayRefresh,
+    refreshRolesAndCohorts,
+    setAllVolunteers,
     debouncedFilters,
   } = useVolunteersData({ isAdmin, editedRowsRef });
 
@@ -162,8 +165,11 @@ const VolunteersTableContent = ({
     allRoles,
     allCohorts,
     setData,
-    setLoading,
+    setAllVolunteers,
+    bumpDisplayRefresh,
+    refreshRolesAndCohorts,
     fetchInitialData,
+    syncedEditedRowsRef: editedRowsRef,
   });
 
   const filterOptions = useMemo(() => {

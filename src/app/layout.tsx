@@ -4,7 +4,6 @@ import { Manrope } from "next/font/google";
 import { UserProvider } from "@/lib/client/userContext";
 import { AppToaster } from "@/components/ui/AppToaster";
 import { TopNavBar } from "@/components/ui/TopNavBar";
-import { Toaster } from "react-hot-toast";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -41,7 +40,6 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <UserProvider>
-          <Toaster position="top-center" toastOptions={{ duration: 4000 }} />
           <TopNavBar />
           {children}
           <AppToaster />

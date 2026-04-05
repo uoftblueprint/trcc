@@ -9,7 +9,7 @@ import { CellContext } from "@tanstack/react-table";
 import toast from "react-hot-toast";
 import { Volunteer } from "./types";
 import { VolunteerTag } from "./VolunteerTag";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Tag } from "lucide-react";
 import { NotesDisplay } from "./NotesDisplay";
 
 const SCREEN_EDGE_PADDING_PX = 16;
@@ -204,7 +204,7 @@ export const EditableCell = ({
         const toastId = `new-tag-${info.column.id}-${newTag.toLowerCase()}`;
         toast(`New tag "${newTag}" created — remember to save your changes.`, {
           id: toastId,
-          icon: "tag",
+          icon: <Tag className="h-5 w-5 shrink-0 text-gray-700" aria-hidden />,
           duration: 4000,
         });
       }
