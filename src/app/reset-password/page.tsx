@@ -3,6 +3,10 @@
 import { useLayoutEffect, useState, type ReactElement } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import {
+  clearPasswordResetGateCookieInBrowser,
+  setPasswordResetGateCookieInBrowser,
+} from "@/lib/auth/passwordResetGateBrowser";
 import { createClient } from "@/lib/client/supabase/client";
 import { exchangePkceRecoveryCode } from "@/lib/client/supabase/pkceRecoveryExchange";
 import styles from "@/styles/login.module.css";
@@ -46,6 +50,7 @@ export default function Page(): ReactElement {
         return;
       }
 
+      setPasswordResetGateCookieInBrowser();
       void router.replace("/reset-password");
       setBootstrapping(false);
     })();
@@ -85,6 +90,8 @@ export default function Page(): ReactElement {
       const { error } = await supabase.auth.updateUser({ password });
 
       if (error) throw error;
+
+      clearPasswordResetGateCookieInBrowser();
 
       setAlert({
         type: "success",

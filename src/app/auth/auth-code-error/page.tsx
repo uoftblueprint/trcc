@@ -3,6 +3,7 @@
 import { useLayoutEffect, useState, type ReactElement } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { setPasswordResetGateCookieInBrowser } from "@/lib/auth/passwordResetGateBrowser";
 import { exchangePkceRecoveryCode } from "@/lib/client/supabase/pkceRecoveryExchange";
 import styles from "@/styles/login.module.css";
 
@@ -29,6 +30,7 @@ export default function AuthCodeErrorPage(): ReactElement {
         setBootstrapping(false);
         return;
       }
+      setPasswordResetGateCookieInBrowser();
       void router.replace("/reset-password");
       setBootstrapping(false);
     })();

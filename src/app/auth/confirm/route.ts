@@ -1,10 +1,55 @@
 import { type EmailOtpType } from "@supabase/supabase-js";
-import { type NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
+import { setPasswordResetGateCookie } from "@/lib/auth/passwordResetGate";
 import { createClient } from "@/lib/client/supabase/server";
-import { redirect } from "next/navigation";
 
-export async function GET(request: NextRequest): Promise<void> {
+/**
+ * Same-origin path redirect only. Rejects protocol-relative URLs (`//host/…`) and
+ * off-origin targets that `new URL(next, base)` can otherwise produce.
+ */
+function parseSafeInternalRedirect(
+  request: NextRequest,
+  next: string | null
+): string | null {
+  if (!next || !next.startsWith("/") || next.startsWith("//")) {
+    return null;
+  }
+  try {
+    const base = new URL(request.url);
+    const resolved = new URL(next, base);
+    if (resolved.origin !== base.origin) {
+      return null;
+    }
+    return `${resolved.pathname}${resolved.search}${resolved.hash}`;
+  } catch {
+    return null;
+  }
+}
+
+function redirectResetPassword(request: NextRequest): NextResponse {
+  const url = new URL("/reset-password", request.url);
+  const res = NextResponse.redirect(url);
+  setPasswordResetGateCookie(res);
+  return res;
+}
+
+function redirectUrlWithOptionalResetGate(
+  request: NextRequest,
+  pathnameOrUrl: string
+): NextResponse {
+  const target = new URL(pathnameOrUrl, request.url);
+  const isReset =
+    target.pathname === "/reset-password" ||
+    target.pathname.startsWith("/reset-password/");
+  const res = NextResponse.redirect(target);
+  if (isReset) {
+    setPasswordResetGateCookie(res);
+  }
+  return res;
+}
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
 
   const code = searchParams.get("code");
@@ -12,7 +57,7 @@ export async function GET(request: NextRequest): Promise<void> {
   const typeParam = searchParams.get("type");
   const type = (typeParam ?? "email") as EmailOtpType;
   const next = searchParams.get("next");
-  const safeNext = next?.startsWith("/") ? next : null;
+  const safeNext = parseSafeInternalRedirect(request, next);
 
   const supabase = await createClient();
 
@@ -21,20 +66,23 @@ export async function GET(request: NextRequest): Promise<void> {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
-      return redirect("/auth/auth-code-error");
+      return NextResponse.redirect(
+        new URL("/auth/auth-code-error", request.url)
+      );
     }
 
     if (safeNext) {
-      return redirect(safeNext);
+      return redirectUrlWithOptionalResetGate(request, safeNext);
     }
 
     // Supabase PKCE recovery links may arrive with `code` but without a `type`.
-    // In that case, default to the reset password flow.
+    // In that case, default to the reset password flow. (Signup / other links should
+    // include `type` in the URL so they are not misrouted here.)
     if (!typeParam || type === "recovery") {
-      return redirect("/reset-password");
+      return redirectResetPassword(request);
     }
 
-    return redirect("/volunteers");
+    return NextResponse.redirect(new URL("/volunteers", request.url));
   }
 
   // Implicit flow: verify using token_hash
@@ -44,16 +92,16 @@ export async function GET(request: NextRequest): Promise<void> {
   });
 
   if (error) {
-    return redirect("/auth/auth-code-error");
+    return NextResponse.redirect(new URL("/auth/auth-code-error", request.url));
   }
 
   if (safeNext) {
-    return redirect(safeNext);
+    return redirectUrlWithOptionalResetGate(request, safeNext);
   }
 
   if (type === "recovery") {
-    return redirect("/reset-password");
+    return redirectResetPassword(request);
   }
 
-  return redirect("/volunteers");
+  return NextResponse.redirect(new URL("/volunteers", request.url));
 }

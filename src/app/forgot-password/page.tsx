@@ -1,12 +1,16 @@
 "use client";
 
-import { useState, type ReactElement } from "react";
+import { Suspense, useState, type ReactElement } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import styles from "@/styles/login.module.css";
 
 type AlertState = { type: "success" | "error"; message: string } | null;
 
-export default function Page(): ReactElement {
+function ForgotPasswordContent(): ReactElement {
+  const searchParams = useSearchParams();
+  const fromEmailOnly = searchParams.get("reset") === "use-email-link";
+
   const [email, setEmail] = useState("");
   const [alert, setAlert] = useState<AlertState>(null);
   const [sending, setSending] = useState(false);
@@ -55,6 +59,14 @@ export default function Page(): ReactElement {
         <h1 className={styles["title"]}>Forgot password?</h1>
 
         <p className={styles["forgotPasswordBlurb"]}>
+          {fromEmailOnly ? (
+            <>
+              Password reset is only available using the link in the email we
+              send you. Request a new link below if yours expired or was lost.
+              <br />
+              <br />
+            </>
+          ) : null}
           <b>If you are a Staff Member, please contact the Administrator.</b>
           <br />
           <br />
@@ -110,5 +122,24 @@ export default function Page(): ReactElement {
         ) : null}
       </div>
     </main>
+  );
+}
+
+export default function Page(): ReactElement {
+  return (
+    <Suspense
+      fallback={
+        <main className={styles["container"]}>
+          <div className={styles["content"]}>
+            <h1 className={styles["title"]}>Forgot password?</h1>
+            <p className={styles["forgotPasswordBlurb"]} role="status">
+              Loading…
+            </p>
+          </div>
+        </main>
+      }
+    >
+      <ForgotPasswordContent />
+    </Suspense>
   );
 }

@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { PASSWORD_RESET_GATE_COOKIE } from "@/lib/auth/passwordResetGateConstants";
+
 const publicPathPrefixes = [
   "/auth",
   "/animation-test",
@@ -28,6 +30,20 @@ export async function updateSession(
     const url = request.nextUrl.clone();
     url.pathname = "/reset-password";
     return NextResponse.redirect(url);
+  }
+
+  const isResetPasswordPath =
+    path === "/reset-password" || path.startsWith("/reset-password/");
+  if (isResetPasswordPath) {
+    const hasGate =
+      request.cookies.get(PASSWORD_RESET_GATE_COOKIE)?.value === "1";
+    if (!pkceCode && !hasGate) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/forgot-password";
+      url.search = "";
+      url.searchParams.set("reset", "use-email-link");
+      return NextResponse.redirect(url);
+    }
   }
 
   if (request.nextUrl.pathname === "/") {
