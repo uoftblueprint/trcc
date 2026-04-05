@@ -16,6 +16,7 @@ import {
   Copy,
   ChevronLeft,
   ChevronRight,
+  Keyboard,
 } from "lucide-react";
 import { FilterTuple } from "@/lib/api/getVolunteersByMultipleColumns";
 import { FilterModal, filterModalAlignRight } from "./FilterModal";
@@ -37,6 +38,7 @@ interface TableToolbarProps {
   onDelete: () => void;
   onOpenAddVolunteer: () => void;
   onOpenImportCSV: () => void;
+  onOpenShortcuts: () => void;
   onOpenManageTags: () => void;
   hasEdits: boolean;
   isSaving: boolean;
@@ -68,6 +70,7 @@ export const TableToolbar = ({
   onDelete,
   onOpenAddVolunteer,
   onOpenImportCSV,
+  onOpenShortcuts,
   onOpenManageTags,
   hasEdits,
   isSaving,
@@ -153,9 +156,9 @@ export const TableToolbar = ({
   };
 
   const neutralBtn =
-    "inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-800 transition-colors hover:border-purple-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-200 focus-visible:ring-offset-2";
+    "inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-800 transition-colors hover:border-purple-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-200 focus-visible:ring-offset-2";
   const neutralBtnActive =
-    "inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-purple-300 bg-purple-100 px-3 text-sm font-medium text-purple-800 transition-colors hover:bg-purple-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-200 focus-visible:ring-offset-2";
+    "inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg border border-purple-300 bg-purple-100 px-3 text-sm font-medium text-purple-800 transition-colors hover:bg-purple-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-200 focus-visible:ring-offset-2";
 
   return (
     <div className="flex flex-col gap-3 min-w-0 xl:flex-row xl:items-center xl:justify-between xl:gap-4">
@@ -186,7 +189,7 @@ export const TableToolbar = ({
               />
               <button
                 type="button"
-                className="absolute left-0 top-1/2 z-20 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100/90 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-0"
+                className="absolute left-0 top-1/2 z-20 flex h-7 w-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100/90 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-0"
                 onClick={() => scrollTools("left")}
                 aria-label="Scroll tools left"
               >
@@ -202,7 +205,7 @@ export const TableToolbar = ({
               />
               <button
                 type="button"
-                className="absolute right-0 top-1/2 z-20 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100/90 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-0"
+                className="absolute right-0 top-1/2 z-20 flex h-7 w-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100/90 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-0"
                 onClick={() => scrollTools("right")}
                 aria-label="Scroll tools right"
               >
@@ -316,25 +319,34 @@ export const TableToolbar = ({
 
             {role === "admin" && (
               <button
-                onClick={onOpenAddVolunteer}
-                className="group flex items-center justify-start gap-2 w-10 hover:w-36 focus-visible:w-36 overflow-hidden px-3 py-2 bg-accent-purple hover:bg-dark-accent-purple transition-all duration-200 rounded-lg text-sm font-medium text-white shadow-sm"
+                type="button"
+                onClick={onOpenShortcuts}
+                className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg bg-primary-purple px-3 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-secondary-purple focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-200 focus-visible:ring-offset-2"
               >
-                <Plus className="w-4 h-4 shrink-0" />
-                <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
-                  New Volunteer
-                </span>
+                <Keyboard className="h-4 w-4 shrink-0" />
+                Shortcuts
               </button>
             )}
 
             {role === "admin" && (
               <button
-                onClick={onOpenImportCSV}
-                className="group flex items-center justify-start gap-2 w-10 hover:w-40 focus-visible:w-40 overflow-hidden px-3 py-2 bg-primary-purple hover:bg-secondary-purple transition-all duration-200 rounded-lg text-sm font-medium text-gray-900"
+                type="button"
+                onClick={onOpenAddVolunteer}
+                className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg bg-accent-purple px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-dark-accent-purple focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-200 focus-visible:ring-offset-2"
               >
-                <Import className="w-4 h-4 shrink-0" />
-                <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
-                  Import from CSV
-                </span>
+                <Plus className="h-4 w-4 shrink-0" />
+                New Volunteer
+              </button>
+            )}
+
+            {role === "admin" && (
+              <button
+                type="button"
+                onClick={onOpenImportCSV}
+                className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-800 transition-colors hover:border-purple-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-200 focus-visible:ring-offset-2"
+              >
+                <Import className="h-4 w-4 shrink-0" />
+                Import from CSV
               </button>
             )}
 
@@ -342,42 +354,12 @@ export const TableToolbar = ({
               <button
                 type="button"
                 onClick={onOpenManageTags}
-                className="group flex items-center justify-start gap-2 w-10 hover:w-36 focus-visible:w-36 overflow-hidden px-3 py-2 bg-primary-purple hover:bg-secondary-purple transition-all duration-200 rounded-lg text-sm font-medium text-gray-900"
+                className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg border border-purple-300 bg-purple-50 px-3 py-2 text-sm font-medium text-purple-900 transition-colors hover:border-purple-400 hover:bg-purple-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-200 focus-visible:ring-offset-2"
               >
-                <Tags className="w-4 h-4 shrink-0" />
-                <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
-                  Manage tags
-                </span>
+                <Tags className="h-4 w-4 shrink-0" />
+                Manage tags
               </button>
             )}
-
-            {(role === "admin" && selectedCount > 0) || hasEdits ? (
-              <div className="flex items-center gap-2 ml-auto animate-in fade-in slide-in-from-right-2 duration-200">
-                {role === "admin" && selectedCount > 0 && (
-                  <button
-                    onClick={onDelete}
-                    disabled={isDeleting}
-                    className="group flex items-center justify-start gap-2 w-10 hover:w-34 focus-visible:w-34 overflow-hidden px-3 py-2 bg-red-200 hover:bg-red-300 transition-all duration-200 rounded-lg text-sm font-medium text-red-900 disabled:opacity-50"
-                  >
-                    <Trash2 className="w-4 h-4 shrink-0" />
-                    <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
-                      {isDeleting ? "Deleting..." : "Delete"}
-                    </span>
-                  </button>
-                )}
-                {hasEdits && (
-                  <button
-                    onClick={onSave}
-                    className="group flex items-center justify-start gap-2 w-10 hover:w-32 focus-visible:w-32 overflow-hidden px-3 py-2 bg-green-200 hover:bg-green-300 transition-all duration-200 rounded-lg text-sm font-medium text-green-900"
-                  >
-                    <Save className="w-4 h-4 shrink-0" />
-                    <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
-                      Save
-                    </span>
-                  </button>
-                )}
-              </div>
-            ) : null}
           </div>
         </div>
       </div>
@@ -409,7 +391,7 @@ export const TableToolbar = ({
               title={`Copy ${selectedCellCount} selected cells (opens format menu)`}
               aria-expanded={isCopyMenuOpen}
               aria-haspopup="menu"
-              className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-800 transition-colors hover:border-purple-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-200 focus-visible:ring-offset-2"
+              className="relative inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-800 transition-colors hover:border-purple-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-200 focus-visible:ring-offset-2"
             >
               <span className="relative inline-flex">
                 <Copy className="h-4 w-4 shrink-0" aria-hidden />
@@ -491,7 +473,7 @@ export const TableToolbar = ({
                 disabled={!canUndo || isSaving}
                 title="Undo (⌘Z)"
                 aria-label="Undo last change"
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-200 disabled:cursor-not-allowed disabled:opacity-30"
+                className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-200 disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <Undo2 className="h-4 w-4 shrink-0" aria-hidden />
               </button>
@@ -501,7 +483,7 @@ export const TableToolbar = ({
                 disabled={!canRedo || isSaving}
                 title="Redo (⌘⇧Z)"
                 aria-label="Redo last undone change"
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-200 disabled:cursor-not-allowed disabled:opacity-30"
+                className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-200 disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <Redo2 className="h-4 w-4 shrink-0" aria-hidden />
               </button>
@@ -515,7 +497,7 @@ export const TableToolbar = ({
               onClick={onViewChanges}
               disabled={!hasEdits || isSaving}
               aria-label={`View pending changes (${pendingChangesCount})`}
-              className="inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-purple-100 px-3 text-sm font-medium text-purple-800 transition-colors hover:bg-purple-200/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg bg-purple-100 px-3 text-sm font-medium text-purple-800 transition-colors hover:bg-purple-200/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Eye className="h-4 w-4 shrink-0" />
               View Changes ({pendingChangesCount})
@@ -525,7 +507,7 @@ export const TableToolbar = ({
               onClick={onCancel}
               disabled={isSaving}
               aria-label="Cancel edits"
-              className="inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-gray-100 px-3 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-200/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg bg-gray-100 px-3 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-200/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <X className="h-4 w-4 shrink-0" />
               Cancel
@@ -535,7 +517,7 @@ export const TableToolbar = ({
               onClick={onSave}
               disabled={isSaving || !hasEdits}
               aria-label="Save changes"
-              className="inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-green-200 px-3 text-sm font-medium text-green-900 transition-colors hover:bg-green-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg bg-green-200 px-3 text-sm font-medium text-green-900 transition-colors hover:bg-green-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Save className="h-4 w-4 shrink-0" />
               {isSaving ? "Saving..." : "Save Changes"}
@@ -558,7 +540,7 @@ export const TableToolbar = ({
                   ? "Deleting selected volunteers"
                   : `Delete ${selectedCount} selected volunteers`
               }
-              className="inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border-0 bg-red-500 px-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg border-0 bg-red-500 px-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Trash2 className="h-4 w-4 shrink-0" />
               {isDeleting ? "Deleting..." : `Delete (${selectedCount})`}

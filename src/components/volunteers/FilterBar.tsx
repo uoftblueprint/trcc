@@ -1,11 +1,22 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { FilterTuple } from "@/lib/api/getVolunteersByMultipleColumns";
-import { ChevronDown, Plus, X, ShieldCheck, AlertTriangle } from "lucide-react";
+import {
+  ChevronDown,
+  Plus,
+  X,
+  ShieldCheck,
+  AlertTriangle,
+  Filter,
+} from "lucide-react";
 import { SortingState } from "@tanstack/react-table";
 import clsx from "clsx";
 import { FILTERABLE_COLUMNS } from "./volunteerColumns";
 import { FilterModal, filterModalAlignRight } from "./FilterModal";
 import { DEFAULT_OPT_IN_FILTER } from "./useVolunteersData";
+import {
+  BLANK_FIELD_FILTER_VALUE,
+  CONTACT_INCOMPLETE_FIELD,
+} from "@/lib/volunteerFilterShortcuts";
 
 function isDefaultFilter(filter: FilterTuple): boolean {
   return (
@@ -18,6 +29,30 @@ function isDefaultFilter(filter: FilterTuple): boolean {
 
 function columnFilterCount(filters: FilterTuple[]): number {
   return filters.filter((f) => f.field !== DEFAULT_OPT_IN_FILTER.field).length;
+}
+
+function isShortcutPresetFilter(f: FilterTuple): boolean {
+  if (f.field === CONTACT_INCOMPLETE_FIELD) return true;
+  if (
+    (f.field === "email" || f.field === "phone") &&
+    f.values[0] === BLANK_FIELD_FILTER_VALUE
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function shortcutPresetLabel(f: FilterTuple): string | null {
+  if (f.field === "email" && f.values[0] === BLANK_FIELD_FILTER_VALUE) {
+    return "Missing email";
+  }
+  if (f.field === "phone" && f.values[0] === BLANK_FIELD_FILTER_VALUE) {
+    return "Missing phone";
+  }
+  if (f.field === CONTACT_INCOMPLETE_FIELD) {
+    return "Missing email or phone";
+  }
+  return null;
 }
 
 type OptInWarningVariant = "remove" | "include-no";
@@ -162,6 +197,9 @@ export const FilterBar = ({
   if (filters.length === 0 && sorting.length === 0) return null;
 
   const handleEditClick = (e: React.MouseEvent, index: number): void => {
+    const target = filters[index];
+    if (target && isShortcutPresetFilter(target)) return;
+
     setIsAddingNew(false);
     setNewAnchorRect(null);
     if (editingIndex === index) {
@@ -314,6 +352,15 @@ export const FilterBar = ({
             const isCurrentlyEditing = editingIndex === index;
             const Icon = colDef?.icon;
             const isDefault = isDefaultFilter(filter);
+            const presetShortcut = shortcutPresetLabel(filter);
+            const isPreset = isShortcutPresetFilter(filter);
+
+            const chipStyle = clsx(
+              "flex h-9 items-center gap-2 rounded-lg border text-sm font-medium transition-colors",
+              isDefault
+                ? "border-emerald-200/90 bg-emerald-50 text-emerald-900"
+                : "border-gray-200 bg-white text-gray-900"
+            );
 
             return (
               <div
@@ -323,36 +370,67 @@ export const FilterBar = ({
                   isCurrentlyEditing ? "z-50" : "z-10"
                 )}
               >
-                <button
-                  type="button"
-                  onClick={(e) => handleEditClick(e, index)}
-                  aria-expanded={isCurrentlyEditing}
-                  aria-haspopup="dialog"
-                  title={
-                    isDefault
-                      ? "Default privacy filter — click to edit or remove"
-                      : `Filter by ${colDef?.label ?? filter.field} — click to edit`
-                  }
-                  className={clsx(
-                    "flex h-9 cursor-pointer items-center gap-2 rounded-lg border px-2.5 text-sm font-medium transition-colors",
-                    "focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-1",
-                    isDefault
-                      ? "border-emerald-200/90 bg-emerald-50 text-emerald-900 hover:bg-emerald-100"
-                      : "border-gray-200 bg-white text-gray-900 hover:border-gray-300 hover:bg-white"
-                  )}
-                >
-                  {isDefault ? (
-                    <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-gray-600" />
-                  ) : (
-                    Icon && (
+                {isPreset ? (
+                  <div
+                    className={clsx(
+                      chipStyle,
+                      "cursor-default pr-0.5 focus-within:ring-2 focus-within:ring-gray-300 focus-within:ring-offset-1"
+                    )}
+                    title="Shortcut filter from Shortcuts panel"
+                  >
+                    {Icon ? (
+                      <Icon className="ml-2.5 h-3.5 w-3.5 shrink-0 text-gray-600" />
+                    ) : (
+                      <Filter className="ml-2.5 h-3.5 w-3.5 shrink-0 text-gray-600" />
+                    )}
+                    <span className="max-w-44 truncate whitespace-nowrap sm:max-w-60">
+                      {presetShortcut}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFilters((prev) =>
+                          prev.filter((_, i) => i !== index)
+                        );
+                        setEditingIndex(null);
+                        setEditAnchorRect(null);
+                      }}
+                      className="mr-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                      aria-label="Remove filter"
+                      title="Remove filter"
+                    >
+                      <X className="h-3.5 w-3.5" strokeWidth={2} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(e) => handleEditClick(e, index)}
+                    aria-expanded={isCurrentlyEditing}
+                    aria-haspopup="dialog"
+                    title={
+                      isDefault
+                        ? "Default privacy filter — click to edit or remove"
+                        : `Filter by ${colDef?.label ?? filter.field} — click to edit`
+                    }
+                    className={clsx(
+                      chipStyle,
+                      "cursor-pointer px-2.5 hover:border-gray-300 hover:bg-white",
+                      "focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-1",
+                      isDefault && "hover:bg-emerald-100"
+                    )}
+                  >
+                    {isDefault ? (
+                      <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-gray-600" />
+                    ) : Icon ? (
                       <Icon className="h-3.5 w-3.5 shrink-0 text-gray-600" />
-                    )
-                  )}
-                  <span className="max-w-48 truncate whitespace-nowrap sm:max-w-64">
-                    {isDefault ? "Opt-in (default)" : colDef?.label}
-                  </span>
-                  <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-500" />
-                </button>
+                    ) : null}
+                    <span className="max-w-48 truncate whitespace-nowrap sm:max-w-64">
+                      {isDefault ? "Opt-in (default)" : colDef?.label}
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-500" />
+                  </button>
+                )}
 
                 <FilterModal
                   isOpen={isCurrentlyEditing}

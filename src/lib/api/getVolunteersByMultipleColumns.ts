@@ -3,6 +3,11 @@
 import { createClient } from "../client/supabase/server";
 import type { Database } from "../client/supabase/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  BLANK_FIELD_FILTER_VALUE,
+  CONTACT_INCOMPLETE_FIELD,
+  CONTACT_INCOMPLETE_FILTER_VALUE,
+} from "../volunteerFilterShortcuts";
 
 const OP = {
   AND: "AND",
@@ -37,6 +42,7 @@ const ALLOWED_FIELDS = [
   "prior_roles",
   "future_interests",
   "cohorts",
+  CONTACT_INCOMPLETE_FIELD,
 ];
 
 export type FilterTuple = {
@@ -88,6 +94,9 @@ export async function getVolunteersByMultipleColumns(
 
   try {
     const promises = cleanFiltersList.map(async (f) => {
+      if (f.field === CONTACT_INCOMPLETE_FIELD) {
+        return filterIdsContactIncomplete(client);
+      }
       if (
         f.field === "current_roles" ||
         f.field === "prior_roles" ||
@@ -173,7 +182,14 @@ export async function validateMultipleColumnFilter(
     if (!Array.isArray(f.values) || f.values.length === 0)
       return { valid: false, error: "Invalid filter values" };
 
-    if (f.field === "cohorts") {
+    if (f.field === CONTACT_INCOMPLETE_FIELD) {
+      if (
+        f.values.length !== 1 ||
+        f.values[0] !== CONTACT_INCOMPLETE_FILTER_VALUE
+      ) {
+        return { valid: false, error: "Invalid contact_incomplete filter" };
+      }
+    } else if (f.field === "cohorts") {
       const invalid = f.values.some(
         (v) =>
           !Array.isArray(v) ||
@@ -271,6 +287,63 @@ function ilikeSubstringPattern(term: string): string {
   return `%${term}%`;
 }
 
+/** True when value is null/undefined or only whitespace (matches table “empty” display). */
+function isBlankText(value: string | null | undefined): boolean {
+  return (value ?? "").trim() === "";
+}
+
+async function filterIdsBlankTextField(
+  client: SupabaseClient<Database>,
+  field: string
+): Promise<Set<number>> {
+  if (field === "email") {
+    const { data, error } = await client.from("Volunteers").select("id, email");
+    if (error) throw error;
+    const ids = new Set<number>();
+    for (const r of data ?? []) {
+      if (isBlankText(r.email)) ids.add(r.id);
+    }
+    return ids;
+  }
+  if (field === "phone") {
+    const { data, error } = await client.from("Volunteers").select("id, phone");
+    if (error) throw error;
+    const ids = new Set<number>();
+    for (const r of data ?? []) {
+      if (isBlankText(r.phone)) ids.add(r.id);
+    }
+    return ids;
+  }
+
+  const [nullRows, emptyRows] = await Promise.all([
+    client.from("Volunteers").select("id").is(field, null),
+    client.from("Volunteers").select("id").eq(field, ""),
+  ]);
+  if (nullRows.error) throw nullRows.error;
+  if (emptyRows.error) throw emptyRows.error;
+  const ids = new Set<number>();
+  for (const r of nullRows.data ?? []) ids.add(r.id);
+  for (const r of emptyRows.data ?? []) ids.add(r.id);
+  return ids;
+}
+
+/** Volunteers missing email and/or phone (null, empty, or whitespace-only). */
+async function filterIdsContactIncomplete(
+  client: SupabaseClient<Database>
+): Promise<Set<number>> {
+  const { data, error } = await client
+    .from("Volunteers")
+    .select("id, email, phone");
+  if (error) throw error;
+  const ids = new Set<number>();
+  for (const row of data ?? []) {
+    if (isBlankText(row.email) || isBlankText(row.phone)) {
+      ids.add(row.id);
+    }
+  }
+  return ids;
+}
+
 async function filterIdsByGeneral(
   client: SupabaseClient<Database>,
   field: string,
@@ -283,6 +356,13 @@ async function filterIdsByGeneral(
   let query = client.from("Volunteers").select("id");
 
   if (TEXT_SUBSTRING_MATCH_FIELDS.has(field)) {
+    if (
+      uniqueValues.length === 1 &&
+      uniqueValues[0] === BLANK_FIELD_FILTER_VALUE
+    ) {
+      return filterIdsBlankTextField(client, field);
+    }
+
     const patterns = values.map((v) => ilikeSubstringPattern(v));
     if (op === OP.OR) {
       if (patterns.length === 1) {
