@@ -4,6 +4,13 @@ import { Tables } from "../client/supabase/types";
 
 type ImportCSVStatus = "success" | "partial_success" | "failed";
 
+type RowParseWarning = {
+  rowIndex: number;
+  column?: string;
+  value?: string;
+  message: string;
+};
+
 type ImportCSVResponse = {
   status: ImportCSVStatus;
   summary: {
@@ -17,6 +24,8 @@ type ImportCSVResponse = {
     dbDuplicates: number;
   };
   parseErrors: RowParseError[];
+  /** Non-fatal issues (e.g. invalid cohort text — volunteer still imported without that cohort). */
+  parseWarnings: RowParseWarning[];
   dbErrors: RowDbError[];
 };
 
@@ -56,12 +65,7 @@ const RAW_TO_VALID_ROLE_NAME: Record<string, string> = {
   [RawCol.BOARD_MEMBER]: "Board Member",
 };
 
-const REQUIRED_HEADERS: string[] = [
-  RawCol.VOLUNTEER,
-  RawCol.EMAIL,
-  RawCol.POSITION,
-  RawCol.COHORT,
-];
+const REQUIRED_HEADERS: string[] = [RawCol.VOLUNTEER, RawCol.EMAIL];
 
 function validateHeaders(fields: string[]): string[] {
   const lowerFields = new Set(fields.map((f) => f.toLowerCase().trim()));
@@ -92,6 +96,7 @@ type RowParseError = {
 type ParseRowsResult = {
   volunteers: ParsedVolunteer[];
   rowErrors: RowParseError[];
+  rowWarnings: RowParseWarning[];
 };
 
 type ParseRowsInput = {
@@ -103,6 +108,7 @@ type ParseRowResult =
   | {
       ok: true;
       parsedVolunteer: ParsedVolunteer;
+      rowWarnings: RowParseWarning[];
     }
   | {
       ok: false;
@@ -150,23 +156,43 @@ function normalizeNullable(value: string | undefined): string | null {
  * @returns true if the position was successfully parsed, false otherwise
  */
 function parsePosition(position: string, result: ParsedVolunteer): boolean {
-  if (position.includes("EBU")) {
+  const trimmed = position.trim();
+  if (trimmed === "") {
+    return false;
+  }
+
+  const lower = trimmed.toLowerCase();
+
+  if (trimmed.includes("EBU")) {
     result.roles.push({ name: "Emergency Back-up", status: "current" });
     result.position = "volunteer";
     return true;
-  } else if (position.includes("CL")) {
+  }
+  if (trimmed.includes("CL")) {
     result.roles.push({ name: "Crisis Line Counsellor", status: "current" });
     result.position = "volunteer";
     return true;
-  } else if (position.toLowerCase().includes("staff")) {
+  }
+  if (lower.includes("staff")) {
     result.position = "staff";
     return true;
-  } else if (position.toLowerCase().includes("training")) {
+  }
+  if (lower.includes("training")) {
     result.position = "volunteer";
     return true;
   }
+  if (lower.includes("volunteer")) {
+    result.position = "volunteer";
+    return true;
+  }
+  if (lower.includes("member")) {
+    result.position = "member";
+    return true;
+  }
 
-  return false;
+  // Other titles (e.g. Coordinator, Facilitator) map to volunteer — allowed DB values are member | volunteer | staff
+  result.position = "volunteer";
+  return true;
 }
 
 function validateEmail(email: string): boolean {
@@ -237,6 +263,7 @@ function parseRow(
 
   const result = createEmptyVolunteer();
   const rowParseErrors: RowParseError[] = [];
+  const rowWarnings: RowParseWarning[] = [];
 
   result.index = rowIndex;
   result.pronouns = normalizeNullable(rowData[RawCol.PRONOUNS]);
@@ -263,7 +290,7 @@ function parseRow(
         column: RawCol.POSITION,
         value: positionValue,
         message:
-          "Invalid position value. Non-empty values must contain strings 'EBU', 'CL' or 'Staff'",
+          "Invalid position. If this cell has text, it needs to include CL, EBU, Staff, or Training.",
       });
     }
   }
@@ -272,11 +299,13 @@ function parseRow(
   if (emailValue) {
     const isValidEmail = validateEmail(emailValue);
     if (!isValidEmail) {
-      rowParseErrors.push({
+      result.email = null;
+      rowWarnings.push({
         rowIndex,
         column: RawCol.EMAIL,
         value: emailValue,
-        message: "Invalid email format.",
+        message:
+          "Email not applied — text is not a valid address. Volunteer was still imported without this email.",
       });
     } else {
       result.email = emailValue;
@@ -287,11 +316,13 @@ function parseRow(
   if (cohortValue) {
     const isValidCohort = parseCohort(cohortValue, result);
     if (!isValidCohort) {
-      rowParseErrors.push({
+      // Import volunteer without cohort; surface as warning when the row otherwise succeeds
+      rowWarnings.push({
         rowIndex,
         column: RawCol.COHORT,
         value: cohortValue,
-        message: "Invalid cohort format.",
+        message:
+          "Cohort not applied — format was not recognized. Volunteer was still imported without this cohort.",
       });
     }
   }
@@ -308,11 +339,11 @@ function parseRow(
       ) {
         const isValidRole = parseRole(rowData[rawRoleColumn], roleName, result);
         if (!isValidRole) {
-          rowParseErrors.push({
+          rowWarnings.push({
             rowIndex,
             column: rawRoleColumn,
             value: roleValue,
-            message: "Invalid role status.",
+            message: `Role not applied — could not read status for ${roleName}. Volunteer was still imported without this role.`,
           });
         }
       }
@@ -329,6 +360,7 @@ function parseRow(
   return {
     ok: true,
     parsedVolunteer: result,
+    rowWarnings,
   };
 }
 
@@ -336,6 +368,7 @@ function parseRow(
 function parseRows(rows: ParseRowsInput[]): ParseRowsResult {
   const volunteers: ParsedVolunteer[] = [];
   const rowErrors: RowParseError[] = [];
+  const rowWarnings: RowParseWarning[] = [];
 
   rows.forEach(({ rowData, rowIndex }) => {
     const parseResult = parseRow(rowData, rowIndex);
@@ -345,10 +378,11 @@ function parseRows(rows: ParseRowsInput[]): ParseRowsResult {
       return;
     }
 
+    rowWarnings.push(...parseResult.rowWarnings);
     volunteers.push(parseResult.parsedVolunteer);
   });
 
-  return { volunteers, rowErrors };
+  return { volunteers, rowErrors, rowWarnings };
 }
 
 /**
@@ -359,7 +393,12 @@ function parseRows(rows: ParseRowsInput[]): ParseRowsResult {
  * 1. ParseError:
  *    - Occurs when PapaParse fails to parse a CSV row, or when one or more values
  *      in a row do not match the expected format from the Blank Membership List.
- *    - These errors are reported in `summary.parseErrors`.
+ *    - These errors are reported in `parseErrors`.
+ *
+ * 1b. ParseWarning (non-fatal):
+ *    - Invalid cohort, invalid email, or unreadable role cell: the row is still imported;
+ *      that field is omitted (null email, no cohort link, or no role added).
+ *    - Reported in `parseWarnings`.
  *
  * 2. DbError:
  *    - Occurs when a row fails to be upserted into one of the database tables:
@@ -409,6 +448,7 @@ export async function import_csv(
           message: `CSV is missing required header(s): ${missingHeaders.join(", ")}`,
         },
       ],
+      parseWarnings: [],
       dbErrors: [],
     };
   }
@@ -444,7 +484,11 @@ export async function import_csv(
     })
     .filter(({ rowIndex }) => !papaErrorRowIndexes.has(rowIndex));
 
-  const { volunteers, rowErrors: rowParseErrors } = parseRows(lowerCasedRows);
+  const {
+    volunteers,
+    rowErrors: rowParseErrors,
+    rowWarnings: rowParseWarnings,
+  } = parseRows(lowerCasedRows);
   const rowDbErrors: RowDbError[] = [];
   let dbSucceeded = 0;
   let dbFailed = 0;
@@ -574,6 +618,7 @@ export async function import_csv(
       dbDuplicates: dbUpdatedNoChanges,
     },
     parseErrors: [...papaParseErrors, ...rowParseErrors],
+    parseWarnings: rowParseWarnings,
     dbErrors: rowDbErrors,
   };
 }
