@@ -52,6 +52,36 @@ describe("import_csv helper functions", () => {
       ]);
     });
 
+    it("parses EBU and CL case-insensitively as whole tokens", () => {
+      const ebuLower = createEmptyVolunteer();
+      expect(parsePosition("ebu", ebuLower)).toBe(true);
+      expect(ebuLower.position).toBe("volunteer");
+      expect(ebuLower.roles).toEqual([
+        { name: "Emergency Back-up", status: "current" },
+      ]);
+
+      const ebuMixed = createEmptyVolunteer();
+      expect(parsePosition("3. ebu", ebuMixed)).toBe(true);
+      expect(ebuMixed.roles[0]?.name).toBe("Emergency Back-up");
+
+      const clLower = createEmptyVolunteer();
+      expect(parsePosition("cl", clLower)).toBe(true);
+      expect(clLower.roles).toEqual([
+        { name: "Crisis Line Counsellor", status: "current" },
+      ]);
+
+      const clMixed = createEmptyVolunteer();
+      expect(parsePosition("1. Cl (First Year)", clMixed)).toBe(true);
+      expect(clMixed.roles[0]?.name).toBe("Crisis Line Counsellor");
+    });
+
+    it("does not treat letters cl inside another word as Crisis Line", () => {
+      const result = createEmptyVolunteer();
+      expect(parsePosition("decline to answer", result)).toBe(true);
+      expect(result.position).toBe("volunteer");
+      expect(result.roles).toEqual([]);
+    });
+
     it("parses staff case-insensitively", () => {
       const result = createEmptyVolunteer();
       const ok = parsePosition("StaFf", result);

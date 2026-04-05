@@ -135,6 +135,10 @@ function createEmptyVolunteer(): ParsedVolunteer {
   };
 }
 
+/** Case-insensitive whole-token match (avoids e.g. matching "cl" inside "decline"). */
+const POSITION_EBU_TOKEN = /\bebu\b/i;
+const POSITION_CL_TOKEN = /\bcl\b/i;
+
 function normalizeNullable(value: string | undefined): string | null {
   // field don't exist in the raw papaparse result
   if (value === undefined) {
@@ -163,12 +167,12 @@ function parsePosition(position: string, result: ParsedVolunteer): boolean {
 
   const lower = trimmed.toLowerCase();
 
-  if (trimmed.includes("EBU")) {
+  if (POSITION_EBU_TOKEN.test(trimmed)) {
     result.roles.push({ name: "Emergency Back-up", status: "current" });
     result.position = "volunteer";
     return true;
   }
-  if (trimmed.includes("CL")) {
+  if (POSITION_CL_TOKEN.test(trimmed)) {
     result.roles.push({ name: "Crisis Line Counsellor", status: "current" });
     result.position = "volunteer";
     return true;
