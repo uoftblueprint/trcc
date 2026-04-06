@@ -118,16 +118,26 @@ export function VolunteersHelpContent({
             <h3 className="font-semibold text-gray-900 mb-1.5">Admin tools</h3>
             <ul className="list-disc pl-5 space-y-1">
               <li>
+                Use <strong>Columns</strong> to reorder or show/hide columns,
+                and to add or remove <strong>custom columns</strong> (text,
+                number, Yes/No, or tags). Tag columns with a preset list are
+                pick-only; with no list, you can type new tags in the cell like
+                roles or cohorts—then <strong>Save Changes</strong>.
+              </li>
+              <li>
                 <strong>New Volunteer</strong> and{" "}
-                <strong>Import from CSV</strong> add rows to the table.
+                <strong>Import from CSV</strong> add rows to the table (CSV can
+                include optional{" "}
+                <code className="text-xs">custom:column_key</code> headers for
+                custom fields when those columns exist).
               </li>
               <li>
                 Select rows with the checkboxes, then <strong>Delete</strong> to
                 remove volunteers (you’ll confirm in a dialog).
               </li>
               <li>
-                New tags (roles, cohorts) can be typed in the cell editor; save
-                to persist them.
+                New tags for roles, cohorts, and freeform custom tag columns can
+                be typed in the cell editor; save to persist them.
               </li>
             </ul>
           </section>

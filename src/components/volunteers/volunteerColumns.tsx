@@ -14,7 +14,23 @@ import {
   List,
   TextAlignStart,
   Bell,
+  ToggleLeft,
 } from "lucide-react";
+import type { CustomColumnRow } from "@/lib/api/customColumns";
+import { sanitizeHiddenColumnIds } from "@/lib/volunteerTable/columnVisibility";
+import {
+  CUSTOM_COLUMN_ID_PREFIX,
+  tableIdForCustomColumn,
+  parseCustomColumnTableId,
+  orderedColumnIds,
+} from "@/lib/volunteerTable/columnOrder";
+
+export {
+  CUSTOM_COLUMN_ID_PREFIX,
+  tableIdForCustomColumn,
+  parseCustomColumnTableId,
+  orderedColumnIds,
+};
 
 type FilterType = "text" | "options" | null;
 
@@ -173,16 +189,286 @@ export const NEW_VOLUNTEER_FORM_COLUMNS = COLUMNS_CONFIG.filter(
   (col) => col.id !== ("volunteer_id" as keyof Volunteer)
 );
 
-export const FILTERABLE_COLUMNS = COLUMNS_CONFIG.filter(
+export type FilterableColumnDesc = {
+  id: string;
+  label: string;
+  type: "text" | "options" | "number";
+  icon: React.ElementType;
+  isMulti: boolean;
+};
+
+export const FILTERABLE_COLUMNS: FilterableColumnDesc[] = COLUMNS_CONFIG.filter(
   (col) => col.filterType !== null
 ).map((col) => ({
-  id: col.id,
+  id: String(col.id),
   label: col.label,
   type: col.filterType as "text" | "options",
   icon: col.icon,
   isMulti: col.isMulti ?? false,
 }));
 
+export const FUNDAMENTAL_COLUMN_IDS = [
+  "volunteer_id",
+  "name_org",
+  "email",
+  "phone",
+] as const;
+
+export function getVolunteerCustomDataMap(
+  v: Volunteer
+): Record<string, unknown> {
+  const cd = v.custom_data;
+  if (cd && typeof cd === "object" && !Array.isArray(cd)) {
+    return cd as Record<string, unknown>;
+  }
+  return {};
+}
+
+/** Same rules as undo/save: compares one custom_data value to the server baseline. */
+export function editedCustomValueMatchesOriginal(
+  originalVal: unknown,
+  editedVal: unknown
+): boolean {
+  if (Array.isArray(editedVal) && Array.isArray(originalVal)) {
+    return (
+      JSON.stringify([...(editedVal as string[])].sort()) ===
+      JSON.stringify([...(originalVal as string[])].sort())
+    );
+  }
+  if (Array.isArray(editedVal) || Array.isArray(originalVal)) {
+    return false;
+  }
+  if (typeof editedVal === "boolean" || typeof originalVal === "boolean") {
+    return editedVal === originalVal;
+  }
+  if (typeof editedVal === "number" || typeof originalVal === "number") {
+    return editedVal === originalVal;
+  }
+  const norm = (v: unknown): string =>
+    v === null || v === undefined ? "" : String(v);
+  return norm(editedVal) === norm(originalVal);
+}
+
+/** True if this custom column key is part of the edit overlay and differs from the row baseline. */
+export function isCustomColumnCellModified(
+  originalRow: Volunteer,
+  customKey: string,
+  edit: Partial<Volunteer> | undefined
+): boolean {
+  if (
+    !edit?.custom_data ||
+    typeof edit.custom_data !== "object" ||
+    Array.isArray(edit.custom_data)
+  ) {
+    return false;
+  }
+  const m = edit.custom_data as Record<string, unknown>;
+  if (!Object.prototype.hasOwnProperty.call(m, customKey)) return false;
+  const origVal = getVolunteerCustomDataMap(originalRow)[customKey];
+  return !editedCustomValueMatchesOriginal(origVal, m[customKey]);
+}
+
+export function customColumnIcon(dataType: string): React.ElementType {
+  if (dataType === "number") return Hash;
+  if (dataType === "boolean") return ToggleLeft;
+  if (dataType === "tag") return List;
+  return CaseSensitive;
+}
+
+export function buildFilterableColumnList(
+  customColumns: CustomColumnRow[]
+): FilterableColumnDesc[] {
+  const builtIn = FILTERABLE_COLUMNS;
+  const custom: FilterableColumnDesc[] = customColumns.map((c) => {
+    const id = tableIdForCustomColumn(c.column_key);
+    if (c.data_type === "text") {
+      return {
+        id,
+        label: c.name,
+        type: "text",
+        icon: customColumnIcon(c.data_type),
+        isMulti: false,
+      };
+    }
+    if (c.data_type === "number") {
+      return {
+        id,
+        label: c.name,
+        type: "number",
+        icon: customColumnIcon(c.data_type),
+        isMulti: false,
+      };
+    }
+    return {
+      id,
+      label: c.name,
+      type: "options",
+      icon: customColumnIcon(c.data_type),
+      isMulti: c.data_type === "tag" ? Boolean(c.is_multi) : false,
+    };
+  });
+  return [...builtIn, ...custom];
+}
+
+const renderCustomBooleanTag = (
+  info: CellContext<Volunteer, unknown>
+): React.JSX.Element => {
+  const value = info.getValue();
+  if (value === true) return <VolunteerTag label="Yes" />;
+  if (value === false) return <VolunteerTag label="No" />;
+  return <></>;
+};
+
+const renderCustomNumber = (
+  info: CellContext<Volunteer, unknown>
+): React.JSX.Element => {
+  const value = info.getValue();
+  if (value === null || value === undefined || value === "") return <></>;
+  return (
+    <span className="tabular-nums text-right block w-full">
+      {String(value)}
+    </span>
+  );
+};
+
+export function buildDynamicColumns(
+  customColumns: CustomColumnRow[],
+  userPrefs: {
+    column_order: string[];
+    hidden_columns: string[];
+    prefs_updated_at?: string | null;
+  },
+  isAdmin: boolean,
+  onEdit?: (rowId: number, colId: string, value: unknown) => void,
+  optionsData: Record<string, string[]> = {}
+): ColumnDef<Volunteer>[] {
+  const builtInIds = COLUMNS_CONFIG.map((c) => String(c.id));
+  const hidden = new Set(sanitizeHiddenColumnIds(userPrefs.hidden_columns));
+
+  let ordered = orderedColumnIds(
+    builtInIds,
+    customColumns,
+    userPrefs.column_order,
+    userPrefs.prefs_updated_at ?? null
+  );
+
+  ordered = ordered.filter((id) => !hidden.has(id));
+
+  const idColumnFirst = "volunteer_id";
+  ordered = ordered.filter((id) => id !== idColumnFirst);
+  if (!hidden.has(idColumnFirst)) {
+    ordered = [idColumnFirst, ...ordered];
+  }
+
+  const builtInById = new Map(
+    COLUMNS_CONFIG.map((c) => [String(c.id), c] as const)
+  );
+  const customByKey = new Map(
+    customColumns.map((c) => [c.column_key, c] as const)
+  );
+
+  const defs: ColumnDef<Volunteer>[] = ordered.map((colId) => {
+    const builtIn = builtInById.get(colId);
+    if (builtIn) {
+      const col = builtIn;
+      const isEditable =
+        isAdmin &&
+        onEdit !== undefined &&
+        col.id !== ("volunteer_id" as keyof Volunteer);
+
+      return {
+        id: col.id as string,
+        header: () => <HeaderWithIcon icon={col.icon} label={col.label} />,
+        size: col.size,
+        sortDescFirst: false,
+        ...(col.accessorFn
+          ? { accessorFn: col.accessorFn }
+          : { accessorKey: col.id }),
+
+        ...(isEditable && onEdit
+          ? {
+              cell: (info: CellContext<Volunteer, unknown>) => (
+                <EditableCell
+                  info={info}
+                  onEdit={onEdit}
+                  type={col.filterType === "options" ? "options" : "text"}
+                  isMulti={col.isMulti ?? false}
+                  options={optionsData[col.id as string] || []}
+                />
+              ),
+            }
+          : col.cell
+            ? { cell: col.cell }
+            : {}),
+      } as ColumnDef<Volunteer>;
+    }
+
+    const customKey = parseCustomColumnTableId(colId);
+    const cc = customKey ? customByKey.get(customKey) : undefined;
+    if (!cc) {
+      return {
+        id: colId,
+        header: colId,
+        size: 120,
+      } as ColumnDef<Volunteer>;
+    }
+
+    const icon = customColumnIcon(cc.data_type);
+    const accessorFn = (row: Volunteer): unknown =>
+      getVolunteerCustomDataMap(row)[cc.column_key] ?? null;
+
+    const isEditable = isAdmin && onEdit !== undefined;
+
+    let readCell:
+      | ((info: CellContext<Volunteer, unknown>) => React.JSX.Element)
+      | undefined;
+
+    if (cc.data_type === "number") {
+      readCell = renderCustomNumber;
+    } else if (cc.data_type === "boolean") {
+      readCell = renderCustomBooleanTag;
+    } else if (cc.data_type === "tag") {
+      readCell = cc.is_multi ? renderMultiTags : renderSingleTag;
+    }
+
+    const editableType =
+      cc.data_type === "tag"
+        ? "options"
+        : cc.data_type === "number"
+          ? "number"
+          : cc.data_type === "boolean"
+            ? "boolean"
+            : "text";
+
+    return {
+      id: colId,
+      header: () => <HeaderWithIcon icon={icon} label={cc.name} />,
+      size: 140,
+      sortDescFirst: false,
+      accessorFn,
+      ...(isEditable && onEdit
+        ? {
+            cell: (info: CellContext<Volunteer, unknown>) => (
+              <EditableCell
+                info={info}
+                onEdit={onEdit}
+                type={editableType}
+                isMulti={Boolean(cc.is_multi)}
+                options={optionsData[colId] || cc.tag_options || []}
+                allowAddTags={cc.data_type === "tag"}
+              />
+            ),
+          }
+        : readCell
+          ? { cell: readCell }
+          : {}),
+    } as ColumnDef<Volunteer>;
+  });
+
+  return defs;
+}
+
+/** @deprecated Use buildDynamicColumns with custom columns + preferences */
 export const getBaseColumns = (
   isAdmin: boolean = false,
   onEdit?: (rowId: number, colId: string, value: unknown) => void,

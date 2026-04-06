@@ -48,6 +48,8 @@ function formatFilterTupleForApi(f: FilterTuple): FilterTuple {
 interface UseVolunteersDataProps {
   isAdmin: boolean;
   editedRowsRef: React.RefObject<Record<number, Partial<Volunteer>>>;
+  /** Used to re-merge table rows when edits change without re-fetching filters (ref alone does not trigger effects). */
+  editedRows: Record<number, Partial<Volunteer>>;
 }
 
 export interface UseVolunteersDataReturn {
@@ -80,6 +82,7 @@ export interface UseVolunteersDataReturn {
 export const useVolunteersData = ({
   isAdmin,
   editedRowsRef,
+  editedRows,
 }: UseVolunteersDataProps): UseVolunteersDataReturn => {
   const [data, setData] = useState<Volunteer[]>([]);
   const [allVolunteers, setAllVolunteers] = useState<Volunteer[]>([]);
@@ -95,6 +98,13 @@ export const useVolunteersData = ({
   const [globalOp, setGlobalOp] = useState<"AND" | "OR">("AND");
   const debouncedFilters = useDebounce(filters);
   const debouncedGlobalOp = useDebounce(globalOp);
+
+  /** Last successful column-filter id set (opt-in + column filters). Used to re-apply row overlays when `editedRows` changes. */
+  const lastFilteredIdsRef = useRef<Set<number> | null>(null);
+  const allVolunteersRef = useRef<Volunteer[]>(allVolunteers);
+  const debouncedFiltersRef = useRef<FilterTuple[]>(debouncedFilters);
+  allVolunteersRef.current = allVolunteers;
+  debouncedFiltersRef.current = debouncedFilters;
 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -121,6 +131,12 @@ export const useVolunteersData = ({
 
         return {
           ...entry.volunteer,
+          custom_data:
+            entry.volunteer.custom_data &&
+            typeof entry.volunteer.custom_data === "object" &&
+            !Array.isArray(entry.volunteer.custom_data)
+              ? entry.volunteer.custom_data
+              : {},
           cohorts: entry.cohorts.map(formatTag).sort(sortCohorts),
           current_roles: entry.roles
             .filter((r) => r.type === "current")
@@ -190,6 +206,7 @@ export const useVolunteersData = ({
       }
 
       if (debouncedFilters.length === 0) {
+        lastFilteredIdsRef.current = null;
         setData(
           allVolunteers.map((v) =>
             editedRowsRef.current && editedRowsRef.current[v.id]
@@ -255,6 +272,7 @@ export const useVolunteersData = ({
         if (!ignore) {
           if (filterResult.error) throw new Error(filterResult.error);
           const filteredIds = new Set(filterResult.data || []);
+          lastFilteredIdsRef.current = filteredIds;
 
           setData(
             allVolunteers
@@ -284,6 +302,26 @@ export const useVolunteersData = ({
     editedRowsRef,
     displayRefreshEpoch,
   ]);
+
+  /** Re-merge pending edits onto the last filtered row set when `editedRows` changes (refs do not re-run the filter effect). */
+  useEffect(() => {
+    const rows = allVolunteersRef.current;
+    if (!rows.length) return;
+
+    const merge = (v: Volunteer): Volunteer =>
+      editedRows[v.id] ? { ...v, ...editedRows[v.id] } : v;
+
+    const filters = debouncedFiltersRef.current;
+    if (filters.length === 0) {
+      setData(rows.map(merge));
+      return;
+    }
+
+    const ids = lastFilteredIdsRef.current;
+    if (!ids) return;
+
+    setData(rows.filter((v) => ids.has(v.id)).map(merge));
+  }, [editedRows]);
 
   return {
     data,

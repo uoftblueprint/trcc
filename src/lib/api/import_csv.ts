@@ -1,6 +1,6 @@
 import Papa, { ParseResult } from "papaparse";
 import { createClient } from "../client/supabase";
-import { Tables } from "../client/supabase/types";
+import type { Json, Tables } from "../client/supabase/types";
 
 type ImportCSVStatus = "success" | "partial_success" | "failed";
 
@@ -104,6 +104,104 @@ type ParseRowsInput = {
   rowIndex: number;
 };
 
+const CUSTOM_CSV_PREFIX = "custom:";
+
+type CustomColumnImportRow = Pick<
+  Tables<"CustomColumns">,
+  "column_key" | "data_type" | "tag_options" | "is_multi"
+>;
+
+function parseBooleanCsvCell(s: string): boolean | null {
+  const t = s.trim().toLowerCase();
+  if (["yes", "true", "1", "y"].includes(t)) return true;
+  if (["no", "false", "0", "n"].includes(t)) return false;
+  return null;
+}
+
+function splitCustomTagList(raw: string): string[] {
+  return raw
+    .split(/[,;]/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+function parseCustomDataFromCsvRow(
+  rowData: Record<string, string | undefined>,
+  defs: CustomColumnImportRow[],
+  rowIndex: number
+): { custom_data: Record<string, unknown>; errors: RowParseError[] } {
+  const defByKey = new Map(defs.map((d) => [d.column_key, d]));
+  const custom_data: Record<string, unknown> = {};
+  const errors: RowParseError[] = [];
+
+  for (const [rawKey, rawVal] of Object.entries(rowData)) {
+    const keyLower = rawKey.toLowerCase().trim();
+    if (!keyLower.startsWith(CUSTOM_CSV_PREFIX)) continue;
+    const columnKey = keyLower.slice(CUSTOM_CSV_PREFIX.length).trim();
+    if (!columnKey) continue;
+
+    const def = defByKey.get(columnKey);
+    const cell = rawVal?.trim() ?? "";
+    if (!def) {
+      if (cell.length > 0) {
+        errors.push({
+          rowIndex,
+          column: rawKey,
+          value: cell,
+          message: `Unknown custom column key "${columnKey}" in CSV header`,
+        });
+      }
+      continue;
+    }
+    if (cell.length === 0) continue;
+
+    switch (def.data_type) {
+      case "text":
+        custom_data[columnKey] = cell;
+        break;
+      case "number": {
+        const n = Number(cell.replace(/,/g, ""));
+        if (Number.isNaN(n)) {
+          errors.push({
+            rowIndex,
+            column: rawKey,
+            value: cell,
+            message: `Invalid number for custom column "${columnKey}"`,
+          });
+        } else {
+          custom_data[columnKey] = n;
+        }
+        break;
+      }
+      case "boolean": {
+        const b = parseBooleanCsvCell(cell);
+        if (b === null) {
+          errors.push({
+            rowIndex,
+            column: rawKey,
+            value: cell,
+            message: `Expected Yes/No for custom column "${columnKey}"`,
+          });
+        } else {
+          custom_data[columnKey] = b;
+        }
+        break;
+      }
+      case "tag":
+        if (def.is_multi) {
+          custom_data[columnKey] = splitCustomTagList(cell);
+        } else {
+          custom_data[columnKey] = cell;
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  return { custom_data, errors };
+}
+
 type ParseRowResult =
   | {
       ok: true;
@@ -125,6 +223,7 @@ function createEmptyVolunteer(): ParsedVolunteer {
   return {
     index: -1,
     name_org: "",
+    custom_data: {},
     pronouns: null,
     email: null,
     phone: null,
@@ -257,7 +356,8 @@ function parseRole(
 // fail parse if name/volunteer is blank
 function parseRow(
   rowData: Record<string, string | undefined>,
-  rowIndex: number
+  rowIndex: number,
+  customDefs: CustomColumnImportRow[] = []
 ): ParseRowResult {
   // known raw roles and names to map them as
 
@@ -350,6 +450,21 @@ function parseRow(
     }
   );
 
+  const customParsed = parseCustomDataFromCsvRow(rowData, customDefs, rowIndex);
+  rowParseErrors.push(...customParsed.errors);
+  if (Object.keys(customParsed.custom_data).length > 0) {
+    const prev =
+      result.custom_data &&
+      typeof result.custom_data === "object" &&
+      !Array.isArray(result.custom_data)
+        ? { ...(result.custom_data as Record<string, unknown>) }
+        : {};
+    result.custom_data = {
+      ...prev,
+      ...customParsed.custom_data,
+    } as ParsedVolunteer["custom_data"];
+  }
+
   if (rowParseErrors.length > 0) {
     return {
       ok: false,
@@ -365,13 +480,16 @@ function parseRow(
 }
 
 // Process all rows from parsed CSV and track row-level parse errors.
-function parseRows(rows: ParseRowsInput[]): ParseRowsResult {
+function parseRows(
+  rows: ParseRowsInput[],
+  customDefs: CustomColumnImportRow[] = []
+): ParseRowsResult {
   const volunteers: ParsedVolunteer[] = [];
   const rowErrors: RowParseError[] = [];
   const rowWarnings: RowParseWarning[] = [];
 
   rows.forEach(({ rowData, rowIndex }) => {
-    const parseResult = parseRow(rowData, rowIndex);
+    const parseResult = parseRow(rowData, rowIndex, customDefs);
 
     if (!parseResult.ok) {
       rowErrors.push(...parseResult.rowParseErrors);
@@ -484,16 +602,23 @@ export async function import_csv(
     })
     .filter(({ rowIndex }) => !papaErrorRowIndexes.has(rowIndex));
 
-  const {
-    volunteers,
-    rowErrors: rowParseErrors,
-    rowWarnings: rowParseWarnings,
-  } = parseRows(lowerCasedRows);
+  const client = await createClient();
+  const { data: customColRows } = await client
+    .from("CustomColumns")
+    .select("column_key, data_type, tag_options, is_multi")
+    .order("default_position", { ascending: true })
+    .order("id", { ascending: true });
+
+  const customImportDefs: CustomColumnImportRow[] = (customColRows ??
+    []) as CustomColumnImportRow[];
+
+  const { volunteers, rowErrors: rowParseErrors } = parseRows(
+    lowerCasedRows,
+    customImportDefs
+  );
   const rowDbErrors: RowDbError[] = [];
   let dbSucceeded = 0;
   let dbFailed = 0;
-
-  const client = await createClient();
 
   let dbInserted = 0;
   let dbUpdated = 0;
@@ -501,6 +626,14 @@ export async function import_csv(
   const changedDetails: Array<{ name: string; fields: string[] }> = [];
 
   for (const volunteer of volunteers) {
+    const customPayload =
+      volunteer.custom_data &&
+      typeof volunteer.custom_data === "object" &&
+      !Array.isArray(volunteer.custom_data) &&
+      Object.keys(volunteer.custom_data).length > 0
+        ? (volunteer.custom_data as Json)
+        : null;
+
     const { data: rpcResult, error } = await client.rpc(
       "upsert_volunteer_with_roles_and_cohorts",
       {
@@ -512,6 +645,7 @@ export async function import_csv(
         p_cohort: volunteer.cohort,
         p_roles: volunteer.roles,
         p_notes: volunteer.notes,
+        p_custom_data: customPayload,
       }
     );
 
@@ -633,4 +767,5 @@ export const __testables = {
   parseRow,
   parseRows,
   validateHeaders,
+  parseCustomDataFromCsvRow,
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useTransition } from "react";
+import React, { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, ChevronDown, Plus, Tag, Trash2, User } from "lucide-react";
 import clsx from "clsx";
@@ -15,7 +15,9 @@ import {
   removeRoleTagAction,
   updateCohortTagAction,
   updateRoleTagAction,
+  updateCustomColumnAction,
 } from "@/lib/api/actions";
+import type { CustomColumnRow } from "@/lib/api/customColumns";
 
 const ROLE_TYPES = [
   { value: "current", label: "Current" },
@@ -199,22 +201,36 @@ function CollapsibleSection({
 interface ManageTagsContentProps {
   initialRoles: RoleRow[];
   initialCohorts: CohortRow[];
+  /** Custom columns with `data_type === "tag"` — preset options for filters and editors. */
+  initialCustomTagColumns?: CustomColumnRow[];
   loadError: string | null;
   /** When set (e.g. from the volunteers table modal), refreshes client data instead of the Next router. */
   onRefresh?: () => void;
   /** Hides the page title; use inside a dialog that already has a heading. */
   embedded?: boolean;
+  /** When true (e.g. Manage Tags modal), every section starts collapsed. */
+  defaultCollapsed?: boolean;
 }
 
 export function ManageTagsContent({
   initialRoles,
   initialCohorts,
+  initialCustomTagColumns = [],
   loadError,
   onRefresh,
   embedded = false,
+  defaultCollapsed = false,
 }: ManageTagsContentProps): React.JSX.Element {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+
+  /** Roles, cohorts, and custom tag blocks all start closed when this is true. */
+  const sectionsStartClosed = defaultCollapsed === true || embedded === true;
+
+  const tagColumns = useMemo(
+    () => initialCustomTagColumns.filter((c) => c.data_type === "tag"),
+    [initialCustomTagColumns]
+  );
 
   const [roles, setRoles] = useState(initialRoles);
   const [cohorts, setCohorts] = useState(initialCohorts);
@@ -231,8 +247,18 @@ export function ManageTagsContent({
     String(new Date().getFullYear())
   );
 
-  const [openRoles, setOpenRoles] = useState(true);
-  const [openCohorts, setOpenCohorts] = useState(true);
+  const [openRoles, setOpenRoles] = useState(() => !sectionsStartClosed);
+  const [openCohorts, setOpenCohorts] = useState(() => !sectionsStartClosed);
+
+  const [tagOptionDrafts, setTagOptionDrafts] = useState<
+    Record<number, string[]>
+  >({});
+  const [newTagOptionByColumnId, setNewTagOptionByColumnId] = useState<
+    Record<number, string>
+  >({});
+  const [openCustomTagById, setOpenCustomTagById] = useState<
+    Record<number, boolean>
+  >({});
 
   useEffect(() => {
     setRoles(initialRoles);
@@ -242,21 +268,62 @@ export function ManageTagsContent({
     setCohorts(initialCohorts);
   }, [initialCohorts]);
 
+  /** Keep in-progress edits when `roles` refreshes (e.g. after creating another role). */
   useEffect(() => {
-    setRoleDrafts(
-      Object.fromEntries(
-        roles.map((r) => [r.id, { name: r.name, type: r.type }])
-      )
-    );
+    setRoleDrafts((prev) => {
+      const next: Record<number, RoleDraft> = {};
+      for (const r of roles) {
+        const fromServer: RoleDraft = { name: r.name, type: r.type };
+        const p = prev[r.id];
+        if (p && (p.name !== fromServer.name || p.type !== fromServer.type)) {
+          next[r.id] = p;
+        } else {
+          next[r.id] = fromServer;
+        }
+      }
+      return next;
+    });
   }, [roles]);
 
+  /** Keep in-progress edits when `cohorts` refreshes (e.g. after creating another cohort). */
   useEffect(() => {
-    setCohortDrafts(
-      Object.fromEntries(
-        cohorts.map((c) => [c.id, { term: c.term, year: String(c.year) }])
-      )
-    );
+    setCohortDrafts((prev) => {
+      const next: Record<number, CohortDraft> = {};
+      for (const c of cohorts) {
+        const fromServer: CohortDraft = {
+          term: c.term,
+          year: String(c.year),
+        };
+        const p = prev[c.id];
+        if (p && (p.term !== fromServer.term || p.year !== fromServer.year)) {
+          next[c.id] = p;
+        } else {
+          next[c.id] = fromServer;
+        }
+      }
+      return next;
+    });
   }, [cohorts]);
+
+  /**
+   * When custom tag columns reload, keep local edits that are not yet on the server
+   * (e.g. user typed in a cell but did not click “Save option edits” before another action).
+   */
+  useEffect(() => {
+    setTagOptionDrafts((prev) => {
+      const next: Record<number, string[]> = {};
+      for (const c of tagColumns) {
+        const fromServer = [...(c.tag_options ?? [])];
+        const p = prev[c.id];
+        if (p && JSON.stringify(p) !== JSON.stringify(fromServer)) {
+          next[c.id] = p;
+        } else {
+          next[c.id] = fromServer;
+        }
+      }
+      return next;
+    });
+  }, [tagColumns]);
 
   const refresh = (): void => {
     if (onRefresh) {
@@ -475,6 +542,96 @@ export function ManageTagsContent({
     if (!row || !d) return false;
     const y = parseInt(d.year, 10);
     return row.term !== d.term || row.year !== y;
+  };
+
+  const tagColumnDirty = (columnId: number): boolean => {
+    const col = tagColumns.find((c) => c.id === columnId);
+    const draft = tagOptionDrafts[columnId];
+    if (!col || draft === undefined) return false;
+    return JSON.stringify(col.tag_options ?? []) !== JSON.stringify(draft);
+  };
+
+  const handleSaveTagColumnOptions = (columnId: number): void => {
+    const draft = tagOptionDrafts[columnId];
+    if (draft === undefined) return;
+    startTransition(async () => {
+      const res = await updateCustomColumnAction(columnId, {
+        tag_options: draft,
+      });
+      if (res.success) {
+        toast.success("Tag options saved");
+        refresh();
+      } else {
+        toast.error(res.error ?? "Could not save tag options");
+      }
+    });
+  };
+
+  const handleRemoveTagOptionAt = (columnId: number, index: number): void => {
+    const draft = [...(tagOptionDrafts[columnId] ?? [])];
+    draft.splice(index, 1);
+    setTagOptionDrafts((prev) => ({ ...prev, [columnId]: draft }));
+    startTransition(async () => {
+      const res = await updateCustomColumnAction(columnId, {
+        tag_options: draft,
+      });
+      if (res.success) {
+        toast.success("Option removed");
+        refresh();
+      } else {
+        toast.error(res.error ?? "Could not update options");
+        const col = tagColumns.find((c) => c.id === columnId);
+        setTagOptionDrafts((prev) => ({
+          ...prev,
+          [columnId]: [...(col?.tag_options ?? [])],
+        }));
+      }
+    });
+  };
+
+  const handleAddCustomTagOption = (
+    e: React.FormEvent,
+    columnId: number
+  ): void => {
+    e.preventDefault();
+    const raw = (newTagOptionByColumnId[columnId] ?? "").trim();
+    if (!raw) {
+      toast.error("Enter a tag option");
+      return;
+    }
+    const prev = [...(tagOptionDrafts[columnId] ?? [])];
+    if (prev.some((p) => p.toLowerCase() === raw.toLowerCase())) {
+      toast.error("That option already exists");
+      return;
+    }
+    const draft = [...prev, raw];
+    setTagOptionDrafts((p) => ({ ...p, [columnId]: draft }));
+    setNewTagOptionByColumnId((p) => ({ ...p, [columnId]: "" }));
+    startTransition(async () => {
+      const res = await updateCustomColumnAction(columnId, {
+        tag_options: draft,
+      });
+      if (res.success) {
+        toast.success("Option added");
+        refresh();
+      } else {
+        toast.error(res.error ?? "Could not add option");
+        setTagOptionDrafts((p) => ({
+          ...p,
+          [columnId]: prev,
+        }));
+      }
+    });
+  };
+
+  const isCustomTagSectionOpen = (columnId: number): boolean =>
+    openCustomTagById[columnId] ?? !sectionsStartClosed;
+
+  const toggleCustomTagSection = (columnId: number): void => {
+    setOpenCustomTagById((prev) => ({
+      ...prev,
+      [columnId]: !(prev[columnId] ?? !sectionsStartClosed),
+    }));
   };
 
   if (loadError) {
@@ -817,6 +974,140 @@ export function ManageTagsContent({
           </button>
         </div>
       </CollapsibleSection>
+
+      {tagColumns.map((col) => {
+        const opts = tagOptionDrafts[col.id] ?? [];
+        return (
+          <CollapsibleSection
+            key={col.id}
+            sectionId={`manage-tags-custom-tag-${col.id}`}
+            title={col.name}
+            subtitle={
+              col.is_multi
+                ? "Preset options for this multi-select tag column"
+                : "Preset options for this tag column"
+            }
+            icon={Tag}
+            count={opts.length}
+            open={isCustomTagSectionOpen(col.id)}
+            onToggle={() => toggleCustomTagSection(col.id)}
+            embedded={embedded}
+          >
+            <div className="overflow-x-auto rounded-xl border border-gray-200/90 bg-white shadow-inner shadow-gray-100/80">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-gray-100/70 text-[11px] font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-200/90">
+                  <tr>
+                    <th className="px-3 py-2.5 pl-4">Option</th>
+                    <th className="px-3 py-2.5 pr-4 text-right whitespace-nowrap w-[1%] min-w-32">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100/90 bg-white">
+                  {opts.length === 0 ? (
+                    <tr>
+                      <td colSpan={2} className="px-4 py-8">
+                        <p className="text-sm text-gray-500 text-center">
+                          No preset options yet. Add one below or type new
+                          values in the table when editing volunteers.
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    opts.map((opt, index) => (
+                      <tr
+                        key={`${col.id}-opt-${index}`}
+                        className="hover:bg-purple-50/25 transition-colors"
+                      >
+                        <td className="px-3 py-2.5 pl-4 align-middle">
+                          <input
+                            type="text"
+                            className={inputClass + " w-full min-w-32"}
+                            value={opt}
+                            onChange={(e) => {
+                              const next = [...(tagOptionDrafts[col.id] ?? [])];
+                              next[index] = e.target.value;
+                              setTagOptionDrafts((prev) => ({
+                                ...prev,
+                                [col.id]: next,
+                              }));
+                            }}
+                          />
+                        </td>
+                        <td className="px-3 py-2.5 pr-4 align-middle text-right whitespace-nowrap w-[1%]">
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() =>
+                              handleRemoveTagOptionAt(col.id, index)
+                            }
+                            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-red-200/90 bg-white px-2 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
+                            title="Remove option"
+                          >
+                            <Trash2
+                              className="h-3.5 w-3.5 shrink-0"
+                              aria-hidden
+                            />
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="rounded-xl border border-dashed border-purple-200/70 bg-purple-50/25 p-4 sm:p-5">
+              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-purple-900/80 mb-3">
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+                Add option
+              </p>
+              <form
+                onSubmit={(e) => handleAddCustomTagOption(e, col.id)}
+                className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
+              >
+                <div className="flex flex-col gap-1 flex-1 min-w-40">
+                  <label className="text-xs font-medium text-gray-600">
+                    Label
+                  </label>
+                  <input
+                    type="text"
+                    className={inputClass + " w-full"}
+                    value={newTagOptionByColumnId[col.id] ?? ""}
+                    onChange={(e) =>
+                      setNewTagOptionByColumnId((prev) => ({
+                        ...prev,
+                        [col.id]: e.target.value,
+                      }))
+                    }
+                    placeholder="e.g. Small"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-purple px-4 py-2.5 text-sm font-medium text-white shadow-md shadow-purple-900/10 hover:bg-dark-accent-purple disabled:opacity-50 sm:shrink-0"
+                >
+                  <Plus className="h-4 w-4" aria-hidden />
+                  Add
+                </button>
+              </form>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-200/80 pt-3 mt-3">
+              <button
+                type="button"
+                disabled={isPending || !tagColumnDirty(col.id)}
+                onClick={() => handleSaveTagColumnOptions(col.id)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-accent-purple px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-dark-accent-purple disabled:opacity-40"
+              >
+                Save option edits
+              </button>
+            </div>
+          </CollapsibleSection>
+        );
+      })}
     </div>
   );
 }

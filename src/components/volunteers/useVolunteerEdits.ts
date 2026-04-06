@@ -7,6 +7,12 @@ import { updateVolunteer } from "@/lib/api/updateVolunteer";
 import { createRole } from "@/lib/api/createRole";
 import { createCohort } from "@/lib/api/createCohort";
 import { sortCohorts, sortRoles } from "./utils";
+import type { CustomColumnRow } from "@/lib/api/customColumns";
+import {
+  parseCustomColumnTableId,
+  getVolunteerCustomDataMap,
+  editedCustomValueMatchesOriginal,
+} from "./volunteerColumns";
 
 interface UseVolunteerEditsProps {
   editedRows: Record<number, Partial<Volunteer>>;
@@ -16,6 +22,7 @@ interface UseVolunteerEditsProps {
   allVolunteers: Volunteer[];
   allRoles: RoleRow[];
   allCohorts: CohortRow[];
+  customColumns: CustomColumnRow[];
   setData: React.Dispatch<React.SetStateAction<Volunteer[]>>;
   setAllVolunteers: React.Dispatch<React.SetStateAction<Volunteer[]>>;
   bumpDisplayRefresh: () => void;
@@ -54,23 +61,76 @@ export interface UseVolunteerEditsReturn {
 
 const MAX_HISTORY = 100;
 
-function mergeSavedVolunteersIntoAll(
-  prev: Volunteer[],
-  editsSnapshot: Record<number, Partial<Volunteer>>,
-  remainingEdits: Record<number, Partial<Volunteer>>
-): Volunteer[] {
-  const failedIds = new Set(
-    Object.keys(remainingEdits).map((k) => Number.parseInt(k, 10))
+/** Full custom_data map for a row: server baseline + any overlay already in editedRows. */
+function mergeCustomDataFromRow(
+  rowId: number,
+  rowObj: Record<string, unknown>,
+  allVolunteers: Volunteer[]
+): Record<string, unknown> {
+  const base = getVolunteerCustomDataMap(
+    allVolunteers.find((v) => v.id === rowId) || ({} as Volunteer)
   );
-  return prev.map((v) => {
-    if (failedIds.has(v.id) || !editsSnapshot[v.id]) {
-      return v;
-    }
-    return { ...v, ...editsSnapshot[v.id] };
-  });
+  const overlay =
+    typeof rowObj["custom_data"] === "object" &&
+    rowObj["custom_data"] !== null &&
+    !Array.isArray(rowObj["custom_data"])
+      ? (rowObj["custom_data"] as Record<string, unknown>)
+      : {};
+  return { ...base, ...overlay };
 }
 
-const normalizeValue = (colId: string, value: unknown): unknown => {
+function customDataEquals(
+  a: Record<string, unknown>,
+  b: Record<string, unknown>
+): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const k of keys) {
+    const va = a[k];
+    const vb = b[k];
+    if (Array.isArray(va) && Array.isArray(vb)) {
+      if (
+        JSON.stringify([...(va as unknown[])].sort()) !==
+        JSON.stringify([...(vb as unknown[])].sort())
+      ) {
+        return false;
+      }
+    } else if (va !== vb) {
+      return false;
+    }
+  }
+  return true;
+}
+
+const normalizeValue = (
+  colId: string,
+  value: unknown,
+  customColumns: CustomColumnRow[]
+): unknown => {
+  const customKey = parseCustomColumnTableId(colId);
+  if (customKey) {
+    const def = customColumns.find((c) => c.column_key === customKey);
+    if (def?.data_type === "number") {
+      if (value === null || value === undefined || value === "") return null;
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+      if (typeof value === "string") {
+        const s = value.trim();
+        if (s === "") return null;
+        const n = Number(s);
+        return Number.isFinite(n) ? n : value;
+      }
+      return value;
+    }
+    if (def?.data_type === "boolean") {
+      if (value === "Yes") return true;
+      if (value === "No") return false;
+      return value;
+    }
+    if (def?.data_type === "tag" && def.is_multi && Array.isArray(value)) {
+      return [...(value as string[])].sort();
+    }
+    return value;
+  }
+
   if (colId === "pronouns") {
     if (Array.isArray(value)) {
       if (value.length === 0) return null;
@@ -100,6 +160,7 @@ export const useVolunteerEdits = ({
   allVolunteers,
   allRoles,
   allCohorts,
+  customColumns,
   setData,
   setAllVolunteers,
   bumpDisplayRefresh,
@@ -134,6 +195,17 @@ export const useVolunteerEdits = ({
   const getCellValue = useCallback(
     (rowId: number, colId: string): unknown => {
       const edited = editedRowsRef.current[rowId];
+      const customKey = parseCustomColumnTableId(colId);
+      if (customKey) {
+        if (edited?.custom_data && typeof edited.custom_data === "object") {
+          const m = edited.custom_data as Record<string, unknown>;
+          if (Object.prototype.hasOwnProperty.call(m, customKey)) {
+            return m[customKey];
+          }
+        }
+        const row = allVolunteers.find((v) => v.id === rowId);
+        return row ? getVolunteerCustomDataMap(row)[customKey] : undefined;
+      }
       if (edited && colId in edited)
         return (edited as Record<string, unknown>)[colId];
       return allVolunteers.find((v) => v.id === rowId)?.[
@@ -146,6 +218,12 @@ export const useVolunteerEdits = ({
   const cellMatchesOriginal = useCallback(
     (rowId: number, colId: string, finalValue: unknown): boolean => {
       const originalRow = allVolunteers.find((v) => v.id === rowId);
+      const customKey = parseCustomColumnTableId(colId);
+      if (customKey && originalRow) {
+        const originalValue = getVolunteerCustomDataMap(originalRow)[customKey];
+        return editedCustomValueMatchesOriginal(originalValue, finalValue);
+      }
+
       const originalValue = originalRow
         ? originalRow[colId as keyof Volunteer]
         : undefined;
@@ -178,16 +256,46 @@ export const useVolunteerEdits = ({
         const next: Record<number, Partial<Volunteer>> = { ...prev };
         for (const { rowId, colId, value: finalValue } of edits) {
           const matchesOriginal = cellMatchesOriginal(rowId, colId, finalValue);
+          const ck = parseCustomColumnTableId(colId);
           if (matchesOriginal) {
             if (next[rowId]) {
               const rowObj = { ...(next[rowId] as Record<string, unknown>) };
-              delete rowObj[colId];
+              if (ck) {
+                const baseline = getVolunteerCustomDataMap(
+                  allVolunteers.find((v) => v.id === rowId) || ({} as Volunteer)
+                );
+                const cd = mergeCustomDataFromRow(rowId, rowObj, allVolunteers);
+                delete cd[ck];
+                if (customDataEquals(cd, baseline)) {
+                  delete rowObj["custom_data"];
+                } else {
+                  rowObj["custom_data"] = cd;
+                }
+              } else {
+                delete rowObj[colId];
+              }
               if (Object.keys(rowObj).length === 0) {
                 delete next[rowId];
               } else {
                 next[rowId] = rowObj as Partial<Volunteer>;
               }
             }
+          } else if (ck) {
+            const prevRow = next[rowId] as Record<string, unknown> | undefined;
+            const merged = mergeCustomDataFromRow(
+              rowId,
+              prevRow || {},
+              allVolunteers
+            );
+            if (finalValue === null || finalValue === undefined) {
+              delete merged[ck];
+            } else {
+              merged[ck] = finalValue;
+            }
+            next[rowId] = {
+              ...(prevRow || {}),
+              custom_data: merged,
+            } as Partial<Volunteer>;
           } else {
             next[rowId] = { ...(next[rowId] || {}), [colId]: finalValue };
           }
@@ -214,8 +322,30 @@ export const useVolunteerEdits = ({
       setData((prev) => {
         const byRow = new Map<number, Record<string, unknown>>();
         for (const { rowId, colId, value: finalValue } of edits) {
-          if (!byRow.has(rowId)) byRow.set(rowId, {});
-          byRow.get(rowId)![colId] = finalValue;
+          const ck = parseCustomColumnTableId(colId);
+          if (ck) {
+            if (!byRow.has(rowId)) byRow.set(rowId, {});
+            const rowPatch = byRow.get(rowId)!;
+            const baseCd = {
+              ...getVolunteerCustomDataMap(
+                prev.find((x) => x.id === rowId) as Volunteer
+              ),
+              ...(typeof rowPatch["custom_data"] === "object" &&
+              rowPatch["custom_data"] !== null &&
+              !Array.isArray(rowPatch["custom_data"])
+                ? (rowPatch["custom_data"] as Record<string, unknown>)
+                : {}),
+            };
+            if (finalValue === null || finalValue === undefined) {
+              delete baseCd[ck];
+            } else {
+              baseCd[ck] = finalValue;
+            }
+            rowPatch["custom_data"] = baseCd;
+          } else {
+            if (!byRow.has(rowId)) byRow.set(rowId, {});
+            byRow.get(rowId)![colId] = finalValue;
+          }
         }
         return prev.map((r) => {
           const patch = byRow.get(r.id);
@@ -223,12 +353,12 @@ export const useVolunteerEdits = ({
         });
       });
     },
-    [setData, setEditedRows, cellMatchesOriginal]
+    [setData, setEditedRows, cellMatchesOriginal, allVolunteers]
   );
 
   const handleCellEdit = useCallback(
     (rowId: number, colId: string, value: unknown): void => {
-      const finalValue = normalizeValue(colId, value);
+      const finalValue = normalizeValue(colId, value, customColumns);
 
       if (!isUndoRedoRef.current) {
         const priorValue = getCellValue(rowId, colId);
@@ -242,7 +372,7 @@ export const useVolunteerEdits = ({
       applyEditsBatch([{ rowId, colId, value: finalValue }]);
       syncHistoryStacks();
     },
-    [getCellValue, applyEditsBatch, syncHistoryStacks]
+    [getCellValue, applyEditsBatch, syncHistoryStacks, customColumns]
   );
 
   const handleBulkEdit = useCallback(
@@ -265,13 +395,13 @@ export const useVolunteerEdits = ({
       const normalized = edits.map(({ rowId, colId, value }) => ({
         rowId,
         colId,
-        value: normalizeValue(colId, value),
+        value: normalizeValue(colId, value, customColumns),
       }));
       applyEditsBatch(normalized);
 
       syncHistoryStacks();
     },
-    [getCellValue, applyEditsBatch, syncHistoryStacks]
+    [getCellValue, applyEditsBatch, syncHistoryStacks, customColumns]
   );
 
   const undo = useCallback((): void => {
