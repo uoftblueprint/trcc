@@ -36,7 +36,19 @@ export default async function VolunteersInstructionsPage(): Promise<React.JSX.El
               <ul className="text-sm text-gray-700 list-disc pl-5 space-y-1">
                 <li>Apply filters first, then add sorting for review order.</li>
                 <li>
-                  For bulk checks, use drag selection and copy to a spreadsheet.
+                  Remember <strong>Match all / any</strong> only groups your
+                  extra column filters; <strong>opt-in communication</strong> is
+                  always layered on separately until you change it.
+                </li>
+                <li>
+                  For bulk checks, use drag selection and copy to a spreadsheet,
+                  or (admins) open <strong>Shortcuts</strong> for copy-all,
+                  duplicate scan, or missing-contact filters.
+                </li>
+                <li>
+                  CSV import: use the in-dialog help for column names and export
+                  steps; treat red messages as must-fix, sky/blue notices as
+                  “saved but fix the cell and Import again.”
                 </li>
                 <li>
                   If you edit values, use Undo/Redo and the unsaved changes
@@ -52,13 +64,16 @@ export default async function VolunteersInstructionsPage(): Promise<React.JSX.El
               <ul className="text-sm text-gray-700 list-disc pl-5 space-y-1">
                 <li>
                   Respect opt-in status when filtering or copying contacts.
+                  Shortcut actions that use the “current view” follow the same
+                  filtered list as the table.
                 </li>
                 <li>
                   Avoid exporting or sharing personal information unless needed.
                 </li>
                 <li>
                   Double-check notes and role/cohort tags before confirming
-                  save.
+                  save. Use <strong>Manage tags</strong> when you need to rename
+                  a role or cohort label everywhere it appears.
                 </li>
               </ul>
             </section>

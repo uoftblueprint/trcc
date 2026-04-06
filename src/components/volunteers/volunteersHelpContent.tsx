@@ -20,7 +20,7 @@ export function getHelpTitleAndIntro(variant: HelpVariant): {
     return {
       title: "Using the volunteers table (admin)",
       intro:
-        "You can edit data, import, and manage volunteers. Here’s how selection and editing work.",
+        "You can edit data, use Shortcuts and CSV import, and manage tag names. Here’s how selection, filters, and editing work.",
     };
   }
   if (variant === "staff") {
@@ -81,13 +81,27 @@ function SharedSelectingCopyingFilters(): React.JSX.Element {
         <h3 className="font-semibold text-gray-900 mb-1.5">
           Filters & privacy
         </h3>
-        <p>
-          Use <strong>Filter</strong> and <strong>Sort</strong> above the table.
-          The default opt-in filter limits who appears until you change it—check
-          warnings before removing it. <strong>Match all / any</strong> only
-          combines the other column filters; an opt-in filter is always applied
-          on top of that.
-        </p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>
+            Use <strong>Filter</strong> and <strong>Sort</strong> above the
+            table to narrow and order rows.
+          </li>
+          <li>
+            <strong>Opt-in communication</strong> is its own filter chip. It is{" "}
+            <strong>not</strong> part of <strong>Match all</strong> /{" "}
+            <strong>Match any</strong>: that control only decides how your{" "}
+            <em>other</em> column filters combine (every filter vs any filter).
+            Who appears in the table must still satisfy the opt-in filter (when
+            it is present), <em>and</em> the combined column filters—unless you
+            remove or change opt-in after confirming the warning.
+          </li>
+          <li>
+            Filters you add from <strong>Shortcuts</strong> (missing email,
+            missing phone, missing email or phone) show as preset chips in the
+            filter bar. You can remove them with the chip’s <strong>×</strong>;
+            they do not open the usual filter editor.
+          </li>
+        </ul>
       </section>
     </>
   );
@@ -116,18 +130,51 @@ export function VolunteersHelpContent({
           </section>
           <section>
             <h3 className="font-semibold text-gray-900 mb-1.5">Admin tools</h3>
-            <ul className="list-disc pl-5 space-y-1">
+            <ul className="list-disc pl-5 space-y-2">
               <li>
-                <strong>New Volunteer</strong> and{" "}
-                <strong>Import from CSV</strong> add rows to the table.
+                <strong>Shortcuts</strong> opens a panel of helpers: format
+                phones in the <em>current table view</em>; copy all emails or
+                phones from that view; set a field on checkbox-selected rows;
+                find duplicate emails or phones (with links that jump to the
+                right page); apply server filters for missing contact info; and
+                create several volunteers at once from pasted lines. Anything
+                that says “current view” follows search, filters, and
+                pagination—only rows on the visible page are included where
+                noted.
               </li>
               <li>
-                Select rows with the checkboxes, then <strong>Delete</strong> to
-                remove volunteers (you’ll confirm in a dialog).
+                <strong>Import from CSV</strong> opens a larger dialog with
+                expandable instructions (Google Sheets export, required column
+                titles{" "}
+                <code className="text-xs bg-gray-100 px-1 rounded">
+                  volunteer
+                </code>{" "}
+                and{" "}
+                <code className="text-xs bg-gray-100 px-1 rounded">email</code>,
+                plus optional columns). After a run, read the summary:{" "}
+                <strong>red</strong> sections are problems in the file or saves
+                that you should fix; <strong>sky / blue</strong> notices mean
+                the volunteer was still imported but a spreadsheet value was
+                skipped (for example unrecognized cohort or invalid email)—fix
+                the cell and use <strong>Import again</strong> to update. The
+                same file can be re-imported after edits.
               </li>
               <li>
-                New tags (roles, cohorts) can be typed in the cell editor; save
-                to persist them.
+                <strong>Manage tags</strong> edits the display names of roles
+                and cohort terms used in filters, the table, and CSV import—not
+                individual volunteers’ assignments.
+              </li>
+              <li>
+                <strong>New Volunteer</strong> adds one row through a form.
+              </li>
+              <li>
+                Select rows with the checkboxes, then use{" "}
+                <strong>Delete</strong> on the right side of the toolbar (you’ll
+                confirm in a dialog).
+              </li>
+              <li>
+                New tags (roles, cohorts) can be typed in the cell editor; use{" "}
+                <strong>Save Changes</strong> on the right when you’re done.
               </li>
             </ul>
           </section>
@@ -140,7 +187,10 @@ export function VolunteersHelpContent({
           <p>
             {variant === "staff"
               ? "As staff, you can search, filter, sort, and copy from the table, but you cannot change volunteer data here. Ask an admin to update records."
-              : "You can search, filter, sort, and copy from the table. To update volunteer records, ask an admin."}
+              : "You can search, filter, sort, and copy from the table. To update volunteer records, ask an admin."}{" "}
+            Admins also see <strong>Shortcuts</strong>,{" "}
+            <strong>Import from CSV</strong>, and <strong>Manage tags</strong>{" "}
+            in the toolbar.
           </p>
         </section>
       )}
