@@ -121,7 +121,7 @@ export const TableToolbar = ({
     const ro = new ResizeObserver(() => updateToolsScrollHints());
     ro.observe(el);
     return (): void => ro.disconnect();
-  }, [updateToolsScrollHints, filters.length, sorting.length, role]);
+  }, [updateToolsScrollHints, filters.length, sorting.length, role, hasEdits]);
 
   useEffect(() => {
     if (!isCopyMenuOpen) return;
@@ -317,7 +317,7 @@ export const TableToolbar = ({
               />
             </div>
 
-            {role === "admin" && (
+            {role === "admin" && !hasEdits && (
               <button
                 type="button"
                 onClick={onOpenShortcuts}
@@ -328,7 +328,7 @@ export const TableToolbar = ({
               </button>
             )}
 
-            {role === "admin" && (
+            {role === "admin" && !hasEdits && (
               <button
                 type="button"
                 onClick={onOpenAddVolunteer}
@@ -350,7 +350,7 @@ export const TableToolbar = ({
               </button>
             )}
 
-            {role === "admin" && (
+            {role === "admin" && !hasEdits && (
               <button
                 type="button"
                 onClick={onOpenManageTags}
