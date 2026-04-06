@@ -125,6 +125,7 @@ function createEmptyVolunteer(): ParsedVolunteer {
   return {
     index: -1,
     name_org: "",
+    custom_data: {},
     pronouns: null,
     email: null,
     phone: null,

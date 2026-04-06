@@ -4,7 +4,10 @@ import { FilterTuple } from "@/lib/api/getVolunteersByMultipleColumns";
 import { Trash2 } from "lucide-react";
 import { VolunteerTag } from "./VolunteerTag";
 import clsx from "clsx";
-import { FILTERABLE_COLUMNS } from "./volunteerColumns";
+import {
+  FILTERABLE_COLUMNS,
+  type FilterableColumnDesc,
+} from "./volunteerColumns";
 
 const MODAL_WIDTH_PX = 288;
 const SCREEN_BUFFER_PX = 24;
@@ -33,6 +36,8 @@ interface FilterModalProps {
   onClose: () => void;
   onApply: (filter: FilterTuple | null) => void;
   optionsData: Record<string, string[]>;
+  /** When omitted, built-in filterable columns are used. */
+  filterableColumns?: FilterableColumnDesc[];
   initialFilter?: FilterTuple;
   alignRight?: boolean;
   /** When set, the panel is `position:fixed` so it is not clipped by horizontal scroll parents. */
@@ -44,10 +49,12 @@ export const FilterModal = ({
   onClose,
   onApply,
   optionsData,
+  filterableColumns: filterableColumnsProp,
   initialFilter,
   alignRight = false,
   anchorRect = null,
 }: FilterModalProps): React.JSX.Element | null => {
+  const filterableColumns = filterableColumnsProp ?? FILTERABLE_COLUMNS;
   const [activeStep, setActiveStep] = useState<
     "SELECT_COLUMN" | "SELECT_VALUES"
   >("SELECT_COLUMN");
@@ -56,9 +63,9 @@ export const FilterModal = ({
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [miniOp, setMiniOp] = useState<"AND" | "OR">("OR");
 
-  const colDef = FILTERABLE_COLUMNS.find((c) => c.id === selectedCol);
+  const colDef = filterableColumns.find((c) => c.id === selectedCol);
   const availableOptions = selectedCol ? optionsData[selectedCol] || [] : [];
-  const visibleColumns = FILTERABLE_COLUMNS.map((c) => ({
+  const visibleColumns = filterableColumns.map((c) => ({
     id: c.id,
     label: c.label,
     icon: c.icon,
@@ -71,7 +78,7 @@ export const FilterModal = ({
       if (initialFilter) {
         setSelectedCol(initialFilter.field);
         setMiniOp(initialFilter.miniOp || "OR");
-        const initialColDef = FILTERABLE_COLUMNS.find(
+        const initialColDef = filterableColumns.find(
           (c) => c.id === initialFilter.field
         );
         if (initialColDef?.type === "text") {
@@ -90,7 +97,7 @@ export const FilterModal = ({
         setMiniOp("OR");
       }
     }
-  }, [isOpen, initialFilter]);
+  }, [isOpen, initialFilter, filterableColumns]);
 
   useEffect(() => {
     if (isOpen) {

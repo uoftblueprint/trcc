@@ -1,13 +1,14 @@
 "use server";
 
 import { createClient } from "../client/supabase/server";
-import type { Database } from "../client/supabase/types";
+import type { Database, Tables } from "../client/supabase/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   BLANK_FIELD_FILTER_VALUE,
   CONTACT_INCOMPLETE_FIELD,
   CONTACT_INCOMPLETE_FILTER_VALUE,
 } from "../volunteerFilterShortcuts";
+import { listCustomColumns } from "./customColumns";
 
 const OP = {
   AND: "AND",
@@ -45,6 +46,10 @@ const ALLOWED_FIELDS = [
   CONTACT_INCOMPLETE_FIELD,
 ];
 
+const CUSTOM_COLUMN_FIELD_PREFIX = "custom__";
+
+type CustomColRow = Tables<"CustomColumns">;
+
 export type FilterTuple = {
   field: string;
   miniOp: "AND" | "OR";
@@ -52,7 +57,11 @@ export type FilterTuple = {
 };
 
 type ValidationResult =
-  | { valid: true; cleanedFiltersList: FilterTuple[] }
+  | {
+      valid: true;
+      cleanedFiltersList: FilterTuple[];
+      customColumns: CustomColRow[];
+    }
   | { valid: false; error: string };
 
 type VolunteerFilterResponse =
@@ -85,6 +94,7 @@ export async function getVolunteersByMultipleColumns(
   }
 
   const cleanFiltersList = validation.cleanedFiltersList;
+  const customColumns = validation.customColumns;
 
   const client = await createClient();
 
@@ -92,11 +102,29 @@ export async function getVolunteersByMultipleColumns(
     return { data: [] };
   }
 
+  const customColByField = new Map(
+    customColumns.map((c) => [
+      `${CUSTOM_COLUMN_FIELD_PREFIX}${c.column_key}`.toLowerCase(),
+      c,
+    ])
+  );
+
   try {
     const promises = cleanFiltersList.map(async (f) => {
       if (f.field === CONTACT_INCOMPLETE_FIELD) {
         return filterIdsContactIncomplete(client);
       }
+      
+      const customCol = customColByField.get(f.field);
+      if (customCol) {
+        return filterIdsByCustomColumn(
+          client,
+          customCol,
+          f.miniOp,
+          f.values as string[]
+        );
+      }
+
       if (
         f.field === "current_roles" ||
         f.field === "prior_roles" ||
@@ -161,6 +189,19 @@ export async function validateMultipleColumnFilter(
   if (!op || !(op === OP.AND || op === OP.OR))
     return { valid: false, error: "Invalid global operation" };
 
+  let customCols: CustomColRow[] = [];
+  try {
+    customCols = await listCustomColumns();
+  } catch {
+    customCols = [];
+  }
+
+  const customFieldSet = new Set(
+    customCols.map((c) =>
+      `${CUSTOM_COLUMN_FIELD_PREFIX}${c.column_key}`.toLowerCase()
+    )
+  );
+
   const cleanedFiltersList: FilterTuple[] = [];
 
   for (const inputF of filtersList) {
@@ -176,7 +217,10 @@ export async function validateMultipleColumnFilter(
     if (!f.field || typeof f.field !== "string")
       return { valid: false, error: "Invalid filter field" };
 
-    if (!f.field || !ALLOWED_FIELDS.includes(f.field))
+    if (
+      !f.field ||
+      (!ALLOWED_FIELDS.includes(f.field) && !customFieldSet.has(f.field))
+    )
       return { valid: false, error: "Invalid filter field name" };
 
     if (!Array.isArray(f.values) || f.values.length === 0)
@@ -212,7 +256,7 @@ export async function validateMultipleColumnFilter(
     cleanedFiltersList.push(f);
   }
 
-  return { valid: true, cleanedFiltersList };
+  return { valid: true, cleanedFiltersList, customColumns: customCols };
 }
 
 function filterMatchingIds(
@@ -341,6 +385,60 @@ async function filterIdsContactIncomplete(
       ids.add(row.id);
     }
   }
+  return ids;
+}
+
+async function filterIdsByCustomColumn(
+  client: SupabaseClient<Database>,
+  col: CustomColRow,
+  op: string,
+  values: string[]
+): Promise<Set<number>> {
+  const { data, error } = await client
+    .from("Volunteers")
+    .select("id, custom_data");
+  if (error) throw error;
+
+  const key = col.column_key;
+  const ids = new Set<number>();
+
+  for (const row of data ?? []) {
+    const raw = row.custom_data;
+    const obj =
+      raw && typeof raw === "object" && !Array.isArray(raw)
+        ? (raw as Record<string, unknown>)
+        : {};
+    const cell = obj[key];
+
+    const matchesOne = (needle: string): boolean => {
+      if (col.data_type === "text" || col.data_type === "number") {
+        const s = cell == null ? "" : String(cell);
+        return s.toLowerCase().includes(needle.toLowerCase());
+      }
+      if (col.data_type === "boolean") {
+        const yn =
+          needle.toLowerCase() === "yes" || needle.toLowerCase() === "true";
+        const nn =
+          needle.toLowerCase() === "no" || needle.toLowerCase() === "false";
+        if (yn) return cell === true || String(cell).toLowerCase() === "true";
+        if (nn) return cell === false || String(cell).toLowerCase() === "false";
+        return false;
+      }
+      if (col.data_type === "tag") {
+        if (col.is_multi) {
+          const arr = Array.isArray(cell) ? cell.map(String) : [];
+          return arr.includes(needle);
+        }
+        return String(cell ?? "") === needle;
+      }
+      return false;
+    };
+
+    const ok =
+      op === OP.OR ? values.some(matchesOne) : values.every(matchesOne);
+    if (ok) ids.add(row.id);
+  }
+
   return ids;
 }
 

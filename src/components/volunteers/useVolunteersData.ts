@@ -121,6 +121,12 @@ export const useVolunteersData = ({
 
         return {
           ...entry.volunteer,
+          custom_data:
+            entry.volunteer.custom_data &&
+            typeof entry.volunteer.custom_data === "object" &&
+            !Array.isArray(entry.volunteer.custom_data)
+              ? entry.volunteer.custom_data
+              : {},
           cohorts: entry.cohorts.map(formatTag).sort(sortCohorts),
           current_roles: entry.roles
             .filter((r) => r.type === "current")

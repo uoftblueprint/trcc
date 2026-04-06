@@ -14,7 +14,9 @@ import {
   List,
   TextAlignStart,
   Bell,
+  ToggleLeft,
 } from "lucide-react";
+import type { CustomColumnRow } from "@/lib/api/customColumns";
 
 type FilterType = "text" | "options" | null;
 
@@ -173,16 +175,269 @@ export const NEW_VOLUNTEER_FORM_COLUMNS = COLUMNS_CONFIG.filter(
   (col) => col.id !== ("volunteer_id" as keyof Volunteer)
 );
 
-export const FILTERABLE_COLUMNS = COLUMNS_CONFIG.filter(
+export type FilterableColumnDesc = {
+  id: string;
+  label: string;
+  type: "text" | "options";
+  icon: React.ElementType;
+  isMulti: boolean;
+};
+
+export const FILTERABLE_COLUMNS: FilterableColumnDesc[] = COLUMNS_CONFIG.filter(
   (col) => col.filterType !== null
 ).map((col) => ({
-  id: col.id,
+  id: String(col.id),
   label: col.label,
   type: col.filterType as "text" | "options",
   icon: col.icon,
   isMulti: col.isMulti ?? false,
 }));
 
+export const FUNDAMENTAL_COLUMN_IDS = [
+  "volunteer_id",
+  "name_org",
+  "email",
+  "phone",
+] as const;
+
+export const CUSTOM_COLUMN_ID_PREFIX = "custom__";
+
+export function tableIdForCustomColumn(columnKey: string): string {
+  return `${CUSTOM_COLUMN_ID_PREFIX}${columnKey}`;
+}
+
+export function parseCustomColumnTableId(columnId: string): string | null {
+  if (!columnId.startsWith(CUSTOM_COLUMN_ID_PREFIX)) return null;
+  return columnId.slice(CUSTOM_COLUMN_ID_PREFIX.length);
+}
+
+export function getVolunteerCustomDataMap(
+  v: Volunteer
+): Record<string, unknown> {
+  const cd = v.custom_data;
+  if (cd && typeof cd === "object" && !Array.isArray(cd)) {
+    return cd as Record<string, unknown>;
+  }
+  return {};
+}
+
+export function customColumnIcon(dataType: string): React.ElementType {
+  if (dataType === "number") return Hash;
+  if (dataType === "boolean") return ToggleLeft;
+  if (dataType === "tag") return List;
+  return CaseSensitive;
+}
+
+export function buildFilterableColumnList(
+  customColumns: CustomColumnRow[]
+): FilterableColumnDesc[] {
+  const builtIn = FILTERABLE_COLUMNS;
+  const custom: FilterableColumnDesc[] = customColumns.map((c) => {
+    const id = tableIdForCustomColumn(c.column_key);
+    if (c.data_type === "text" || c.data_type === "number") {
+      return {
+        id,
+        label: c.name,
+        type: "text",
+        icon: customColumnIcon(c.data_type),
+        isMulti: false,
+      };
+    }
+    return {
+      id,
+      label: c.name,
+      type: "options",
+      icon: customColumnIcon(c.data_type),
+      isMulti: c.data_type === "tag" ? Boolean(c.is_multi) : false,
+    };
+  });
+  return [...builtIn, ...custom];
+}
+
+export function orderedColumnIds(
+  builtInIds: string[],
+  customColumns: CustomColumnRow[],
+  savedOrder: string[]
+): string[] {
+  const customSorted = [...customColumns].sort(
+    (a, b) => a.default_position - b.default_position || a.id - b.id
+  );
+  const customIds = customSorted.map((c) =>
+    tableIdForCustomColumn(c.column_key)
+  );
+  const allKnown = [...builtInIds, ...customIds];
+
+  if (savedOrder.length === 0) {
+    return allKnown;
+  }
+
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const id of savedOrder) {
+    if (!allKnown.includes(id) || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  for (const id of allKnown) {
+    if (!seen.has(id)) out.push(id);
+  }
+  return out;
+}
+
+const renderCustomBooleanTag = (
+  info: CellContext<Volunteer, unknown>
+): React.JSX.Element => {
+  const value = info.getValue();
+  if (value === true) return <VolunteerTag label="Yes" />;
+  if (value === false) return <VolunteerTag label="No" />;
+  return <></>;
+};
+
+const renderCustomNumber = (
+  info: CellContext<Volunteer, unknown>
+): React.JSX.Element => {
+  const value = info.getValue();
+  if (value === null || value === undefined || value === "") return <></>;
+  return (
+    <span className="tabular-nums text-right block w-full">
+      {String(value)}
+    </span>
+  );
+};
+
+export function buildDynamicColumns(
+  customColumns: CustomColumnRow[],
+  userPrefs: { column_order: string[]; hidden_columns: string[] },
+  isAdmin: boolean,
+  onEdit?: (rowId: number, colId: string, value: unknown) => void,
+  optionsData: Record<string, string[]> = {}
+): ColumnDef<Volunteer>[] {
+  const builtInIds = COLUMNS_CONFIG.map((c) => String(c.id));
+  const hidden = new Set(userPrefs.hidden_columns);
+  const fundamental = new Set<string>(
+    FUNDAMENTAL_COLUMN_IDS.map((x) => String(x))
+  );
+
+  let ordered = orderedColumnIds(
+    builtInIds,
+    customColumns,
+    userPrefs.column_order
+  );
+
+  ordered = ordered.filter((id) => fundamental.has(id) || !hidden.has(id));
+
+  const idColumnFirst = "volunteer_id";
+  ordered = ordered.filter((id) => id !== idColumnFirst);
+  ordered = [idColumnFirst, ...ordered];
+
+  const builtInById = new Map(
+    COLUMNS_CONFIG.map((c) => [String(c.id), c] as const)
+  );
+  const customByKey = new Map(
+    customColumns.map((c) => [c.column_key, c] as const)
+  );
+
+  const defs: ColumnDef<Volunteer>[] = ordered.map((colId) => {
+    const builtIn = builtInById.get(colId);
+    if (builtIn) {
+      const col = builtIn;
+      const isEditable =
+        isAdmin &&
+        onEdit !== undefined &&
+        col.id !== ("volunteer_id" as keyof Volunteer);
+
+      return {
+        id: col.id as string,
+        header: () => <HeaderWithIcon icon={col.icon} label={col.label} />,
+        size: col.size,
+        sortDescFirst: false,
+        ...(col.accessorFn
+          ? { accessorFn: col.accessorFn }
+          : { accessorKey: col.id }),
+
+        ...(isEditable && onEdit
+          ? {
+              cell: (info: CellContext<Volunteer, unknown>) => (
+                <EditableCell
+                  info={info}
+                  onEdit={onEdit}
+                  type={col.filterType === "options" ? "options" : "text"}
+                  isMulti={col.isMulti ?? false}
+                  options={optionsData[col.id as string] || []}
+                />
+              ),
+            }
+          : col.cell
+            ? { cell: col.cell }
+            : {}),
+      } as ColumnDef<Volunteer>;
+    }
+
+    const customKey = parseCustomColumnTableId(colId);
+    const cc = customKey ? customByKey.get(customKey) : undefined;
+    if (!cc) {
+      return {
+        id: colId,
+        header: colId,
+        size: 120,
+      } as ColumnDef<Volunteer>;
+    }
+
+    const icon = customColumnIcon(cc.data_type);
+    const accessorFn = (row: Volunteer): unknown =>
+      getVolunteerCustomDataMap(row)[cc.column_key] ?? null;
+
+    const isEditable = isAdmin && onEdit !== undefined;
+
+    let readCell:
+      | ((info: CellContext<Volunteer, unknown>) => React.JSX.Element)
+      | undefined;
+
+    if (cc.data_type === "number") {
+      readCell = renderCustomNumber;
+    } else if (cc.data_type === "boolean") {
+      readCell = renderCustomBooleanTag;
+    } else if (cc.data_type === "tag") {
+      readCell = cc.is_multi ? renderMultiTags : renderSingleTag;
+    }
+
+    const editableType =
+      cc.data_type === "tag"
+        ? "options"
+        : cc.data_type === "number"
+          ? "number"
+          : cc.data_type === "boolean"
+            ? "boolean"
+            : "text";
+
+    return {
+      id: colId,
+      header: () => <HeaderWithIcon icon={icon} label={cc.name} />,
+      size: 140,
+      sortDescFirst: false,
+      accessorFn,
+      ...(isEditable && onEdit
+        ? {
+            cell: (info: CellContext<Volunteer, unknown>) => (
+              <EditableCell
+                info={info}
+                onEdit={onEdit}
+                type={editableType}
+                isMulti={Boolean(cc.is_multi)}
+                options={optionsData[colId] || cc.tag_options || []}
+              />
+            ),
+          }
+        : readCell
+          ? { cell: readCell }
+          : {}),
+    } as ColumnDef<Volunteer>;
+  });
+
+  return defs;
+}
+
+/** @deprecated Use buildDynamicColumns with custom columns + preferences */
 export const getBaseColumns = (
   isAdmin: boolean = false,
   onEdit?: (rowId: number, colId: string, value: unknown) => void,

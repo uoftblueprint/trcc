@@ -25,6 +25,20 @@ import { updateRole } from "./updateRole";
 import { updateCohort } from "./updateCohort";
 import { removeRoleById } from "./removeRole";
 import { removeCohort } from "./removeCohort";
+import {
+  createCustomColumnsBatch,
+  deleteCustomColumnsBatch,
+  listCustomColumns,
+  updateCustomColumn,
+  type ColumnMutationResult,
+  type CustomColumnRow,
+  type CustomColumnUpdate,
+  type NewCustomColumnInput,
+} from "./customColumns";
+import {
+  getColumnPreferencesForUser,
+  saveColumnPreferencesForUser,
+} from "./columnPreferences";
 
 type ImportCSVResponse = Awaited<ReturnType<typeof import_csv>>;
 
@@ -33,6 +47,14 @@ async function requireAdmin(): Promise<void> {
   if (!user || user.role !== "admin") {
     throw new Error("Unauthorized: admin access required");
   }
+}
+
+async function requireAuthenticatedUserId(): Promise<string> {
+  const user = await getCurrentUserServer();
+  if (!user) {
+    throw new Error("Unauthorized: sign in required");
+  }
+  return user.id;
 }
 
 export async function importCsvAction(
@@ -341,4 +363,68 @@ export async function removeAllCohortTagsAction(): Promise<
   }
   revalidateVolunteerTags();
   return { success: true, removed: ids.length };
+}
+
+export async function getCustomColumnsAction(): Promise<CustomColumnRow[]> {
+  await requireAuthenticatedUserId();
+  return listCustomColumns();
+}
+
+export async function createCustomColumnsAction(
+  columns: NewCustomColumnInput[]
+): Promise<ColumnMutationResult[]> {
+  await requireAdmin();
+  const u = await getCurrentUserServer();
+  const results = await createCustomColumnsBatch(columns, u?.id ?? null);
+  if (results.some((r) => r.success)) {
+    revalidatePath("/volunteers");
+  }
+  return results;
+}
+
+export async function deleteCustomColumnsAction(
+  columnIds: number[]
+): Promise<ColumnMutationResult[]> {
+  await requireAdmin();
+  const results = await deleteCustomColumnsBatch(columnIds);
+  if (results.some((r) => r.success)) {
+    revalidatePath("/volunteers");
+  }
+  return results;
+}
+
+export async function updateCustomColumnAction(
+  columnId: number,
+  patch: CustomColumnUpdate
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
+  const res = await updateCustomColumn(columnId, patch);
+  if (res.success) {
+    revalidatePath("/volunteers");
+  }
+  return res;
+}
+
+export async function getColumnPreferencesAction(): Promise<{
+  column_order: string[];
+  hidden_columns: string[];
+}> {
+  const userId = await requireAuthenticatedUserId();
+  return getColumnPreferencesForUser(userId);
+}
+
+export async function saveColumnPreferencesAction(
+  column_order: string[],
+  hidden_columns: string[]
+): Promise<{ success: boolean; error?: string }> {
+  const userId = await requireAuthenticatedUserId();
+  const res = await saveColumnPreferencesForUser(
+    userId,
+    column_order,
+    hidden_columns
+  );
+  if (res.success) {
+    revalidatePath("/volunteers");
+  }
+  return res;
 }

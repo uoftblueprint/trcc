@@ -22,10 +22,19 @@ import toast from "react-hot-toast";
 import type { Volunteer } from "./types";
 import { useCellSelection } from "./useCellSelection";
 import {
-  getBaseColumns,
-  FILTERABLE_COLUMNS,
+  buildDynamicColumns,
+  buildFilterableColumnList,
   COLUMNS_CONFIG,
+  customColumnIcon,
+  parseCustomColumnTableId,
+  tableIdForCustomColumn,
 } from "./volunteerColumns";
+import type { CustomColumnRow } from "@/lib/api/customColumns";
+import {
+  getCustomColumnsAction,
+  getColumnPreferencesAction,
+} from "@/lib/api/actions";
+import { ManageColumnsModal } from "./ManageColumnsModal";
 import { AlertCircle } from "lucide-react";
 import { FilterBar } from "./FilterBar";
 import { TableToolbar } from "./TableToolbar";
@@ -66,11 +75,23 @@ type PendingRowChange = {
   changes: PendingCellChange[];
 };
 
-const formatPendingValue = (colId: string, value: unknown): string => {
+const formatPendingValue = (
+  colId: string,
+  value: unknown,
+  customColumns: CustomColumnRow[]
+): string => {
   if (value === null || value === undefined || value === "") return "(empty)";
   if (colId === "opt_in_communication") {
     if (value === true) return "Yes";
     if (value === false) return "No";
+  }
+  const ck = parseCustomColumnTableId(colId);
+  if (ck) {
+    const def = customColumns.find((c) => c.column_key === ck);
+    if (def?.data_type === "boolean") {
+      if (value === true) return "Yes";
+      if (value === false) return "No";
+    }
   }
   if (Array.isArray(value)) {
     return value.length > 0 ? value.map(String).join(", ") : "(empty)";
@@ -119,6 +140,54 @@ const VolunteersTableContent = ({
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [isChangesModalOpen, setIsChangesModalOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [isManageColumnsOpen, setIsManageColumnsOpen] = useState(false);
+  const [customColumns, setCustomColumns] = useState<CustomColumnRow[]>([]);
+  const [columnPrefs, setColumnPrefs] = useState<{
+    column_order: string[];
+    hidden_columns: string[];
+  }>({ column_order: [], hidden_columns: [] });
+  const [columnOrder, setColumnOrder] = useState<string[]>([]);
+
+  const refreshColumnMeta = useCallback(async (): Promise<void> => {
+    try {
+      const [cols, prefs] = await Promise.all([
+        getCustomColumnsAction(),
+        getColumnPreferencesAction(),
+      ]);
+      setCustomColumns(cols);
+      setColumnPrefs(prefs);
+    } catch (e) {
+      console.error("[VolunteersTable] column meta fetch failed:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshColumnMeta();
+  }, [refreshColumnMeta]);
+
+  useEffect(() => {
+    const builtIn = COLUMNS_CONFIG.map((c) => String(c.id));
+    const customIds = customColumns.map((c) =>
+      tableIdForCustomColumn(c.column_key)
+    );
+    const fallback = ["select", ...builtIn, ...customIds];
+    if (columnPrefs.column_order.length === 0) {
+      setColumnOrder(fallback);
+      return;
+    }
+    const dataIds = new Set([...builtIn, ...customIds]);
+    const seen = new Set<string>();
+    const ordered: string[] = ["select"];
+    for (const id of columnPrefs.column_order) {
+      if (id === "select" || !dataIds.has(id) || seen.has(id)) continue;
+      seen.add(id);
+      ordered.push(id);
+    }
+    for (const id of [...builtIn, ...customIds]) {
+      if (!seen.has(id)) ordered.push(id);
+    }
+    setColumnOrder(ordered);
+  }, [customColumns, columnPrefs.column_order]);
 
   const {
     data,
@@ -164,6 +233,7 @@ const VolunteersTableContent = ({
     allVolunteers,
     allRoles,
     allCohorts,
+    customColumns,
     setData,
     setAllVolunteers,
     bumpDisplayRefresh,
@@ -172,9 +242,67 @@ const VolunteersTableContent = ({
     syncedEditedRowsRef: editedRowsRef,
   });
 
+  const filterableColumnList = useMemo(
+    () => buildFilterableColumnList(customColumns),
+    [customColumns]
+  );
+
+  const sortableColumnOptions = useMemo(
+    () => [
+      ...COLUMNS_CONFIG.map((c) => ({
+        id: String(c.id),
+        label: c.label,
+        icon: c.icon,
+      })),
+      ...customColumns.map((c) => ({
+        id: tableIdForCustomColumn(c.column_key),
+        label: c.name,
+        icon: customColumnIcon(c.data_type),
+      })),
+    ],
+    [customColumns]
+  );
+
   const filterOptions = useMemo(() => {
     const options: Record<string, Set<string>> = {};
-    FILTERABLE_COLUMNS.forEach((col) => {
+    const customTagOptionOrder: Record<string, string[]> = {};
+    customColumns.forEach((c) => {
+      if (c.data_type === "tag") {
+        customTagOptionOrder[tableIdForCustomColumn(c.column_key)] = [
+          ...(c.tag_options ?? []),
+        ];
+      }
+    });
+
+    const addScalarToOptionsBucket = (
+      colId: string,
+      ck: string | null,
+      raw: unknown
+    ): void => {
+      const bucket = options[colId];
+      if (!bucket || raw == null) return;
+      if (colId === "opt_in_communication") {
+        bucket.add(raw ? "Yes" : "No");
+        return;
+      }
+      if (ck) {
+        const def = customColumns.find((c) => c.column_key === ck);
+        if (def?.data_type === "boolean") {
+          if (typeof raw === "boolean") {
+            bucket.add(raw ? "Yes" : "No");
+          } else {
+            const s = String(raw).toLowerCase();
+            if (s === "true") bucket.add("Yes");
+            else if (s === "false") bucket.add("No");
+            else bucket.add(String(raw));
+          }
+          return;
+        }
+      }
+      bucket.add(String(raw));
+    };
+
+    filterableColumnList.forEach((col) => {
       if (col.type === "options") options[col.id] = new Set();
     });
 
@@ -192,10 +320,28 @@ const VolunteersTableContent = ({
     PRONOUN_OPTIONS.forEach((p) => options["pronouns"]?.add(p));
     OPT_IN_OPTIONS.forEach((o) => options["opt_in_communication"]?.add(o));
 
+    customColumns.forEach((c) => {
+      const fid = tableIdForCustomColumn(c.column_key);
+      if (c.data_type === "boolean") {
+        options[fid]?.add("Yes");
+        options[fid]?.add("No");
+      }
+      if (c.data_type === "tag" && (c.tag_options?.length ?? 0) > 0) {
+        c.tag_options?.forEach((t) => options[fid]?.add(t));
+      }
+    });
+
     allVolunteers.forEach((volunteer) => {
-      FILTERABLE_COLUMNS.forEach((col) => {
+      filterableColumnList.forEach((col) => {
         if (col.type === "options") {
-          const value = volunteer[col.id as keyof Volunteer];
+          const ck = parseCustomColumnTableId(col.id);
+          const value = ck
+            ? volunteer.custom_data &&
+              typeof volunteer.custom_data === "object" &&
+              !Array.isArray(volunteer.custom_data)
+              ? (volunteer.custom_data as Record<string, unknown>)[ck]
+              : undefined
+            : volunteer[col.id as keyof Volunteer];
           if (Array.isArray(value)) {
             value.forEach((v) => {
               if (v) options[col.id]?.add(String(v));
@@ -251,7 +397,14 @@ const VolunteersTableContent = ({
       }
     }
     return result;
-  }, [allVolunteers, allRoles, allCohorts, editedRows]);
+  }, [
+    allVolunteers,
+    allRoles,
+    allCohorts,
+    editedRows,
+    filterableColumnList,
+    customColumns,
+  ]);
 
   const pendingChanges = useMemo<PendingRowChange[]>(() => {
     return Object.entries(editedRows)
@@ -263,18 +416,66 @@ const VolunteersTableContent = ({
         const volunteerLabel =
           original.name_org?.trim() || original.pseudonym?.trim() || `ID ${id}`;
 
-        const changes: PendingCellChange[] = Object.entries(partial).map(
+        const changes: PendingCellChange[] = Object.entries(partial).flatMap(
           ([colId, nextValue]) => {
+            if (
+              colId === "custom_data" &&
+              nextValue &&
+              typeof nextValue === "object"
+            ) {
+              const m = nextValue as Record<string, unknown>;
+              const origCd =
+                original.custom_data &&
+                typeof original.custom_data === "object" &&
+                !Array.isArray(original.custom_data)
+                  ? (original.custom_data as Record<string, unknown>)
+                  : {};
+              const keys = new Set([...Object.keys(origCd), ...Object.keys(m)]);
+              const rows: PendingCellChange[] = [];
+              for (const key of keys) {
+                const ov = origCd[key];
+                const nv = m[key];
+                const same =
+                  Array.isArray(ov) && Array.isArray(nv)
+                    ? JSON.stringify([...ov].sort()) ===
+                      JSON.stringify([...nv].sort())
+                    : ov === nv;
+                if (same) continue;
+                const tid = tableIdForCustomColumn(key);
+                const cc = customColumns.find((c) => c.column_key === key);
+                rows.push({
+                  colId: tid,
+                  label: cc?.name ?? key,
+                  from: formatPendingValue(tid, ov, customColumns),
+                  to: formatPendingValue(tid, nv, customColumns),
+                });
+              }
+              return rows;
+            }
             const colLabel =
               COLUMNS_CONFIG.find((c) => String(c.id) === colId)?.label ??
+              customColumns.find(
+                (c) => tableIdForCustomColumn(c.column_key) === colId
+              )?.name ??
               colId;
-            const prevValue = original[colId as keyof Volunteer];
-            return {
-              colId,
-              label: colLabel,
-              from: formatPendingValue(colId, prevValue),
-              to: formatPendingValue(colId, nextValue),
-            };
+            const prevValue =
+              parseCustomColumnTableId(colId) !== null
+                ? original.custom_data &&
+                  typeof original.custom_data === "object" &&
+                  !Array.isArray(original.custom_data)
+                  ? (original.custom_data as Record<string, unknown>)[
+                      parseCustomColumnTableId(colId)!
+                    ]
+                  : undefined
+                : original[colId as keyof Volunteer];
+            return [
+              {
+                colId,
+                label: colLabel,
+                from: formatPendingValue(colId, prevValue, customColumns),
+                to: formatPendingValue(colId, nextValue, customColumns),
+              },
+            ];
           }
         );
 
@@ -283,7 +484,7 @@ const VolunteersTableContent = ({
       })
       .filter((row): row is PendingRowChange => row !== null)
       .sort((a, b) => a.volunteerLabel.localeCompare(b.volunteerLabel));
-  }, [editedRows, allVolunteers]);
+  }, [editedRows, allVolunteers, customColumns]);
 
   const pendingChangesCount = useMemo(
     () => pendingChanges.reduce((acc, row) => acc + row.changes.length, 0),
@@ -323,9 +524,15 @@ const VolunteersTableContent = ({
         enableSorting: false,
         enableResizing: false,
       },
-      ...getBaseColumns(isAdmin, handleCellEdit, filterOptions),
+      ...buildDynamicColumns(
+        customColumns,
+        columnPrefs,
+        isAdmin,
+        handleCellEdit,
+        filterOptions
+      ),
     ],
-    [isAdmin, handleCellEdit, filterOptions]
+    [customColumns, columnPrefs, isAdmin, handleCellEdit, filterOptions]
   );
 
   const table = useReactTable({
@@ -334,7 +541,13 @@ const VolunteersTableContent = ({
     /** Stable row identity avoids reusing row DOM/state when sort/page changes (default ids are row indices). */
     getRowId: (row) => String(row.id),
     columnResizeMode: "onChange",
-    state: { sorting, rowSelection, globalFilter: debouncedGlobalFilter },
+    state: {
+      sorting,
+      rowSelection,
+      globalFilter: debouncedGlobalFilter,
+      columnOrder,
+    },
+    onColumnOrderChange: setColumnOrder,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -395,12 +608,23 @@ const VolunteersTableContent = ({
     selectedCellCount,
     copySelectedCells,
   } = useCellSelection(table);
-  const clearValueForColumn = useCallback((colId: string): unknown => {
-    const col = COLUMNS_CONFIG.find((c) => String(c.id) === colId);
-    if (!col) return "";
-    if (col.filterType === "options") return col.isMulti ? [] : null;
-    return "";
-  }, []);
+  const clearValueForColumn = useCallback(
+    (colId: string): unknown => {
+      const ck = parseCustomColumnTableId(colId);
+      if (ck) {
+        const def = customColumns.find((c) => c.column_key === ck);
+        if (def?.data_type === "tag") return def.is_multi ? [] : null;
+        if (def?.data_type === "boolean") return null;
+        if (def?.data_type === "number") return null;
+        return "";
+      }
+      const col = COLUMNS_CONFIG.find((c) => String(c.id) === colId);
+      if (!col) return "";
+      if (col.filterType === "options") return col.isMulti ? [] : null;
+      return "";
+    },
+    [customColumns]
+  );
 
   const clearSelectedCells = useCallback((): void => {
     const selectedIds = Object.keys(selectedCells).filter(
@@ -701,6 +925,9 @@ const VolunteersTableContent = ({
             sorting={sorting}
             setSorting={setSorting}
             filterOptions={filterOptions}
+            filterableColumns={filterableColumnList}
+            sortableColumns={sortableColumnOptions}
+            onOpenManageColumns={() => setIsManageColumnsOpen(true)}
             role={role}
             selectedCount={selectedRowIds.length}
             isDeleting={isDeleting}
@@ -731,6 +958,7 @@ const VolunteersTableContent = ({
               globalOp={globalOp}
               setGlobalOp={setGlobalOp}
               optionsData={filterOptions}
+              filterableColumns={filterableColumnList}
               sorting={sorting}
               setSorting={setSorting}
             />
@@ -861,10 +1089,23 @@ const VolunteersTableContent = ({
                           cell.column.id
                         );
                         const isSelectColumn = cell.column.id === "select";
+                        const edit = editedRows[row.original.id];
+                        const customKey = parseCustomColumnTableId(
+                          cell.column.id
+                        );
                         const isModified =
-                          editedRows[row.original.id]?.[
-                            cell.column.id as keyof Volunteer
-                          ] !== undefined;
+                          edit !== undefined &&
+                          (customKey
+                            ? edit.custom_data !== undefined &&
+                              typeof edit.custom_data === "object" &&
+                              !Array.isArray(edit.custom_data) &&
+                              Object.prototype.hasOwnProperty.call(
+                                edit.custom_data as object,
+                                customKey
+                              )
+                            : (edit as Record<string, unknown>)[
+                                cell.column.id
+                              ] !== undefined);
 
                         const topRow = rows[rowIndex - 1];
                         const bottomRow = rows[rowIndex + 1];
@@ -984,6 +1225,20 @@ const VolunteersTableContent = ({
         onRefresh={() => {
           setLoading(true);
           fetchInitialData();
+        }}
+      />
+
+      <ManageColumnsModal
+        isOpen={isManageColumnsOpen}
+        onClose={() => setIsManageColumnsOpen(false)}
+        isAdmin={isAdmin}
+        customColumns={customColumns}
+        columnOrder={columnPrefs.column_order}
+        hiddenColumns={columnPrefs.hidden_columns}
+        onApplied={async () => {
+          await refreshColumnMeta();
+          setLoading(true);
+          await fetchInitialData();
         }}
       />
 

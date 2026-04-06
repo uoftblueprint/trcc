@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { SortingState } from "@tanstack/react-table";
 import clsx from "clsx";
-import { FILTERABLE_COLUMNS } from "./volunteerColumns";
+import type { FilterableColumnDesc } from "./volunteerColumns";
 import { FilterModal, filterModalAlignRight } from "./FilterModal";
 import { DEFAULT_OPT_IN_FILTER } from "./useVolunteersData";
 import {
@@ -157,6 +157,7 @@ interface FilterBarProps {
   globalOp: "AND" | "OR";
   setGlobalOp: (op: "AND" | "OR") => void;
   optionsData: Record<string, string[]>;
+  filterableColumns: FilterableColumnDesc[];
   sorting: SortingState;
   setSorting: React.Dispatch<React.SetStateAction<SortingState>>;
 }
@@ -167,6 +168,7 @@ export const FilterBar = ({
   globalOp,
   setGlobalOp,
   optionsData,
+  filterableColumns,
   sorting,
   setSorting,
 }: FilterBarProps): React.JSX.Element | null => {
@@ -346,9 +348,7 @@ export const FilterBar = ({
           aria-label="Active filters and actions"
         >
           {filters.map((filter, index) => {
-            const colDef = FILTERABLE_COLUMNS.find(
-              (c) => c.id === filter.field
-            );
+            const colDef = filterableColumns.find((c) => c.id === filter.field);
             const isCurrentlyEditing = editingIndex === index;
             const Icon = colDef?.icon;
             const isDefault = isDefaultFilter(filter);
@@ -433,6 +433,7 @@ export const FilterBar = ({
                 )}
 
                 <FilterModal
+                  filterableColumns={filterableColumns}
                   isOpen={isCurrentlyEditing}
                   onClose={() => {
                     setEditingIndex(null);
@@ -484,6 +485,7 @@ export const FilterBar = ({
                 }}
                 onApply={handleApplyNew}
                 optionsData={optionsData}
+                filterableColumns={filterableColumns}
                 alignRight={newAlignRight}
                 anchorRect={isAddingNew ? newAnchorRect : null}
               />

@@ -63,6 +63,50 @@ export type Database = {
         };
         Relationships: [];
       };
+      CustomColumns: {
+        Row: {
+          column_key: string;
+          created_at: string | null;
+          created_by: string | null;
+          data_type: string;
+          default_position: number;
+          id: number;
+          is_multi: boolean;
+          name: string;
+          tag_options: string[] | null;
+        };
+        Insert: {
+          column_key: string;
+          created_at?: string | null;
+          created_by?: string | null;
+          data_type: string;
+          default_position?: number;
+          id?: number;
+          is_multi?: boolean;
+          name: string;
+          tag_options?: string[] | null;
+        };
+        Update: {
+          column_key?: string;
+          created_at?: string | null;
+          created_by?: string | null;
+          data_type?: string;
+          default_position?: number;
+          id?: number;
+          is_multi?: boolean;
+          name?: string;
+          tag_options?: string[] | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "CustomColumns_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "Users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       Roles: {
         Row: {
           created_at: string;
@@ -107,6 +151,35 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_roles"] | null;
         };
         Relationships: [];
+      };
+      UserColumnPreferences: {
+        Row: {
+          column_order: Json;
+          hidden_columns: Json;
+          updated_at: string | null;
+          user_id: string;
+        };
+        Insert: {
+          column_order?: Json;
+          hidden_columns?: Json;
+          updated_at?: string | null;
+          user_id: string;
+        };
+        Update: {
+          column_order?: Json;
+          hidden_columns?: Json;
+          updated_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "UserColumnPreferences_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "Users";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       VolunteerCohorts: {
         Row: {
@@ -177,6 +250,7 @@ export type Database = {
       Volunteers: {
         Row: {
           created_at: string;
+          custom_data: Json;
           email: string | null;
           id: number;
           name_org: string;
@@ -190,6 +264,7 @@ export type Database = {
         };
         Insert: {
           created_at?: string;
+          custom_data?: Json;
           email?: string | null;
           id?: number;
           name_org: string;
@@ -203,6 +278,7 @@ export type Database = {
         };
         Update: {
           created_at?: string;
+          custom_data?: Json;
           email?: string | null;
           id?: number;
           name_org?: string;
@@ -261,6 +337,10 @@ export type Database = {
           p_notes: string | null;
         };
         Returns: number;
+      };
+      remove_custom_column_data: {
+        Args: { p_column_key: string };
+        Returns: undefined;
       };
     };
     Enums: {
