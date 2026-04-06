@@ -418,7 +418,8 @@ export const VolunteersShortcutsModal = ({
               onToggle={() => toggleSection("copyEmails")}
             >
               <p className="text-xs text-gray-600">
-                Copies non-empty emails from the current view, comma-separated.
+                Copies non-empty emails from the current view, comma-separated,
+                in the same order as the sorted table and with filters applied.
               </p>
               <button
                 type="button"
@@ -438,8 +439,9 @@ export const VolunteersShortcutsModal = ({
               onToggle={() => toggleSection("copyPhones")}
             >
               <p className="text-xs text-gray-600">
-                Copies non-empty phone values from the current view,
-                comma-separated (as shown in the table).
+                Copies non-empty phone numbers from the current view,
+                comma-separated, in the same order as the sorted table and with
+                filters applied.
               </p>
               <button
                 type="button"
@@ -557,8 +559,12 @@ export const VolunteersShortcutsModal = ({
             >
               <p className="text-xs text-gray-600">
                 Same email (case-insensitive, trimmed) or same phone (digits
-                only, 7+ digits). A row link jumps to the correct pagination
-                page and scrolls that volunteer into view.
+                only, 7+ digits). The links below jump to the correct page and
+                row in the table for the volunteer with duplicated email or
+                phone number.
+                <br />
+                Below, you will only see volunteers currently in the table (with
+                filters applied).
               </p>
               <div className="flex flex-wrap gap-3 text-xs">
                 <label className="inline-flex cursor-pointer items-center gap-2">

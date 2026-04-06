@@ -374,6 +374,12 @@ const VolunteersTableContent = ({
     }
   }, [table, data, debouncedGlobalFilter, sorting, pageSize]);
 
+  /** Filtered rows in table sort order (matches column headers), for shortcuts like copy-all emails/phones. */
+  const visibleVolunteersSorted = useMemo(
+    () => table.getSortedRowModel().rows.map((r) => r.original),
+    [table, data, sorting, debouncedGlobalFilter]
+  );
+
   const {
     selectedCells,
     isSelected,
@@ -939,7 +945,7 @@ const VolunteersTableContent = ({
         isOpen={isShortcutsOpen}
         onClose={() => setIsShortcutsOpen(false)}
         isAdmin={isAdmin}
-        visibleVolunteers={data}
+        visibleVolunteers={visibleVolunteersSorted}
         allVolunteers={allVolunteers}
         selectedVolunteers={selectedVolunteers}
         onBulkEdit={handleBulkEdit}
