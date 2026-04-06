@@ -23,7 +23,15 @@ import {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const SortableContext = SortableContextBase as any;
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Eye, EyeOff, Trash2, Plus, Loader2 } from "lucide-react";
+import {
+  GripVertical,
+  Eye,
+  EyeOff,
+  Trash2,
+  Plus,
+  Loader2,
+  ListOrdered,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import {
   COLUMNS_CONFIG,
@@ -45,8 +53,15 @@ import {
   ColumnChangeLogModal,
   type ColumnChangeLogEntry,
 } from "./ColumnChangeLogModal";
+import { NON_HIDEABLE_COLUMN_IDS } from "@/lib/volunteerTable/columnVisibility";
 
 const ID_COL = "volunteer_id";
+
+const NON_HIDEABLE = new Set(NON_HIDEABLE_COLUMN_IDS);
+
+function isNonHideableColumn(id: string): boolean {
+  return NON_HIDEABLE.has(id);
+}
 
 function isFundamental(id: string): boolean {
   return (FUNDAMENTAL_COLUMN_IDS as readonly string[]).includes(id);
@@ -85,6 +100,7 @@ function buildRowMetas(customColumns: CustomColumnRow[]): RowMeta[] {
 function SortableRow({
   meta,
   hidden,
+  orgHidden,
   isAdmin,
   onToggleHidden,
   onDeleteCustom,
@@ -92,6 +108,7 @@ function SortableRow({
 }: {
   meta: RowMeta;
   hidden: boolean;
+  orgHidden: boolean;
   isAdmin: boolean;
   onToggleHidden: (id: string) => void;
   onDeleteCustom: (columnId: number) => void;
@@ -141,16 +158,31 @@ function SortableRow({
         </p>
         <p className="text-xs text-gray-500">
           {meta.kind === "custom" ? meta.dataType : "built-in"}
+          {orgHidden ? " · Hidden for all users" : ""}
         </p>
       </div>
-      {!locked && (
+      {!isNonHideableColumn(meta.id) && (!locked || orgHidden) && (
         <button
           type="button"
-          onClick={() => onToggleHidden(meta.id)}
-          disabled={disabled}
+          onClick={() => {
+            if (!orgHidden && !locked) onToggleHidden(meta.id);
+          }}
+          disabled={disabled || orgHidden || locked}
           className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-40"
-          title={hidden ? "Show column" : "Hide column"}
-          aria-label={hidden ? `Show ${meta.label}` : `Hide ${meta.label}`}
+          title={
+            orgHidden
+              ? "Hidden for all users in Settings → Table Management"
+              : hidden
+                ? "Show column"
+                : "Hide column"
+          }
+          aria-label={
+            orgHidden
+              ? `${meta.label} hidden for all users`
+              : hidden
+                ? `Show ${meta.label}`
+                : `Hide ${meta.label}`
+          }
         >
           {hidden ? (
             <EyeOff className="h-4 w-4" />
@@ -184,6 +216,8 @@ interface ManageColumnsModalProps {
   hiddenColumns: string[];
   /** Last save time for column prefs; used when merging saved order with custom columns. */
   prefsUpdatedAt?: string | null;
+  /** Column ids hidden for everyone via Settings → Table Management. */
+  globalHiddenColumnIds?: string[];
   onApplied: () => void | Promise<void>;
   /** Called after column order/visibility is saved so the parent can reload prefs into React state. */
   onPreferencesSaved?: () => void | Promise<void>;
@@ -197,6 +231,7 @@ export const ManageColumnsModal = ({
   columnOrder: initialOrder,
   hiddenColumns: initialHidden,
   prefsUpdatedAt = null,
+  globalHiddenColumnIds = [],
   onApplied,
   onPreferencesSaved,
 }: ManageColumnsModalProps): React.JSX.Element | null => {
@@ -219,6 +254,11 @@ export const ManageColumnsModal = ({
   const customColumnIdsKey = useMemo(
     () => customColumns.map((c) => c.id).join(","),
     [customColumns]
+  );
+
+  const globalHiddenSet = useMemo(
+    () => new Set(globalHiddenColumnIds),
+    [globalHiddenColumnIds]
   );
 
   /** Sync from parent only when the modal opens or the set of custom column ids changes — not when prefs refresh from our own persist (avoids clearing pending deletes). */
@@ -265,6 +305,7 @@ export const ManageColumnsModal = ({
 
   const handleToggleHidden = useCallback(
     (id: string): void => {
+      if (isNonHideableColumn(id)) return;
       if (isFundamental(id)) return;
       const next = new Set(hidden);
       if (next.has(id)) next.delete(id);
@@ -406,7 +447,7 @@ export const ManageColumnsModal = ({
         }}
       >
         <div
-          className="w-full max-w-lg rounded-xl border border-gray-200 bg-white shadow-xl flex flex-col max-h-[min(90vh,640px)]"
+          className="w-full max-w-lg rounded-xl border border-gray-200 bg-white shadow-xl flex flex-col max-h-[min(92vh,720px)]"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="px-4 py-3 border-b border-gray-100 shrink-0 flex items-start justify-between gap-2">
@@ -418,7 +459,9 @@ export const ManageColumnsModal = ({
                 Manage columns
               </h2>
               <p className="text-sm text-gray-600 mt-0.5">
-                Reorder, show or hide columns. Visibility saves immediately.
+                {isAdmin
+                  ? "Reorder and show or hide columns, or add new custom fields."
+                  : "Drag to reorder columns and change which ones you see."}
               </p>
             </div>
             <button
@@ -431,103 +474,150 @@ export const ManageColumnsModal = ({
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">
+          <div className="flex-1 overflow-y-auto px-4 py-4 min-h-0 flex flex-col gap-6">
             {pendingSchemaCount > 0 && (
-              <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-900">
+              <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-900 shrink-0">
                 {pendingSchemaCount} pending schema change
-                {pendingSchemaCount === 1 ? "" : "s"} — use Apply changes to
-                confirm.
+                {pendingSchemaCount === 1 ? "" : "s"} — use{" "}
+                <span className="font-medium">Apply changes</span> in the footer
+                to confirm.
               </div>
             )}
 
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
+            <section
+              className="rounded-xl border border-gray-200 bg-slate-50/90 p-3 min-h-0"
+              aria-labelledby="manage-columns-order-heading"
             >
-              <SortableContext
-                items={sortableIds}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="space-y-2">
-                  {orderedMetas.map((meta) => (
-                    <SortableRow
-                      key={meta.id}
-                      meta={meta}
-                      hidden={hidden.has(meta.id)}
-                      isAdmin={isAdmin}
-                      onToggleHidden={handleToggleHidden}
-                      onDeleteCustom={handleQueueDelete}
-                      disabled={savingPrefs || applying}
-                    />
-                  ))}
+              <div className="flex items-start gap-2.5 mb-3">
+                <ListOrdered
+                  className="h-5 w-5 text-slate-500 shrink-0 mt-0.5"
+                  aria-hidden
+                />
+                <div className="min-w-0">
+                  <h3
+                    id="manage-columns-order-heading"
+                    className="text-sm font-semibold text-gray-900"
+                  >
+                    Column order & visibility
+                  </h3>
+                  <p className="text-xs text-gray-600 mt-1 leading-snug">
+                    Drag rows to reorder. Use the eye icon to show or hide
+                    columns for your account. Changes here save automatically.
+                  </p>
                 </div>
-              </SortableContext>
-            </DndContext>
+              </div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={sortableIds}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-2">
+                    {orderedMetas.map((meta) => (
+                      <SortableRow
+                        key={meta.id}
+                        meta={meta}
+                        hidden={
+                          hidden.has(meta.id) || globalHiddenSet.has(meta.id)
+                        }
+                        orgHidden={globalHiddenSet.has(meta.id)}
+                        isAdmin={isAdmin}
+                        onToggleHidden={handleToggleHidden}
+                        onDeleteCustom={handleQueueDelete}
+                        disabled={savingPrefs || applying}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            </section>
 
             {isAdmin && (
-              <div className="rounded-lg border border-gray-200 p-3 space-y-2 mt-4">
-                <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add column
-                </h3>
-                <input
-                  type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Column name"
-                  className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm"
-                />
-                <select
-                  value={newType}
-                  onChange={(e) =>
-                    setNewType(
-                      e.target.value as NewCustomColumnInput["data_type"]
-                    )
-                  }
-                  className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm"
-                >
-                  <option value="text">Text</option>
-                  <option value="number">Number</option>
-                  <option value="boolean">Yes / No</option>
-                  <option value="tag">Tag</option>
-                </select>
-                {newType === "tag" && (
-                  <>
-                    <textarea
-                      value={tagOptionsRaw}
-                      onChange={(e) => setTagOptionsRaw(e.target.value)}
-                      placeholder="Options (comma or newline separated)"
-                      rows={2}
-                      className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm"
-                    />
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={tagMulti}
-                        onChange={(e) => setTagMulti(e.target.checked)}
+              <section
+                className="rounded-xl border border-dashed border-purple-200 bg-purple-50/50 p-3 space-y-3"
+                aria-labelledby="manage-columns-add-heading"
+              >
+                <div className="flex items-start gap-2.5">
+                  <Plus
+                    className="h-5 w-5 text-purple-600 shrink-0 mt-0.5"
+                    aria-hidden
+                  />
+                  <div className="min-w-0">
+                    <h3
+                      id="manage-columns-add-heading"
+                      className="text-sm font-semibold text-gray-900"
+                    >
+                      Add a custom column
+                    </h3>
+                    <p className="text-xs text-gray-600 mt-1 leading-snug">
+                      Create a new field below, then confirm with{" "}
+                      <span className="font-medium">Apply changes</span> — this
+                      updates the database schema, not just your view.
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-2 pt-1 border-t border-purple-100">
+                  <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="Column name"
+                    className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm"
+                  />
+                  <select
+                    value={newType}
+                    onChange={(e) =>
+                      setNewType(
+                        e.target.value as NewCustomColumnInput["data_type"]
+                      )
+                    }
+                    className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm"
+                  >
+                    <option value="text">Text</option>
+                    <option value="number">Number</option>
+                    <option value="boolean">Yes / No</option>
+                    <option value="tag">Tag</option>
+                  </select>
+                  {newType === "tag" && (
+                    <>
+                      <textarea
+                        value={tagOptionsRaw}
+                        onChange={(e) => setTagOptionsRaw(e.target.value)}
+                        placeholder="Options (comma or newline separated)"
+                        rows={2}
+                        className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm"
                       />
-                      Allow multiple tags
-                    </label>
-                  </>
-                )}
-                <button
-                  type="button"
-                  onClick={handleAddPending}
-                  className="w-full rounded-lg bg-purple-600 text-white text-sm font-medium py-2 hover:bg-purple-700"
-                >
-                  Add to pending
-                </button>
-                {pendingAdds.length > 0 && (
-                  <ul className="text-xs text-gray-600 space-y-1">
-                    {pendingAdds.map((p, i) => (
-                      <li key={i}>
-                        + {p.name} ({p.data_type})
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+                      <label className="flex items-center gap-2 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={tagMulti}
+                          onChange={(e) => setTagMulti(e.target.checked)}
+                        />
+                        Allow multiple tags
+                      </label>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleAddPending}
+                    className="w-full rounded-lg bg-purple-600 text-white text-sm font-medium py-2 hover:bg-purple-700"
+                  >
+                    Add to pending list
+                  </button>
+                  {pendingAdds.length > 0 && (
+                    <ul className="text-xs text-gray-600 space-y-1 border-t border-purple-100 pt-2">
+                      {pendingAdds.map((p, i) => (
+                        <li key={i}>
+                          + {p.name} ({p.data_type})
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </section>
             )}
           </div>
 

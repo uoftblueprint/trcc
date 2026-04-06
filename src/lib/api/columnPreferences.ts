@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/client/supabase/server";
 import type { Json } from "@/lib/client/supabase/types";
+import { sanitizeHiddenColumnIds } from "@/lib/volunteerTable/columnVisibility";
 
 function parseStringArray(
   json: Json | null | undefined,
@@ -39,7 +40,9 @@ export async function getColumnPreferencesForUser(
 
   return {
     column_order: parseStringArray(data.column_order, []),
-    hidden_columns: parseStringArray(data.hidden_columns, []),
+    hidden_columns: sanitizeHiddenColumnIds(
+      parseStringArray(data.hidden_columns, [])
+    ),
     prefs_updated_at: data.updated_at ?? null,
   };
 }
@@ -51,12 +54,13 @@ export async function saveColumnPreferencesForUser(
 ): Promise<{ success: boolean; error?: string }> {
   const client = createAdminClient();
   const now = new Date().toISOString();
+  const hiddenSafe = sanitizeHiddenColumnIds(hidden_columns);
 
   const { error } = await client.from("UserColumnPreferences").upsert(
     {
       user_id: userId,
       column_order: column_order as unknown as Json,
-      hidden_columns: hidden_columns as unknown as Json,
+      hidden_columns: hiddenSafe as unknown as Json,
       updated_at: now,
     },
     { onConflict: "user_id" }

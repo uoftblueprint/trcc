@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 const NAV_ITEMS = [
   { href: "/settings/account", label: "Account Info" },
   { href: "/settings/manage", label: "Manage Users" },
+  { href: "/settings/table", label: "Table Management" },
 ] as const;
 
 export function SettingsNav(): React.JSX.Element {

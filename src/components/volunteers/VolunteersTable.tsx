@@ -31,9 +31,11 @@ import {
   tableIdForCustomColumn,
 } from "./volunteerColumns";
 import type { CustomColumnRow } from "@/lib/api/customColumns";
+import { sanitizeHiddenColumnIds } from "@/lib/volunteerTable/columnVisibility";
 import {
   getCustomColumnsAction,
   getColumnPreferencesAction,
+  getVolunteerTableGlobalSettingsAction,
 } from "@/lib/api/actions";
 import { ManageColumnsModal } from "./ManageColumnsModal";
 import { AlertCircle } from "lucide-react";
@@ -153,19 +155,37 @@ const VolunteersTableContent = ({
     prefs_updated_at: null,
   });
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
+  const [adminHiddenColumns, setAdminHiddenColumns] = useState<string[]>([]);
 
   const refreshColumnMeta = useCallback(async (): Promise<void> => {
     try {
-      const [cols, prefs] = await Promise.all([
+      const [cols, prefs, global] = await Promise.all([
         getCustomColumnsAction(),
         getColumnPreferencesAction(),
+        getVolunteerTableGlobalSettingsAction(),
       ]);
       setCustomColumns(cols);
       setColumnPrefs(prefs);
+      setAdminHiddenColumns(global.admin_hidden_columns);
     } catch (e) {
       console.error("[VolunteersTable] column meta fetch failed:", e);
     }
   }, []);
+
+  const globalHiddenSet = useMemo(
+    () => new Set(adminHiddenColumns),
+    [adminHiddenColumns]
+  );
+
+  const effectiveColumnPrefs = useMemo(
+    () => ({
+      ...columnPrefs,
+      hidden_columns: sanitizeHiddenColumnIds([
+        ...new Set([...columnPrefs.hidden_columns, ...adminHiddenColumns]),
+      ]).sort(),
+    }),
+    [columnPrefs, adminHiddenColumns]
+  );
 
   useEffect(() => {
     void refreshColumnMeta();
@@ -247,24 +267,28 @@ const VolunteersTableContent = ({
   });
 
   const filterableColumnList = useMemo(
-    () => buildFilterableColumnList(customColumns),
-    [customColumns]
+    () =>
+      buildFilterableColumnList(customColumns).filter(
+        (c) => !globalHiddenSet.has(c.id)
+      ),
+    [customColumns, globalHiddenSet]
   );
 
   const sortableColumnOptions = useMemo(
-    () => [
-      ...COLUMNS_CONFIG.map((c) => ({
-        id: String(c.id),
-        label: c.label,
-        icon: c.icon,
-      })),
-      ...customColumns.map((c) => ({
-        id: tableIdForCustomColumn(c.column_key),
-        label: c.name,
-        icon: customColumnIcon(c.data_type),
-      })),
-    ],
-    [customColumns]
+    () =>
+      [
+        ...COLUMNS_CONFIG.map((c) => ({
+          id: String(c.id),
+          label: c.label,
+          icon: c.icon,
+        })),
+        ...customColumns.map((c) => ({
+          id: tableIdForCustomColumn(c.column_key),
+          label: c.name,
+          icon: customColumnIcon(c.data_type),
+        })),
+      ].filter((c) => !globalHiddenSet.has(c.id)),
+    [customColumns, globalHiddenSet]
   );
 
   const filterOptions = useMemo(() => {
@@ -570,13 +594,19 @@ const VolunteersTableContent = ({
       },
       ...buildDynamicColumns(
         customColumns,
-        columnPrefs,
+        effectiveColumnPrefs,
         isAdmin,
         handleCellEdit,
         filterOptions
       ),
     ],
-    [customColumns, columnPrefs, isAdmin, handleCellEdit, filterOptions]
+    [
+      customColumns,
+      effectiveColumnPrefs,
+      isAdmin,
+      handleCellEdit,
+      filterOptions,
+    ]
   );
 
   const table = useReactTable({
@@ -1284,6 +1314,7 @@ const VolunteersTableContent = ({
         columnOrder={columnPrefs.column_order}
         hiddenColumns={columnPrefs.hidden_columns}
         prefsUpdatedAt={columnPrefs.prefs_updated_at}
+        globalHiddenColumnIds={adminHiddenColumns}
         onPreferencesSaved={refreshColumnMeta}
         onApplied={async () => {
           await refreshColumnMeta();

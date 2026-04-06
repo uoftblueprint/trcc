@@ -39,6 +39,10 @@ import {
   getColumnPreferencesForUser,
   saveColumnPreferencesForUser,
 } from "./columnPreferences";
+import {
+  getVolunteerTableGlobalSettings,
+  saveVolunteerTableGlobalSettings,
+} from "./volunteerTableGlobalSettings";
 
 type ImportCSVResponse = Awaited<ReturnType<typeof import_csv>>;
 
@@ -426,6 +430,25 @@ export async function saveColumnPreferencesAction(
   );
   if (res.success) {
     revalidatePath("/volunteers");
+  }
+  return res;
+}
+
+export async function getVolunteerTableGlobalSettingsAction(): Promise<{
+  admin_hidden_columns: string[];
+}> {
+  await requireAuthenticatedUserId();
+  return getVolunteerTableGlobalSettings();
+}
+
+export async function saveVolunteerTableGlobalSettingsAction(
+  admin_hidden_columns: string[]
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
+  const res = await saveVolunteerTableGlobalSettings(admin_hidden_columns);
+  if (res.success) {
+    revalidatePath("/volunteers");
+    revalidatePath("/settings/table");
   }
   return res;
 }

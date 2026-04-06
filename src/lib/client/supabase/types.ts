@@ -181,6 +181,24 @@ export type Database = {
           },
         ];
       };
+      VolunteerTableGlobalSettings: {
+        Row: {
+          admin_hidden_columns: Json;
+          id: number;
+          updated_at: string | null;
+        };
+        Insert: {
+          admin_hidden_columns?: Json;
+          id?: number;
+          updated_at?: string | null;
+        };
+        Update: {
+          admin_hidden_columns?: Json;
+          id?: number;
+          updated_at?: string | null;
+        };
+        Relationships: [];
+      };
       VolunteerCohorts: {
         Row: {
           cohort_id: number;

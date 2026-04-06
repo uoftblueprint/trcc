@@ -17,6 +17,7 @@ import {
   ToggleLeft,
 } from "lucide-react";
 import type { CustomColumnRow } from "@/lib/api/customColumns";
+import { sanitizeHiddenColumnIds } from "@/lib/volunteerTable/columnVisibility";
 
 type FilterType = "text" | "options" | null;
 
@@ -339,10 +340,7 @@ export function buildDynamicColumns(
   optionsData: Record<string, string[]> = {}
 ): ColumnDef<Volunteer>[] {
   const builtInIds = COLUMNS_CONFIG.map((c) => String(c.id));
-  const hidden = new Set(userPrefs.hidden_columns);
-  const fundamental = new Set<string>(
-    FUNDAMENTAL_COLUMN_IDS.map((x) => String(x))
-  );
+  const hidden = new Set(sanitizeHiddenColumnIds(userPrefs.hidden_columns));
 
   let ordered = orderedColumnIds(
     builtInIds,
@@ -351,11 +349,13 @@ export function buildDynamicColumns(
     userPrefs.prefs_updated_at ?? null
   );
 
-  ordered = ordered.filter((id) => fundamental.has(id) || !hidden.has(id));
+  ordered = ordered.filter((id) => !hidden.has(id));
 
   const idColumnFirst = "volunteer_id";
   ordered = ordered.filter((id) => id !== idColumnFirst);
-  ordered = [idColumnFirst, ...ordered];
+  if (!hidden.has(idColumnFirst)) {
+    ordered = [idColumnFirst, ...ordered];
+  }
 
   const builtInById = new Map(
     COLUMNS_CONFIG.map((c) => [String(c.id), c] as const)
