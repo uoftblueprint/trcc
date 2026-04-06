@@ -31,6 +31,8 @@ import {
   Plus,
   Loader2,
   ListOrdered,
+  ChevronDown,
+  X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -56,6 +58,15 @@ import {
 import { NON_HIDEABLE_COLUMN_IDS } from "@/lib/volunteerTable/columnVisibility";
 
 const ID_COL = "volunteer_id";
+
+function computeLayoutKey(order: string[], hidden: Set<string>): string {
+  return JSON.stringify({
+    order,
+    hidden: [...hidden].sort(),
+  });
+}
+
+type BusyOp = "idle" | "savingLayout" | "applyingAdds" | "applyingDeletes";
 
 const NON_HIDEABLE = new Set(NON_HIDEABLE_COLUMN_IDS);
 
@@ -135,7 +146,7 @@ function SortableRow({
       ref={setNodeRef}
       style={style}
       className={clsx(
-        "flex items-center gap-2 rounded-lg border border-gray-100 bg-white px-2 py-2",
+        "flex min-w-0 items-center gap-2 rounded-lg border border-gray-100 bg-white px-2 py-2",
         isDragging && "opacity-60 shadow-md z-10"
       )}
     >
@@ -156,7 +167,7 @@ function SortableRow({
         <p className="text-sm font-medium text-gray-900 truncate">
           {meta.label}
         </p>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-gray-500 line-clamp-2 wrap-break-word">
           {meta.kind === "custom" ? meta.dataType : "built-in"}
           {orgHidden ? " · Hidden for all users" : ""}
         </p>
@@ -239,9 +250,10 @@ export const ManageColumnsModal = ({
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [pendingAdds, setPendingAdds] = useState<NewCustomColumnInput[]>([]);
   const [pendingDeleteIds, setPendingDeleteIds] = useState<number[]>([]);
-  const [savingPrefs, setSavingPrefs] = useState(false);
-  const [applying, setApplying] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [busyOp, setBusyOp] = useState<BusyOp>("idle");
+  const [layoutSavedKey, setLayoutSavedKey] = useState("");
+  const [confirmAddOpen, setConfirmAddOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [logEntries, setLogEntries] = useState<ColumnChangeLogEntry[]>([]);
 
@@ -250,6 +262,8 @@ export const ManageColumnsModal = ({
     useState<NewCustomColumnInput["data_type"]>("text");
   const [tagOptionsRaw, setTagOptionsRaw] = useState("");
   const [tagMulti, setTagMulti] = useState(false);
+  const [orderSectionOpen, setOrderSectionOpen] = useState(true);
+  const [addSectionOpen, setAddSectionOpen] = useState(false);
 
   const customColumnIdsKey = useMemo(
     () => customColumns.map((c) => c.id).join(","),
@@ -272,36 +286,38 @@ export const ManageColumnsModal = ({
       prefsUpdatedAt
     );
     setOrder(base);
-    setHidden(new Set(initialHidden));
+    const h = new Set(initialHidden);
+    setHidden(h);
+    setLayoutSavedKey(computeLayoutKey(base, h));
     setPendingAdds([]);
     setPendingDeleteIds([]);
     setNewName("");
     setNewType("text");
     setTagOptionsRaw("");
     setTagMulti(false);
-    setConfirmOpen(false);
+    setConfirmAddOpen(false);
+    setConfirmDeleteOpen(false);
+    setOrderSectionOpen(true);
+    setAddSectionOpen(false);
     // initialOrder / initialHidden / prefsUpdatedAt intentionally omitted: read fresh when isOpen or customColumnIdsKey changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- see comment above
   }, [isOpen, customColumnIdsKey]);
 
-  const persistPrefs = useCallback(
-    async (nextOrder: string[], nextHidden: Set<string>): Promise<void> => {
-      setSavingPrefs(true);
-      try {
-        const res = await saveColumnPreferencesAction(nextOrder, [
-          ...nextHidden,
-        ]);
-        if (!res.success) {
-          toast.error(res.error ?? "Could not save column preferences");
-        } else {
-          await onPreferencesSaved?.();
-        }
-      } finally {
-        setSavingPrefs(false);
+  const handleSaveLayout = useCallback(async (): Promise<void> => {
+    setBusyOp("savingLayout");
+    try {
+      const res = await saveColumnPreferencesAction(order, [...hidden]);
+      if (!res.success) {
+        toast.error(res.error ?? "Could not save column preferences");
+        return;
       }
-    },
-    [onPreferencesSaved]
-  );
+      setLayoutSavedKey(computeLayoutKey(order, hidden));
+      await onPreferencesSaved?.();
+      toast.success("Column layout saved");
+    } finally {
+      setBusyOp("idle");
+    }
+  }, [order, hidden, onPreferencesSaved]);
 
   const handleToggleHidden = useCallback(
     (id: string): void => {
@@ -311,9 +327,8 @@ export const ManageColumnsModal = ({
       if (next.has(id)) next.delete(id);
       else next.add(id);
       setHidden(next);
-      void persistPrefs(order, next);
     },
-    [hidden, order, persistPrefs]
+    [hidden]
   );
 
   const sensors = useSensors(
@@ -338,7 +353,6 @@ export const ManageColumnsModal = ({
     const withIdFirst = next.filter((id) => id !== ID_COL);
     const merged = [ID_COL, ...withIdFirst.filter((id) => id !== ID_COL)];
     setOrder(merged);
-    void persistPrefs(merged, hidden);
   };
 
   const handleQueueDelete = (columnId: number): void => {
@@ -353,8 +367,18 @@ export const ManageColumnsModal = ({
     nextHidden.delete(tid);
     setOrder(nextOrder);
     setHidden(nextHidden);
-    void persistPrefs(nextOrder, nextHidden);
   };
+
+  const handleUnqueueDelete = useCallback(
+    (columnId: number): void => {
+      const c = customColumns.find((x) => x.id === columnId);
+      if (!c) return;
+      const tid = tableIdForCustomColumn(c.column_key);
+      setPendingDeleteIds((prev) => prev.filter((id) => id !== columnId));
+      setOrder((prev) => (prev.includes(tid) ? prev : [...prev, tid]));
+    },
+    [customColumns]
+  );
 
   const handleAddPending = (): void => {
     const name = newName.trim();
@@ -380,48 +404,66 @@ export const ManageColumnsModal = ({
     setNewType("text");
   };
 
-  const pendingSchemaCount = pendingAdds.length + pendingDeleteIds.length;
+  const layoutDirty = useMemo(
+    () =>
+      layoutSavedKey !== "" &&
+      computeLayoutKey(order, hidden) !== layoutSavedKey,
+    [order, hidden, layoutSavedKey]
+  );
 
-  const runApply = async (): Promise<void> => {
-    setApplying(true);
+  const busy = busyOp !== "idle";
+
+  const runApplyAdds = async (): Promise<void> => {
+    if (pendingAdds.length === 0) return;
+    setBusyOp("applyingAdds");
+    setConfirmAddOpen(false);
     const entries: ColumnChangeLogEntry[] = [];
-
     try {
-      if (pendingAdds.length > 0) {
-        const createRes = await createCustomColumnsAction(pendingAdds);
-        for (const r of createRes) {
-          const entry: ColumnChangeLogEntry = {
-            description: r.success
-              ? `Add column: ${r.label}`
-              : `Add column failed: ${r.label}`,
-            success: r.success,
-          };
-          if (r.error) entry.error = r.error;
-          entries.push(entry);
-        }
+      const createRes = await createCustomColumnsAction(pendingAdds);
+      for (const r of createRes) {
+        const entry: ColumnChangeLogEntry = {
+          description: r.success
+            ? `Add column: ${r.label}`
+            : `Add column failed: ${r.label}`,
+          success: r.success,
+        };
+        if (r.error) entry.error = r.error;
+        entries.push(entry);
       }
-      if (pendingDeleteIds.length > 0) {
-        const delRes = await deleteCustomColumnsAction(pendingDeleteIds);
-        for (const r of delRes) {
-          const entry: ColumnChangeLogEntry = {
-            description: r.success ? r.label : `Delete failed: ${r.label}`,
-            success: r.success,
-          };
-          if (r.error) entry.error = r.error;
-          entries.push(entry);
-        }
-      }
-
       setLogEntries(entries);
       setLogOpen(true);
       setPendingAdds([]);
-      setPendingDeleteIds([]);
-      setConfirmOpen(false);
       await onApplied();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Apply failed");
+      toast.error(e instanceof Error ? e.message : "Create failed");
     } finally {
-      setApplying(false);
+      setBusyOp("idle");
+    }
+  };
+
+  const runApplyDeletes = async (): Promise<void> => {
+    if (pendingDeleteIds.length === 0) return;
+    setBusyOp("applyingDeletes");
+    setConfirmDeleteOpen(false);
+    const entries: ColumnChangeLogEntry[] = [];
+    try {
+      const delRes = await deleteCustomColumnsAction(pendingDeleteIds);
+      for (const r of delRes) {
+        const entry: ColumnChangeLogEntry = {
+          description: r.success ? r.label : `Delete failed: ${r.label}`,
+          success: r.success,
+        };
+        if (r.error) entry.error = r.error;
+        entries.push(entry);
+      }
+      setLogEntries(entries);
+      setLogOpen(true);
+      setPendingDeleteIds([]);
+      await onApplied();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setBusyOp("idle");
     }
   };
 
@@ -443,11 +485,11 @@ export const ManageColumnsModal = ({
         aria-modal="true"
         aria-labelledby="manage-columns-title"
         onClick={() => {
-          if (!savingPrefs && !applying) onClose();
+          if (!busy) onClose();
         }}
       >
         <div
-          className="w-full max-w-lg rounded-xl border border-gray-200 bg-white shadow-xl flex flex-col max-h-[min(92vh,720px)]"
+          className="flex w-full max-w-xl min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl max-h-[min(92vh,820px)]"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="px-4 py-3 border-b border-gray-100 shrink-0 flex items-start justify-between gap-2">
@@ -467,191 +509,350 @@ export const ManageColumnsModal = ({
             <button
               type="button"
               onClick={onClose}
-              disabled={savingPrefs || applying}
+              disabled={busy}
               className="text-sm text-gray-600 hover:text-gray-900 px-2 py-1 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Close
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-4 min-h-0 flex flex-col gap-6">
-            {pendingSchemaCount > 0 && (
-              <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-900 shrink-0">
-                {pendingSchemaCount} pending schema change
-                {pendingSchemaCount === 1 ? "" : "s"} — use{" "}
-                <span className="font-medium">Apply changes</span> in the footer
-                to confirm.
-              </div>
-            )}
-
+          <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col gap-3 overflow-hidden px-4 py-4">
             <section
-              className="rounded-xl border border-gray-200 bg-slate-50/90 p-3 min-h-0"
+              className={clsx(
+                "rounded-xl border border-gray-200 bg-slate-50/90 min-w-0 flex flex-col min-h-0 overflow-hidden p-3",
+                orderSectionOpen && "flex-1"
+              )}
               aria-labelledby="manage-columns-order-heading"
             >
-              <div className="flex items-start gap-2.5 mb-3">
+              <button
+                type="button"
+                className="flex w-full items-start gap-2 rounded-lg -m-0.5 p-1.5 text-left hover:bg-slate-100/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+                onClick={() => setOrderSectionOpen((o) => !o)}
+                aria-expanded={orderSectionOpen}
+                aria-controls="manage-columns-order-panel"
+                id="manage-columns-order-heading"
+              >
+                <ChevronDown
+                  className={clsx(
+                    "h-5 w-5 shrink-0 text-slate-500 transition-transform mt-0.5",
+                    !orderSectionOpen && "-rotate-90"
+                  )}
+                  aria-hidden
+                />
                 <ListOrdered
                   className="h-5 w-5 text-slate-500 shrink-0 mt-0.5"
                   aria-hidden
                 />
-                <div className="min-w-0">
-                  <h3
-                    id="manage-columns-order-heading"
-                    className="text-sm font-semibold text-gray-900"
-                  >
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-semibold text-gray-900">
                     Column order & visibility
                   </h3>
                   <p className="text-xs text-gray-600 mt-1 leading-snug">
                     Drag rows to reorder. Use the eye icon to show or hide
-                    columns for your account. Changes here save automatically.
+                    columns for your account. Click{" "}
+                    <span className="font-medium">Save column layout</span> when
+                    you are ready to persist order and visibility.
                   </p>
                 </div>
-              </div>
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={sortableIds}
-                  strategy={verticalListSortingStrategy}
+              </button>
+              {orderSectionOpen && (
+                <div
+                  id="manage-columns-order-panel"
+                  className="mt-2 flex min-h-0 min-w-0 flex-1 flex-col gap-3"
                 >
-                  <div className="space-y-2">
-                    {orderedMetas.map((meta) => (
-                      <SortableRow
-                        key={meta.id}
-                        meta={meta}
-                        hidden={
-                          hidden.has(meta.id) || globalHiddenSet.has(meta.id)
-                        }
-                        orgHidden={globalHiddenSet.has(meta.id)}
-                        isAdmin={isAdmin}
-                        onToggleHidden={handleToggleHidden}
-                        onDeleteCustom={handleQueueDelete}
-                        disabled={savingPrefs || applying}
-                      />
-                    ))}
+                  <div className="min-h-48 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-0.5">
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={sortableIds}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <div className="space-y-2">
+                          {orderedMetas.map((meta) => (
+                            <SortableRow
+                              key={meta.id}
+                              meta={meta}
+                              hidden={
+                                hidden.has(meta.id) ||
+                                globalHiddenSet.has(meta.id)
+                              }
+                              orgHidden={globalHiddenSet.has(meta.id)}
+                              isAdmin={isAdmin}
+                              onToggleHidden={handleToggleHidden}
+                              onDeleteCustom={handleQueueDelete}
+                              disabled={busy}
+                            />
+                          ))}
+                        </div>
+                      </SortableContext>
+                    </DndContext>
                   </div>
-                </SortableContext>
-              </DndContext>
+                  {isAdmin && pendingDeleteIds.length > 0 && (
+                    <div className="rounded-lg border border-red-200 bg-red-50/60 px-2.5 py-2 shrink-0">
+                      <p className="text-xs font-medium text-red-900 mb-1.5">
+                        Pending removal
+                      </p>
+                      <ul className="space-y-1">
+                        {pendingDeleteIds.map((colId) => {
+                          const c = customColumns.find((x) => x.id === colId);
+                          const label = c?.name ?? `Column ${colId}`;
+                          return (
+                            <li
+                              key={colId}
+                              className="flex items-center justify-between gap-2 min-w-0"
+                            >
+                              <span className="text-sm text-red-950 truncate">
+                                {label}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleUnqueueDelete(colId)}
+                                disabled={busy}
+                                title="Undo removal"
+                                aria-label={`Keep column ${label}`}
+                                className="shrink-0 inline-flex items-center justify-center rounded-md p-1 text-red-700 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <X className="h-4 w-4" strokeWidth={2.25} />
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2 justify-end shrink-0 border-t border-gray-200/80 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveLayout()}
+                      disabled={!layoutDirty || busy}
+                      className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {busyOp === "savingLayout" && (
+                        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      )}
+                      Save column layout
+                    </button>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteOpen(true)}
+                        disabled={pendingDeleteIds.length === 0 || busy}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-900 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {busyOp === "applyingDeletes" && (
+                          <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                        )}
+                        Apply column removals
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </section>
 
             {isAdmin && (
               <section
-                className="rounded-xl border border-dashed border-purple-200 bg-purple-50/50 p-3 space-y-3"
+                className="shrink-0 rounded-xl border border-dashed border-purple-200 bg-purple-50/50 p-3 min-w-0 flex flex-col overflow-hidden max-h-[min(48vh,26rem)]"
                 aria-labelledby="manage-columns-add-heading"
               >
-                <div className="flex items-start gap-2.5">
+                <button
+                  type="button"
+                  className="flex w-full items-start gap-2 rounded-lg -m-0.5 p-1.5 text-left hover:bg-purple-100/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-1"
+                  onClick={() => setAddSectionOpen((o) => !o)}
+                  aria-expanded={addSectionOpen}
+                  aria-controls="manage-columns-add-panel"
+                  id="manage-columns-add-heading"
+                >
+                  <ChevronDown
+                    className={clsx(
+                      "h-5 w-5 shrink-0 text-purple-600 transition-transform mt-0.5",
+                      !addSectionOpen && "-rotate-90"
+                    )}
+                    aria-hidden
+                  />
                   <Plus
                     className="h-5 w-5 text-purple-600 shrink-0 mt-0.5"
                     aria-hidden
                   />
-                  <div className="min-w-0">
-                    <h3
-                      id="manage-columns-add-heading"
-                      className="text-sm font-semibold text-gray-900"
-                    >
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-semibold text-gray-900">
                       Add a custom column
                     </h3>
                     <p className="text-xs text-gray-600 mt-1 leading-snug">
-                      Create a new field below, then confirm with{" "}
-                      <span className="font-medium">Apply changes</span> — this
-                      updates the database schema, not just your view.
+                      Add fields to the pending list, then use{" "}
+                      <span className="font-medium">Create columns</span> to add
+                      them to the database (not just your view).
                     </p>
                   </div>
-                </div>
-                <div className="space-y-2 pt-1 border-t border-purple-100">
-                  <input
-                    type="text"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="Column name"
-                    className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm"
-                  />
-                  <select
-                    value={newType}
-                    onChange={(e) =>
-                      setNewType(
-                        e.target.value as NewCustomColumnInput["data_type"]
-                      )
-                    }
-                    className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm"
+                </button>
+                {addSectionOpen && (
+                  <div
+                    id="manage-columns-add-panel"
+                    className="mt-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden border-t border-purple-100 pt-3"
                   >
-                    <option value="text">Text</option>
-                    <option value="number">Number</option>
-                    <option value="boolean">Yes / No</option>
-                    <option value="tag">Tag</option>
-                  </select>
-                  {newType === "tag" && (
-                    <>
-                      <textarea
-                        value={tagOptionsRaw}
-                        onChange={(e) => setTagOptionsRaw(e.target.value)}
-                        placeholder="Options (comma or newline separated)"
-                        rows={2}
-                        className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm"
-                      />
-                      <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <div className="space-y-3">
+                      <div>
+                        <label
+                          htmlFor="manage-columns-new-name"
+                          className="mb-1 block text-xs font-medium text-gray-700"
+                        >
+                          Column name
+                        </label>
                         <input
-                          type="checkbox"
-                          checked={tagMulti}
-                          onChange={(e) => setTagMulti(e.target.checked)}
+                          id="manage-columns-new-name"
+                          type="text"
+                          value={newName}
+                          onChange={(e) => setNewName(e.target.value)}
+                          disabled={busy}
+                          placeholder="e.g. T-shirt size"
+                          className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm disabled:opacity-50"
                         />
-                        Allow multiple tags
-                      </label>
-                    </>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleAddPending}
-                    className="w-full rounded-lg bg-purple-600 text-white text-sm font-medium py-2 hover:bg-purple-700"
-                  >
-                    Add to pending list
-                  </button>
-                  {pendingAdds.length > 0 && (
-                    <ul className="text-xs text-gray-600 space-y-1 border-t border-purple-100 pt-2">
-                      {pendingAdds.map((p, i) => (
-                        <li key={i}>
-                          + {p.name} ({p.data_type})
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </section>
-            )}
-          </div>
-
-          <div className="px-4 py-3 border-t border-gray-100 shrink-0 flex flex-wrap gap-2 justify-end">
-            {isAdmin && (
-              <button
-                type="button"
-                disabled={pendingSchemaCount === 0 || applying}
-                onClick={() => setConfirmOpen(true)}
-                className={clsx(
-                  "rounded-lg px-4 py-2 text-sm font-medium",
-                  "bg-gray-900 text-white hover:bg-gray-800",
-                  "disabled:opacity-40 disabled:cursor-not-allowed"
+                      </div>
+                      <div>
+                        <label
+                          htmlFor="manage-columns-new-type"
+                          className="mb-1 block text-xs font-medium text-gray-700"
+                        >
+                          Data type
+                        </label>
+                        <select
+                          id="manage-columns-new-type"
+                          value={newType}
+                          onChange={(e) =>
+                            setNewType(
+                              e.target
+                                .value as NewCustomColumnInput["data_type"]
+                            )
+                          }
+                          disabled={busy}
+                          className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm disabled:opacity-50"
+                        >
+                          <option value="text">Text</option>
+                          <option value="number">Number</option>
+                          <option value="boolean">Yes / No</option>
+                          <option value="tag">Tag</option>
+                        </select>
+                      </div>
+                      {newType === "tag" && (
+                        <>
+                          <div>
+                            <label
+                              htmlFor="manage-columns-tag-options"
+                              className="mb-1 block text-xs font-medium text-gray-700"
+                            >
+                              Tag options (optional)
+                            </label>
+                            <textarea
+                              id="manage-columns-tag-options"
+                              value={tagOptionsRaw}
+                              onChange={(e) => setTagOptionsRaw(e.target.value)}
+                              disabled={busy}
+                              placeholder="Comma or newline separated"
+                              rows={2}
+                              className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm disabled:opacity-50"
+                            />
+                          </div>
+                          <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input
+                              type="checkbox"
+                              checked={tagMulti}
+                              disabled={busy}
+                              onChange={(e) => setTagMulti(e.target.checked)}
+                            />
+                            Allow multiple tags
+                          </label>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleAddPending}
+                        disabled={busy}
+                        className="w-full rounded-lg bg-purple-600 text-white text-sm font-medium py-2 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Add to pending list
+                      </button>
+                      {pendingAdds.length > 0 && (
+                        <ul className="text-xs text-gray-600 space-y-1 border-t border-purple-100 pt-2">
+                          {pendingAdds.map((p, i) => (
+                            <li key={i}>
+                              + {p.name} ({p.data_type})
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setConfirmAddOpen(true)}
+                        disabled={pendingAdds.length === 0 || busy}
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-purple-700 bg-white px-3 py-2 text-sm font-medium text-purple-900 hover:bg-purple-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {busyOp === "applyingAdds" && (
+                          <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                        )}
+                        Create columns
+                      </button>
+                    </div>
+                  </div>
                 )}
-              >
-                Apply changes
-              </button>
+              </section>
             )}
           </div>
         </div>
       </div>
 
-      {confirmOpen && (
+      {confirmAddOpen && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-4 space-y-3">
-            <h3 className="font-semibold text-gray-900">
-              Confirm schema changes
-            </h3>
+            <h3 className="font-semibold text-gray-900">Create new columns</h3>
+            <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              These columns will be added to the database and will appear in the
+              volunteers table for <span className="font-medium">every</span>{" "}
+              signed-in user (admins and staff), not only for you.
+            </p>
             <ul className="text-sm text-gray-700 list-disc pl-5 space-y-1 max-h-48 overflow-y-auto">
               {pendingAdds.map((p, i) => (
                 <li key={`a-${i}`}>
                   Add column &quot;{p.name}&quot; ({p.data_type})
                 </li>
               ))}
+            </ul>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                className="px-3 py-1.5 text-sm rounded-lg border border-gray-300"
+                onClick={() => setConfirmAddOpen(false)}
+                disabled={busyOp === "applyingAdds"}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="px-3 py-1.5 text-sm rounded-lg bg-purple-600 text-white disabled:opacity-50 inline-flex items-center gap-2 hover:bg-purple-700"
+                onClick={() => void runApplyAdds()}
+                disabled={busyOp === "applyingAdds"}
+              >
+                {busyOp === "applyingAdds" && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+                Create columns
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteOpen && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-4 space-y-3">
+            <h3 className="font-semibold text-gray-900">Remove columns</h3>
+            <p className="text-sm text-gray-600">
+              The following custom columns will be permanently removed from the
+              database.
+            </p>
+            <ul className="text-sm text-gray-700 list-disc pl-5 space-y-1 max-h-48 overflow-y-auto">
               {pendingDeleteIds.map((id) => {
                 const c = customColumns.find((x) => x.id === id);
                 return (
@@ -665,19 +866,21 @@ export const ManageColumnsModal = ({
               <button
                 type="button"
                 className="px-3 py-1.5 text-sm rounded-lg border border-gray-300"
-                onClick={() => setConfirmOpen(false)}
-                disabled={applying}
+                onClick={() => setConfirmDeleteOpen(false)}
+                disabled={busyOp === "applyingDeletes"}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                className="px-3 py-1.5 text-sm rounded-lg bg-red-600 text-white disabled:opacity-50 inline-flex items-center gap-2"
-                onClick={() => void runApply()}
-                disabled={applying}
+                className="px-3 py-1.5 text-sm rounded-lg bg-red-600 text-white disabled:opacity-50 inline-flex items-center gap-2 hover:bg-red-700"
+                onClick={() => void runApplyDeletes()}
+                disabled={busyOp === "applyingDeletes"}
               >
-                {applying && <Loader2 className="h-4 w-4 animate-spin" />}
-                Confirm
+                {busyOp === "applyingDeletes" && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+                Remove columns
               </button>
             </div>
           </div>

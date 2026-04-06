@@ -54,6 +54,8 @@ export type FilterTuple = {
   field: string;
   miniOp: "AND" | "OR";
   values: string[] | [string, string][];
+  /** Custom number columns: `values` is `[min, max]` inclusive; empty string means unbounded on that side. */
+  numberRange?: boolean;
 };
 
 type ValidationResult =
@@ -121,7 +123,8 @@ export async function getVolunteersByMultipleColumns(
           client,
           customCol,
           f.miniOp,
-          f.values as string[]
+          f.values as string[],
+          f.numberRange === true
         );
       }
 
@@ -247,6 +250,39 @@ export async function validateMultipleColumnFilter(
 
       if (invalid)
         return { valid: false, error: "Invalid cohort filter values" };
+    } else if (f.numberRange) {
+      const col = customCols.find(
+        (c) =>
+          `${CUSTOM_COLUMN_FIELD_PREFIX}${c.column_key}`.toLowerCase() ===
+          f.field
+      );
+      if (!col || col.data_type !== "number") {
+        return { valid: false, error: "Invalid number range filter field" };
+      }
+      const vals = f.values as string[];
+      if (!Array.isArray(vals) || vals.length !== 2) {
+        return { valid: false, error: "Number range requires min and max" };
+      }
+      const minS = String(vals[0] ?? "").trim();
+      const maxS = String(vals[1] ?? "").trim();
+      if (minS === "" && maxS === "") {
+        return {
+          valid: false,
+          error: "Enter at least a minimum or maximum for the range",
+        };
+      }
+      if (minS !== "" && !Number.isFinite(Number(minS))) {
+        return { valid: false, error: "Invalid minimum value" };
+      }
+      if (maxS !== "" && !Number.isFinite(Number(maxS))) {
+        return { valid: false, error: "Invalid maximum value" };
+      }
+      if (minS !== "" && maxS !== "" && Number(minS) > Number(maxS)) {
+        return {
+          valid: false,
+          error: "Minimum must be less than or equal to maximum",
+        };
+      }
     } else {
       const invalid = f.values.some((v) => typeof v !== "string");
       if (invalid)
@@ -388,11 +424,21 @@ async function filterIdsContactIncomplete(
   return ids;
 }
 
+function parseNumericCell(cell: unknown): number | null {
+  if (cell == null || cell === "") return null;
+  if (typeof cell === "number") {
+    return Number.isFinite(cell) ? cell : null;
+  }
+  const n = Number(String(cell).trim());
+  return Number.isFinite(n) ? n : null;
+}
+
 async function filterIdsByCustomColumn(
   client: SupabaseClient<Database>,
   col: CustomColRow,
   op: string,
-  values: string[]
+  values: string[],
+  numberRange = false
 ): Promise<Set<number>> {
   const { data, error } = await client
     .from("Volunteers")
@@ -409,6 +455,16 @@ async function filterIdsByCustomColumn(
         ? (raw as Record<string, unknown>)
         : {};
     const cell = obj[key];
+
+    if (col.data_type === "number" && numberRange && values.length === 2) {
+      const n = parseNumericCell(cell);
+      const minS = String(values[0] ?? "").trim();
+      const maxS = String(values[1] ?? "").trim();
+      const min = minS === "" ? -Infinity : Number(minS);
+      const max = maxS === "" ? Infinity : Number(maxS);
+      if (n !== null && n >= min && n <= max) ids.add(row.id);
+      continue;
+    }
 
     const matchesOne = (needle: string): boolean => {
       if (col.data_type === "text" || col.data_type === "number") {

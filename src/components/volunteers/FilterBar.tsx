@@ -55,6 +55,26 @@ function shortcutPresetLabel(f: FilterTuple): string | null {
   return null;
 }
 
+function formatFilterChipLabel(
+  filter: FilterTuple,
+  colDef: FilterableColumnDesc | undefined
+): string {
+  if (!colDef) return filter.field;
+  if (
+    filter.numberRange &&
+    colDef.type === "number" &&
+    Array.isArray(filter.values) &&
+    filter.values.length >= 2
+  ) {
+    const low = String(filter.values[0] ?? "").trim();
+    const high = String(filter.values[1] ?? "").trim();
+    if (low !== "" && high !== "") return `${colDef.label} ${low}–${high}`;
+    if (low !== "") return `${colDef.label} ≥ ${low}`;
+    if (high !== "") return `${colDef.label} ≤ ${high}`;
+  }
+  return colDef.label;
+}
+
 type OptInWarningVariant = "remove" | "include-no";
 
 const VARIANT_CONTENT: Record<
@@ -364,7 +384,7 @@ export const FilterBar = ({
 
             return (
               <div
-                key={`${filter.field}-${filter.miniOp}-${filter.values.join("¦")}-${index}`}
+                key={`${filter.field}-${filter.miniOp}-${filter.values.join("¦")}-${filter.numberRange ? "r" : ""}-${index}`}
                 className={clsx(
                   "relative shrink-0",
                   isCurrentlyEditing ? "z-50" : "z-10"
@@ -426,7 +446,7 @@ export const FilterBar = ({
                       <Icon className="h-3.5 w-3.5 shrink-0 text-gray-600" />
                     ) : null}
                     <span className="max-w-48 truncate whitespace-nowrap sm:max-w-64">
-                      {isDefault ? "Opt-in (default)" : colDef?.label}
+                      {isDefault ? "Opt-in (default)" : formatFilterChipLabel(filter, colDef)}
                     </span>
                     <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-500" />
                   </button>

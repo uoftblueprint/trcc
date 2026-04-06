@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { ColumnSelector } from "./ColumnSelector";
 import { FilterTuple } from "@/lib/api/getVolunteersByMultipleColumns";
 import { Trash2 } from "lucide-react";
+import toast from "react-hot-toast";
 import { VolunteerTag } from "./VolunteerTag";
 import clsx from "clsx";
 import {
@@ -61,6 +62,8 @@ export const FilterModal = ({
   const [selectedCol, setSelectedCol] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [rangeMin, setRangeMin] = useState("");
+  const [rangeMax, setRangeMax] = useState("");
   const [miniOp, setMiniOp] = useState<"AND" | "OR">("OR");
 
   const colDef = filterableColumns.find((c) => c.id === selectedCol);
@@ -81,12 +84,31 @@ export const FilterModal = ({
         const initialColDef = filterableColumns.find(
           (c) => c.id === initialFilter.field
         );
-        if (initialColDef?.type === "text") {
+        if (initialColDef?.type === "number") {
+          const vals = initialFilter.values as string[];
+          if (
+            initialFilter.numberRange &&
+            Array.isArray(vals) &&
+            vals.length >= 2
+          ) {
+            setRangeMin(String(vals[0] ?? ""));
+            setRangeMax(String(vals[1] ?? ""));
+          } else {
+            setRangeMin("");
+            setRangeMax("");
+          }
+          setInputValue("");
+          setSelectedOptions([]);
+        } else if (initialColDef?.type === "text") {
           setInputValue(initialFilter.values[0] as string);
           setSelectedOptions([]);
+          setRangeMin("");
+          setRangeMax("");
         } else {
           setSelectedOptions(initialFilter.values as string[]);
           setInputValue("");
+          setRangeMin("");
+          setRangeMax("");
         }
         setActiveStep("SELECT_VALUES");
       } else {
@@ -94,6 +116,8 @@ export const FilterModal = ({
         setSelectedCol(null);
         setInputValue("");
         setSelectedOptions([]);
+        setRangeMin("");
+        setRangeMax("");
         setMiniOp("OR");
       }
     }
@@ -118,6 +142,49 @@ export const FilterModal = ({
   const handleApplyFilter = (): void => {
     if (!selectedCol) {
       onClose();
+      return;
+    }
+
+    if (colDef?.type === "number") {
+      const min = rangeMin.trim();
+      const max = rangeMax.trim();
+      if (min === "" && max === "") {
+        onApply(null);
+        return;
+      }
+      if (min !== "" && !Number.isFinite(Number(min))) {
+        toast.error("Enter a valid minimum number");
+        return;
+      }
+      if (max !== "" && !Number.isFinite(Number(max))) {
+        toast.error("Enter a valid maximum number");
+        return;
+      }
+      if (min !== "" && max !== "" && Number(min) > Number(max)) {
+        toast.error("Minimum must be less than or equal to maximum");
+        return;
+      }
+      const newFilter: FilterTuple = {
+        field: selectedCol,
+        miniOp: "AND",
+        values: [min, max],
+        numberRange: true,
+      };
+      if (initialFilter) {
+        if (
+          initialFilter.field === newFilter.field &&
+          initialFilter.miniOp === newFilter.miniOp &&
+          initialFilter.numberRange === true &&
+          compareArrays(
+            initialFilter.values as string[],
+            newFilter.values as string[]
+          )
+        ) {
+          onClose();
+          return;
+        }
+      }
+      onApply(newFilter);
       return;
     }
 
@@ -196,6 +263,8 @@ export const FilterModal = ({
               setSelectedCol(colId);
               setActiveStep("SELECT_VALUES");
               setInputValue("");
+              setRangeMin("");
+              setRangeMax("");
               setMiniOp("OR");
             }}
           />
@@ -244,6 +313,54 @@ export const FilterModal = ({
                 }}
                 className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
               />
+            ) : colDef?.type === "number" ? (
+              <div className="space-y-2">
+                <p className="text-xs text-gray-600">
+                  Include values from <span className="font-medium">min</span>{" "}
+                  to <span className="font-medium">max</span> (inclusive). Leave
+                  one side empty for no lower or upper bound.
+                </p>
+                <div className="flex gap-2 items-center">
+                  <label className="flex-1 min-w-0">
+                    <span className="sr-only">Minimum</span>
+                    <input
+                      ref={valueInputRef}
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Min"
+                      value={rangeMin}
+                      onChange={(e) => setRangeMin(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleApplyFilter();
+                        }
+                      }}
+                      className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
+                    />
+                  </label>
+                  <span className="text-gray-400 shrink-0 text-sm" aria-hidden>
+                    –
+                  </span>
+                  <label className="flex-1 min-w-0">
+                    <span className="sr-only">Maximum</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Max"
+                      value={rangeMax}
+                      onChange={(e) => setRangeMax(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleApplyFilter();
+                        }
+                      }}
+                      className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
+                    />
+                  </label>
+                </div>
+              </div>
             ) : (
               <>
                 <input

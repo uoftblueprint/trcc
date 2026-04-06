@@ -179,7 +179,7 @@ export const NEW_VOLUNTEER_FORM_COLUMNS = COLUMNS_CONFIG.filter(
 export type FilterableColumnDesc = {
   id: string;
   label: string;
-  type: "text" | "options";
+  type: "text" | "options" | "number";
   icon: React.ElementType;
   isMulti: boolean;
 };
@@ -235,11 +235,20 @@ export function buildFilterableColumnList(
   const builtIn = FILTERABLE_COLUMNS;
   const custom: FilterableColumnDesc[] = customColumns.map((c) => {
     const id = tableIdForCustomColumn(c.column_key);
-    if (c.data_type === "text" || c.data_type === "number") {
+    if (c.data_type === "text") {
       return {
         id,
         label: c.name,
         type: "text",
+        icon: customColumnIcon(c.data_type),
+        isMulti: false,
+      };
+    }
+    if (c.data_type === "number") {
+      return {
+        id,
+        label: c.name,
+        type: "number",
         icon: customColumnIcon(c.data_type),
         isMulti: false,
       };
