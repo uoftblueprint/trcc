@@ -27,18 +27,15 @@ import {
   GripVertical,
   Eye,
   EyeOff,
-  Trash2,
   Plus,
   Loader2,
   ListOrdered,
   ChevronDown,
-  X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   COLUMNS_CONFIG,
   FUNDAMENTAL_COLUMN_IDS,
-  tableIdForCustomColumn,
   parseCustomColumnTableId,
   orderedColumnIds,
 } from "./volunteerColumns";
@@ -48,7 +45,6 @@ import type {
 } from "@/lib/api/customColumns";
 import {
   createCustomColumnsAction,
-  deleteCustomColumnsAction,
   saveColumnPreferencesAction,
 } from "@/lib/api/actions";
 import {
@@ -66,7 +62,7 @@ function computeLayoutKey(order: string[], hidden: Set<string>): string {
   });
 }
 
-type BusyOp = "idle" | "savingLayout" | "applyingAdds" | "applyingDeletes";
+type BusyOp = "idle" | "savingLayout" | "applyingAdds";
 
 const NON_HIDEABLE = new Set(NON_HIDEABLE_COLUMN_IDS);
 
@@ -112,17 +108,13 @@ function SortableRow({
   meta,
   hidden,
   orgHidden,
-  isAdmin,
   onToggleHidden,
-  onDeleteCustom,
   disabled,
 }: {
   meta: RowMeta;
   hidden: boolean;
   orgHidden: boolean;
-  isAdmin: boolean;
   onToggleHidden: (id: string) => void;
-  onDeleteCustom: (columnId: number) => void;
   disabled: boolean;
 }): React.JSX.Element {
   const locked = meta.id === ID_COL || isFundamental(meta.id);
@@ -182,7 +174,7 @@ function SortableRow({
           className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-40"
           title={
             orgHidden
-              ? "Hidden for all users in Settings → Table Management"
+              ? "Hidden for all users in Settings → Volunteers table"
               : hidden
                 ? "Show column"
                 : "Hide column"
@@ -200,18 +192,6 @@ function SortableRow({
           ) : (
             <Eye className="h-4 w-4" />
           )}
-        </button>
-      )}
-      {isAdmin && meta.kind === "custom" && meta.columnId >= 0 && (
-        <button
-          type="button"
-          onClick={() => onDeleteCustom(meta.columnId)}
-          disabled={disabled}
-          className="p-2 rounded-lg text-red-600 hover:bg-red-50 disabled:opacity-40"
-          title="Delete column"
-          aria-label={`Delete ${meta.label}`}
-        >
-          <Trash2 className="h-4 w-4" />
         </button>
       )}
     </div>
@@ -249,11 +229,9 @@ export const ManageColumnsModal = ({
   const [order, setOrder] = useState<string[]>([]);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [pendingAdds, setPendingAdds] = useState<NewCustomColumnInput[]>([]);
-  const [pendingDeleteIds, setPendingDeleteIds] = useState<number[]>([]);
   const [busyOp, setBusyOp] = useState<BusyOp>("idle");
   const [layoutSavedKey, setLayoutSavedKey] = useState("");
   const [confirmAddOpen, setConfirmAddOpen] = useState(false);
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [logEntries, setLogEntries] = useState<ColumnChangeLogEntry[]>([]);
 
@@ -275,33 +253,33 @@ export const ManageColumnsModal = ({
     [globalHiddenColumnIds]
   );
 
-  /** Sync from parent only when the modal opens or the set of custom column ids changes — not when prefs refresh from our own persist (avoids clearing pending deletes). */
+  /** Sync from parent only when the modal opens or the set of custom column ids changes — not when prefs refresh from our own persist. */
   useEffect(() => {
     if (!isOpen) return;
     const builtInIds = COLUMNS_CONFIG.map((c) => String(c.id));
-    const base = orderedColumnIds(
-      builtInIds,
-      customColumns,
-      initialOrder,
-      prefsUpdatedAt
-    );
+    const base = isAdmin
+      ? orderedColumnIds(
+          builtInIds,
+          customColumns,
+          initialOrder,
+          prefsUpdatedAt
+        )
+      : initialOrder;
     setOrder(base);
     const h = new Set(initialHidden);
     setHidden(h);
     setLayoutSavedKey(computeLayoutKey(base, h));
     setPendingAdds([]);
-    setPendingDeleteIds([]);
     setNewName("");
     setNewType("text");
     setTagOptionsRaw("");
     setTagMulti(false);
     setConfirmAddOpen(false);
-    setConfirmDeleteOpen(false);
     setOrderSectionOpen(true);
     setAddSectionOpen(false);
     // initialOrder / initialHidden / prefsUpdatedAt intentionally omitted: read fresh when isOpen or customColumnIdsKey changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- see comment above
-  }, [isOpen, customColumnIdsKey]);
+  }, [isOpen, customColumnIdsKey, isAdmin]);
 
   const handleSaveLayout = useCallback(async (): Promise<void> => {
     setBusyOp("savingLayout");
@@ -354,31 +332,6 @@ export const ManageColumnsModal = ({
     const merged = [ID_COL, ...withIdFirst.filter((id) => id !== ID_COL)];
     setOrder(merged);
   };
-
-  const handleQueueDelete = (columnId: number): void => {
-    const c = customColumns.find((x) => x.id === columnId);
-    if (!c) return;
-    const tid = tableIdForCustomColumn(c.column_key);
-    setPendingDeleteIds((prev) =>
-      prev.includes(columnId) ? prev : [...prev, columnId]
-    );
-    const nextOrder = order.filter((id) => id !== tid);
-    const nextHidden = new Set(hidden);
-    nextHidden.delete(tid);
-    setOrder(nextOrder);
-    setHidden(nextHidden);
-  };
-
-  const handleUnqueueDelete = useCallback(
-    (columnId: number): void => {
-      const c = customColumns.find((x) => x.id === columnId);
-      if (!c) return;
-      const tid = tableIdForCustomColumn(c.column_key);
-      setPendingDeleteIds((prev) => prev.filter((id) => id !== columnId));
-      setOrder((prev) => (prev.includes(tid) ? prev : [...prev, tid]));
-    },
-    [customColumns]
-  );
 
   const handleAddPending = (): void => {
     const name = newName.trim();
@@ -441,37 +394,9 @@ export const ManageColumnsModal = ({
     }
   };
 
-  const runApplyDeletes = async (): Promise<void> => {
-    if (pendingDeleteIds.length === 0) return;
-    setBusyOp("applyingDeletes");
-    setConfirmDeleteOpen(false);
-    const entries: ColumnChangeLogEntry[] = [];
-    try {
-      const delRes = await deleteCustomColumnsAction(pendingDeleteIds);
-      for (const r of delRes) {
-        const entry: ColumnChangeLogEntry = {
-          description: r.success ? r.label : `Delete failed: ${r.label}`,
-          success: r.success,
-        };
-        if (r.error) entry.error = r.error;
-        entries.push(entry);
-      }
-      setLogEntries(entries);
-      setLogOpen(true);
-      setPendingDeleteIds([]);
-      await onApplied();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Delete failed");
-    } finally {
-      setBusyOp("idle");
-    }
-  };
-
   if (!isOpen) return null;
 
-  const metas = buildRowMetas(
-    customColumns.filter((c) => !pendingDeleteIds.includes(c.id))
-  );
+  const metas = buildRowMetas(customColumns);
   const metaById = new Map(metas.map((m) => [m.id, m]));
   const orderedMetas = order
     .map((id) => metaById.get(id))
@@ -502,7 +427,7 @@ export const ManageColumnsModal = ({
               </h2>
               <p className="text-sm text-gray-600 mt-0.5">
                 {isAdmin
-                  ? "Reorder and show or hide columns, or add new custom fields."
+                  ? "Reorder and show or hide columns, or add new custom fields. To remove a custom column permanently, use Settings → Volunteers table."
                   : "Drag to reorder columns and change which ones you see."}
               </p>
             </div>
@@ -580,9 +505,7 @@ export const ManageColumnsModal = ({
                                 globalHiddenSet.has(meta.id)
                               }
                               orgHidden={globalHiddenSet.has(meta.id)}
-                              isAdmin={isAdmin}
                               onToggleHidden={handleToggleHidden}
-                              onDeleteCustom={handleQueueDelete}
                               disabled={busy}
                             />
                           ))}
@@ -590,39 +513,6 @@ export const ManageColumnsModal = ({
                       </SortableContext>
                     </DndContext>
                   </div>
-                  {isAdmin && pendingDeleteIds.length > 0 && (
-                    <div className="rounded-lg border border-red-200 bg-red-50/60 px-2.5 py-2 shrink-0">
-                      <p className="text-xs font-medium text-red-900 mb-1.5">
-                        Pending removal
-                      </p>
-                      <ul className="space-y-1">
-                        {pendingDeleteIds.map((colId) => {
-                          const c = customColumns.find((x) => x.id === colId);
-                          const label = c?.name ?? `Column ${colId}`;
-                          return (
-                            <li
-                              key={colId}
-                              className="flex items-center justify-between gap-2 min-w-0"
-                            >
-                              <span className="text-sm text-red-950 truncate">
-                                {label}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleUnqueueDelete(colId)}
-                                disabled={busy}
-                                title="Undo removal"
-                                aria-label={`Keep column ${label}`}
-                                className="shrink-0 inline-flex items-center justify-center rounded-md p-1 text-red-700 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed"
-                              >
-                                <X className="h-4 w-4" strokeWidth={2.25} />
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  )}
                   <div className="flex flex-wrap gap-2 justify-end shrink-0 border-t border-gray-200/80 pt-3">
                     <button
                       type="button"
@@ -635,19 +525,6 @@ export const ManageColumnsModal = ({
                       )}
                       Save column layout
                     </button>
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDeleteOpen(true)}
-                        disabled={pendingDeleteIds.length === 0 || busy}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-900 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        {busyOp === "applyingDeletes" && (
-                          <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                        )}
-                        Apply column removals
-                      </button>
-                    )}
                   </div>
                 </div>
               )}
@@ -838,49 +715,6 @@ export const ManageColumnsModal = ({
                   <Loader2 className="h-4 w-4 animate-spin" />
                 )}
                 Create columns
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {confirmDeleteOpen && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-4 space-y-3">
-            <h3 className="font-semibold text-gray-900">Remove columns</h3>
-            <p className="text-sm text-gray-600">
-              The following custom columns will be permanently removed from the
-              database.
-            </p>
-            <ul className="text-sm text-gray-700 list-disc pl-5 space-y-1 max-h-48 overflow-y-auto">
-              {pendingDeleteIds.map((id) => {
-                const c = customColumns.find((x) => x.id === id);
-                return (
-                  <li key={`d-${id}`}>
-                    Delete column &quot;{c?.name ?? id}&quot;
-                  </li>
-                );
-              })}
-            </ul>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                className="px-3 py-1.5 text-sm rounded-lg border border-gray-300"
-                onClick={() => setConfirmDeleteOpen(false)}
-                disabled={busyOp === "applyingDeletes"}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="px-3 py-1.5 text-sm rounded-lg bg-red-600 text-white disabled:opacity-50 inline-flex items-center gap-2 hover:bg-red-700"
-                onClick={() => void runApplyDeletes()}
-                disabled={busyOp === "applyingDeletes"}
-              >
-                {busyOp === "applyingDeletes" && (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                )}
-                Remove columns
               </button>
             </div>
           </div>

@@ -2,7 +2,12 @@
 
 import { createAdminClient } from "@/lib/client/supabase/server";
 import type { Tables, TablesInsert } from "@/lib/client/supabase/types";
+import { tableIdForCustomColumn } from "@/lib/volunteerTable/columnOrder";
 import { slugifyColumnKey } from "./customColumnUtils";
+import {
+  getVolunteerTableGlobalSettings,
+  saveVolunteerTableGlobalSettings,
+} from "./volunteerTableGlobalSettings";
 
 export type CustomColumnRow = Tables<"CustomColumns">;
 
@@ -152,6 +157,8 @@ export async function deleteCustomColumnsBatch(
 ): Promise<ColumnMutationResult[]> {
   const client = createAdminClient();
   const results: ColumnMutationResult[] = [];
+  /** Table ids (`custom__…`) to drop from org-wide hidden list when a column is removed. */
+  const removedCustomTableIds: string[] = [];
 
   for (const id of columnIds) {
     const { data: row, error: fetchErr } = await client
@@ -200,11 +207,23 @@ export async function deleteCustomColumnsBatch(
         error: delErr.message,
       });
     } else {
+      removedCustomTableIds.push(tableIdForCustomColumn(row.column_key));
       results.push({
         success: true,
         label: `Delete “${row.name}”`,
         id: row.id,
       });
+    }
+  }
+
+  if (removedCustomTableIds.length > 0) {
+    const removeSet = new Set(removedCustomTableIds);
+    const global = await getVolunteerTableGlobalSettings();
+    const nextHidden = global.admin_hidden_columns.filter(
+      (hid) => !removeSet.has(hid)
+    );
+    if (nextHidden.length !== global.admin_hidden_columns.length) {
+      await saveVolunteerTableGlobalSettings(nextHidden);
     }
   }
 

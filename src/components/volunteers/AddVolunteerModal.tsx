@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useId } from "react";
+import React, { useState, useEffect, useCallback, useId, useMemo } from "react";
 import { X, UserPlus } from "lucide-react";
 import clsx from "clsx";
 import { createVolunteerAction } from "@/lib/api/actions";
@@ -10,6 +10,7 @@ import type { Json } from "@/lib/client/supabase/types";
 import {
   customColumnIcon,
   NEW_VOLUNTEER_FORM_COLUMNS,
+  tableIdForCustomColumn,
 } from "./volunteerColumns";
 import type { Volunteer } from "./types";
 import { VolunteerTag } from "./VolunteerTag";
@@ -31,6 +32,8 @@ interface AddVolunteerModalProps {
   onSuccess: () => void;
   optionsData?: Record<string, string[]>;
   customColumns?: CustomColumnRow[];
+  /** Table Management → globally hidden column ids (same as the volunteers table). */
+  globalHiddenColumnIds?: string[];
 }
 
 const FORM_SECTIONS: {
@@ -362,8 +365,29 @@ export const AddVolunteerModal = ({
   onSuccess,
   optionsData = {},
   customColumns = [],
+  globalHiddenColumnIds = [],
 }: AddVolunteerModalProps): React.JSX.Element | null => {
   const currentYear = new Date().getFullYear();
+
+  const globalHiddenSet = useMemo(
+    () => new Set(globalHiddenColumnIds),
+    [globalHiddenColumnIds]
+  );
+
+  /** Custom columns visible on the table (excludes org-wide hidden). New columns from the parent list appear here automatically. */
+  const visibleCustomColumns = useMemo(
+    () =>
+      customColumns.filter(
+        (c) => !globalHiddenSet.has(tableIdForCustomColumn(c.column_key))
+      ),
+    [customColumns, globalHiddenSet]
+  );
+
+  const isBuiltInHiddenOnTable = useCallback(
+    (columnId: keyof Volunteer): boolean =>
+      globalHiddenSet.has(String(columnId)),
+    [globalHiddenSet]
+  );
 
   const [nameOrg, setNameOrg] = useState("");
   const [email, setEmail] = useState("");
@@ -450,7 +474,7 @@ export const AddVolunteerModal = ({
       })),
     ].filter((r) => r.name.length > 0);
 
-    for (const cc of customColumns) {
+    for (const cc of visibleCustomColumns) {
       if (cc.data_type !== "number") continue;
       const raw = customForm[cc.column_key];
       if (raw === undefined || raw === null || String(raw).trim() === "")
@@ -463,7 +487,7 @@ export const AddVolunteerModal = ({
     }
 
     const custom_data: Record<string, unknown> = {};
-    for (const cc of customColumns) {
+    for (const cc of visibleCustomColumns) {
       const raw = customForm[cc.column_key];
       if (raw === undefined || raw === null) continue;
       switch (cc.data_type) {
@@ -642,6 +666,11 @@ export const AddVolunteerModal = ({
   };
 
   if (!isOpen) return null;
+
+  /** Full name is always collected here so new volunteers can be created even if that column is hidden on the table. */
+  const profileTailIds = (
+    ["pseudonym", "pronouns", "email", "phone"] as const
+  ).filter((fid) => !isBuiltInHiddenOnTable(fid));
 
   const renderField = (
     col: (typeof NEW_VOLUNTEER_FORM_COLUMNS)[number]
@@ -861,53 +890,55 @@ export const AddVolunteerModal = ({
                   : {})}
               >
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {(["name_org"] as const).map((fid) => {
+                  {((): React.JSX.Element | null => {
+                    const nameCol = NEW_VOLUNTEER_FORM_COLUMNS.find(
+                      (c) => c.id === "name_org"
+                    );
+                    return nameCol ? (
+                      <div key="name_org" className="sm:col-span-2">
+                        {renderField(nameCol)}
+                      </div>
+                    ) : null;
+                  })()}
+                  {profileTailIds.map((fid) => {
                     const col = NEW_VOLUNTEER_FORM_COLUMNS.find(
                       (c) => c.id === fid
                     );
-                    return col ? (
-                      <div key={fid} className="sm:col-span-2">
-                        {renderField(col)}
-                      </div>
-                    ) : null;
+                    return col ? <div key={fid}>{renderField(col)}</div> : null;
                   })}
-                  {(["pseudonym", "pronouns", "email", "phone"] as const).map(
-                    (fid) => {
-                      const col = NEW_VOLUNTEER_FORM_COLUMNS.find(
-                        (c) => c.id === fid
-                      );
-                      return col ? (
-                        <div key={fid}>{renderField(col)}</div>
-                      ) : null;
-                    }
-                  )}
                 </div>
               </SectionCard>
 
-              {FORM_SECTIONS.slice(1).map((section) => (
-                <SectionCard
-                  key={section.title}
-                  title={section.title}
-                  {...(section.description != null
-                    ? { description: section.description }
-                    : {})}
-                >
-                  {section.columnIds.map((columnId) => {
-                    const col = NEW_VOLUNTEER_FORM_COLUMNS.find(
-                      (c) => c.id === columnId
-                    );
-                    return col ? renderField(col) : null;
-                  })}
-                </SectionCard>
-              ))}
+              {FORM_SECTIONS.slice(1).map((section) => {
+                const visibleColumnIds = section.columnIds.filter(
+                  (columnId) => !isBuiltInHiddenOnTable(columnId)
+                );
+                if (visibleColumnIds.length === 0) return null;
+                return (
+                  <SectionCard
+                    key={section.title}
+                    title={section.title}
+                    {...(section.description != null
+                      ? { description: section.description }
+                      : {})}
+                  >
+                    {visibleColumnIds.map((columnId) => {
+                      const col = NEW_VOLUNTEER_FORM_COLUMNS.find(
+                        (c) => c.id === columnId
+                      );
+                      return col ? renderField(col) : null;
+                    })}
+                  </SectionCard>
+                );
+              })}
 
-              {customColumns.length > 0 ? (
+              {visibleCustomColumns.length > 0 ? (
                 <SectionCard
                   title="Custom fields"
                   description="Optional values stored on the volunteer record. You can change them later in the table."
                 >
                   <div className="grid gap-4 sm:grid-cols-2">
-                    {customColumns.map((cc) => (
+                    {visibleCustomColumns.map((cc) => (
                       <div
                         key={cc.column_key}
                         className={

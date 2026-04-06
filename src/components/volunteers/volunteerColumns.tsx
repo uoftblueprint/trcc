@@ -18,6 +18,19 @@ import {
 } from "lucide-react";
 import type { CustomColumnRow } from "@/lib/api/customColumns";
 import { sanitizeHiddenColumnIds } from "@/lib/volunteerTable/columnVisibility";
+import {
+  CUSTOM_COLUMN_ID_PREFIX,
+  tableIdForCustomColumn,
+  parseCustomColumnTableId,
+  orderedColumnIds,
+} from "@/lib/volunteerTable/columnOrder";
+
+export {
+  CUSTOM_COLUMN_ID_PREFIX,
+  tableIdForCustomColumn,
+  parseCustomColumnTableId,
+  orderedColumnIds,
+};
 
 type FilterType = "text" | "options" | null;
 
@@ -201,17 +214,6 @@ export const FUNDAMENTAL_COLUMN_IDS = [
   "phone",
 ] as const;
 
-export const CUSTOM_COLUMN_ID_PREFIX = "custom__";
-
-export function tableIdForCustomColumn(columnKey: string): string {
-  return `${CUSTOM_COLUMN_ID_PREFIX}${columnKey}`;
-}
-
-export function parseCustomColumnTableId(columnId: string): string | null {
-  if (!columnId.startsWith(CUSTOM_COLUMN_ID_PREFIX)) return null;
-  return columnId.slice(CUSTOM_COLUMN_ID_PREFIX.length);
-}
-
 export function getVolunteerCustomDataMap(
   v: Volunteer
 ): Record<string, unknown> {
@@ -220,6 +222,50 @@ export function getVolunteerCustomDataMap(
     return cd as Record<string, unknown>;
   }
   return {};
+}
+
+/** Same rules as undo/save: compares one custom_data value to the server baseline. */
+export function editedCustomValueMatchesOriginal(
+  originalVal: unknown,
+  editedVal: unknown
+): boolean {
+  if (Array.isArray(editedVal) && Array.isArray(originalVal)) {
+    return (
+      JSON.stringify([...(editedVal as string[])].sort()) ===
+      JSON.stringify([...(originalVal as string[])].sort())
+    );
+  }
+  if (Array.isArray(editedVal) || Array.isArray(originalVal)) {
+    return false;
+  }
+  if (typeof editedVal === "boolean" || typeof originalVal === "boolean") {
+    return editedVal === originalVal;
+  }
+  if (typeof editedVal === "number" || typeof originalVal === "number") {
+    return editedVal === originalVal;
+  }
+  const norm = (v: unknown): string =>
+    v === null || v === undefined ? "" : String(v);
+  return norm(editedVal) === norm(originalVal);
+}
+
+/** True if this custom column key is part of the edit overlay and differs from the row baseline. */
+export function isCustomColumnCellModified(
+  originalRow: Volunteer,
+  customKey: string,
+  edit: Partial<Volunteer> | undefined
+): boolean {
+  if (
+    !edit?.custom_data ||
+    typeof edit.custom_data !== "object" ||
+    Array.isArray(edit.custom_data)
+  ) {
+    return false;
+  }
+  const m = edit.custom_data as Record<string, unknown>;
+  if (!Object.prototype.hasOwnProperty.call(m, customKey)) return false;
+  const origVal = getVolunteerCustomDataMap(originalRow)[customKey];
+  return !editedCustomValueMatchesOriginal(origVal, m[customKey]);
 }
 
 export function customColumnIcon(dataType: string): React.ElementType {
@@ -262,58 +308,6 @@ export function buildFilterableColumnList(
     };
   });
   return [...builtIn, ...custom];
-}
-
-export function orderedColumnIds(
-  builtInIds: string[],
-  customColumns: CustomColumnRow[],
-  savedOrder: string[],
-  /** When set, custom columns with created_at at or before this time are not auto-appended if missing from savedOrder (e.g. removed from prefs but not yet deleted in DB). */
-  prefsUpdatedAt?: string | null
-): string[] {
-  const customSorted = [...customColumns].sort(
-    (a, b) => a.default_position - b.default_position || a.id - b.id
-  );
-  const customIds = customSorted.map((c) =>
-    tableIdForCustomColumn(c.column_key)
-  );
-  const allKnown = [...builtInIds, ...customIds];
-
-  if (savedOrder.length === 0) {
-    return allKnown;
-  }
-
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const id of savedOrder) {
-    if (!allKnown.includes(id) || seen.has(id)) continue;
-    seen.add(id);
-    out.push(id);
-  }
-  for (const id of builtInIds) {
-    if (!seen.has(id)) {
-      seen.add(id);
-      out.push(id);
-    }
-  }
-  const prefsTime = prefsUpdatedAt ? Date.parse(prefsUpdatedAt) : NaN;
-  for (const c of customSorted) {
-    const id = tableIdForCustomColumn(c.column_key);
-    if (seen.has(id)) continue;
-    const created =
-      c.created_at != null && c.created_at !== ""
-        ? Date.parse(c.created_at)
-        : NaN;
-    const appendNewCustom =
-      !Number.isFinite(prefsTime) ||
-      !Number.isFinite(created) ||
-      created > prefsTime;
-    if (appendNewCustom) {
-      seen.add(id);
-      out.push(id);
-    }
-  }
-  return out;
 }
 
 const renderCustomBooleanTag = (

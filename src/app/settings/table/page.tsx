@@ -14,7 +14,7 @@ function NoProfileMessage(): React.JSX.Element {
           marginBottom: "0.75rem",
         }}
       >
-        Table Management
+        Volunteers Table Settings
       </h1>
       <p style={{ color: "#525252", lineHeight: 1.5 }}>
         We couldn’t load your profile. Try signing out and back in.
@@ -38,7 +38,7 @@ function AccessDeniedMessage({
           marginBottom: "0.75rem",
         }}
       >
-        Table Management
+        Volunteers Table Settings
       </h1>
       <p style={{ color: "#525252", lineHeight: 1.5 }}>
         {role === "staff"

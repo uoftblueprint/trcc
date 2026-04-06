@@ -11,6 +11,7 @@ import type { CustomColumnRow } from "@/lib/api/customColumns";
 import {
   parseCustomColumnTableId,
   getVolunteerCustomDataMap,
+  editedCustomValueMatchesOriginal,
 } from "./volunteerColumns";
 
 interface UseVolunteerEditsProps {
@@ -59,6 +60,46 @@ export interface UseVolunteerEditsReturn {
 }
 
 const MAX_HISTORY = 100;
+
+/** Full custom_data map for a row: server baseline + any overlay already in editedRows. */
+function mergeCustomDataFromRow(
+  rowId: number,
+  rowObj: Record<string, unknown>,
+  allVolunteers: Volunteer[]
+): Record<string, unknown> {
+  const base = getVolunteerCustomDataMap(
+    allVolunteers.find((v) => v.id === rowId) || ({} as Volunteer)
+  );
+  const overlay =
+    typeof rowObj["custom_data"] === "object" &&
+    rowObj["custom_data"] !== null &&
+    !Array.isArray(rowObj["custom_data"])
+      ? (rowObj["custom_data"] as Record<string, unknown>)
+      : {};
+  return { ...base, ...overlay };
+}
+
+function customDataEquals(
+  a: Record<string, unknown>,
+  b: Record<string, unknown>
+): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const k of keys) {
+    const va = a[k];
+    const vb = b[k];
+    if (Array.isArray(va) && Array.isArray(vb)) {
+      if (
+        JSON.stringify([...(va as unknown[])].sort()) !==
+        JSON.stringify([...(vb as unknown[])].sort())
+      ) {
+        return false;
+      }
+    } else if (va !== vb) {
+      return false;
+    }
+  }
+  return true;
+}
 
 const normalizeValue = (
   colId: string,
@@ -180,30 +221,7 @@ export const useVolunteerEdits = ({
       const customKey = parseCustomColumnTableId(colId);
       if (customKey && originalRow) {
         const originalValue = getVolunteerCustomDataMap(originalRow)[customKey];
-        if (Array.isArray(finalValue) && Array.isArray(originalValue)) {
-          return (
-            JSON.stringify([...(finalValue as string[])].sort()) ===
-            JSON.stringify([...(originalValue as string[])].sort())
-          );
-        }
-        if (Array.isArray(finalValue) || Array.isArray(originalValue)) {
-          return false;
-        }
-        if (
-          typeof finalValue === "boolean" ||
-          typeof originalValue === "boolean"
-        ) {
-          return finalValue === originalValue;
-        }
-        if (
-          typeof finalValue === "number" ||
-          typeof originalValue === "number"
-        ) {
-          return finalValue === originalValue;
-        }
-        const norm = (v: unknown): string =>
-          v === null || v === undefined ? "" : String(v);
-        return norm(finalValue) === norm(originalValue);
+        return editedCustomValueMatchesOriginal(originalValue, finalValue);
       }
 
       const originalValue = originalRow
@@ -243,16 +261,16 @@ export const useVolunteerEdits = ({
             if (next[rowId]) {
               const rowObj = { ...(next[rowId] as Record<string, unknown>) };
               if (ck) {
-                const cd = {
-                  ...(typeof rowObj["custom_data"] === "object" &&
-                  rowObj["custom_data"] !== null &&
-                  !Array.isArray(rowObj["custom_data"])
-                    ? (rowObj["custom_data"] as Record<string, unknown>)
-                    : {}),
-                };
+                const baseline = getVolunteerCustomDataMap(
+                  allVolunteers.find((v) => v.id === rowId) || ({} as Volunteer)
+                );
+                const cd = mergeCustomDataFromRow(rowId, rowObj, allVolunteers);
                 delete cd[ck];
-                if (Object.keys(cd).length === 0) delete rowObj["custom_data"];
-                else rowObj["custom_data"] = cd;
+                if (customDataEquals(cd, baseline)) {
+                  delete rowObj["custom_data"];
+                } else {
+                  rowObj["custom_data"] = cd;
+                }
               } else {
                 delete rowObj[colId];
               }
@@ -264,14 +282,11 @@ export const useVolunteerEdits = ({
             }
           } else if (ck) {
             const prevRow = next[rowId] as Record<string, unknown> | undefined;
-            const prevCd =
-              prevRow &&
-              typeof prevRow["custom_data"] === "object" &&
-              prevRow["custom_data"] !== null &&
-              !Array.isArray(prevRow["custom_data"])
-                ? { ...(prevRow["custom_data"] as Record<string, unknown>) }
-                : {};
-            const merged = { ...prevCd };
+            const merged = mergeCustomDataFromRow(
+              rowId,
+              prevRow || {},
+              allVolunteers
+            );
             if (finalValue === null || finalValue === undefined) {
               delete merged[ck];
             } else {
@@ -338,7 +353,7 @@ export const useVolunteerEdits = ({
         });
       });
     },
-    [setData, setEditedRows, cellMatchesOriginal]
+    [setData, setEditedRows, cellMatchesOriginal, allVolunteers]
   );
 
   const handleCellEdit = useCallback(

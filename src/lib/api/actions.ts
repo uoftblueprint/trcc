@@ -38,7 +38,9 @@ import {
 import {
   getColumnPreferencesForUser,
   saveColumnPreferencesForUser,
+  resolveStaffColumnPreferences,
 } from "./columnPreferences";
+import { tableIdForCustomColumn } from "@/lib/volunteerTable/columnOrder";
 import {
   getVolunteerTableGlobalSettings,
   saveVolunteerTableGlobalSettings,
@@ -371,7 +373,14 @@ export async function removeAllCohortTagsAction(): Promise<
 
 export async function getCustomColumnsAction(): Promise<CustomColumnRow[]> {
   await requireAuthenticatedUserId();
-  return listCustomColumns();
+  const cols = await listCustomColumns();
+  const user = await getCurrentUserServer();
+  if (user?.role === "admin") return cols;
+  const global = await getVolunteerTableGlobalSettings();
+  const hiddenSet = new Set(global.admin_hidden_columns);
+  return cols.filter(
+    (c) => !hiddenSet.has(tableIdForCustomColumn(c.column_key))
+  );
 }
 
 export async function createCustomColumnsAction(
@@ -393,6 +402,7 @@ export async function deleteCustomColumnsAction(
   const results = await deleteCustomColumnsBatch(columnIds);
   if (results.some((r) => r.success)) {
     revalidatePath("/volunteers");
+    revalidatePath("/settings/table");
   }
   return results;
 }
@@ -413,9 +423,16 @@ export async function getColumnPreferencesAction(): Promise<{
   column_order: string[];
   hidden_columns: string[];
   prefs_updated_at: string | null;
+  /** Staff only: merged hidden for rendering; admins merge client-side with global settings. */
+  hidden_columns_effective?: string[];
 }> {
   const userId = await requireAuthenticatedUserId();
-  return getColumnPreferencesForUser(userId);
+  const user = await getCurrentUserServer();
+  const prefs = await getColumnPreferencesForUser(userId);
+  if (user?.role === "admin") {
+    return prefs;
+  }
+  return resolveStaffColumnPreferences(prefs);
 }
 
 export async function saveColumnPreferencesAction(
@@ -423,11 +440,16 @@ export async function saveColumnPreferencesAction(
   hidden_columns: string[]
 ): Promise<{ success: boolean; error?: string }> {
   const userId = await requireAuthenticatedUserId();
-  const res = await saveColumnPreferencesForUser(
-    userId,
-    column_order,
-    hidden_columns
-  );
+  const user = await getCurrentUserServer();
+  let co = column_order;
+  let hc = hidden_columns;
+  if (user?.role !== "admin") {
+    const global = await getVolunteerTableGlobalSettings();
+    const globalSet = new Set(global.admin_hidden_columns);
+    hc = hidden_columns.filter((id) => !globalSet.has(id));
+    co = column_order.filter((id) => !globalSet.has(id));
+  }
+  const res = await saveColumnPreferencesForUser(userId, co, hc);
   if (res.success) {
     revalidatePath("/volunteers");
   }
@@ -438,6 +460,10 @@ export async function getVolunteerTableGlobalSettingsAction(): Promise<{
   admin_hidden_columns: string[];
 }> {
   await requireAuthenticatedUserId();
+  const user = await getCurrentUserServer();
+  if (user?.role !== "admin") {
+    return { admin_hidden_columns: [] };
+  }
   return getVolunteerTableGlobalSettings();
 }
 

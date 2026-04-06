@@ -29,13 +29,16 @@ import {
   orderedColumnIds,
   parseCustomColumnTableId,
   tableIdForCustomColumn,
+  isCustomColumnCellModified,
 } from "./volunteerColumns";
 import type { CustomColumnRow } from "@/lib/api/customColumns";
 import { sanitizeHiddenColumnIds } from "@/lib/volunteerTable/columnVisibility";
+import { mergeCustomTagOptionsFromVolunteers } from "@/lib/volunteerTable/mergeCustomTagOptionsFromVolunteers";
 import {
   getCustomColumnsAction,
   getColumnPreferencesAction,
   getVolunteerTableGlobalSettingsAction,
+  saveColumnPreferencesAction,
 } from "@/lib/api/actions";
 import { ManageColumnsModal } from "./ManageColumnsModal";
 import { AlertCircle } from "lucide-react";
@@ -149,6 +152,8 @@ const VolunteersTableContent = ({
     column_order: string[];
     hidden_columns: string[];
     prefs_updated_at: string | null;
+    /** Staff: merged hidden for table rendering (includes org-wide hidden). */
+    hidden_columns_effective?: string[];
   }>({
     column_order: [],
     hidden_columns: [],
@@ -159,32 +164,49 @@ const VolunteersTableContent = ({
 
   const refreshColumnMeta = useCallback(async (): Promise<void> => {
     try {
-      const [cols, prefs, global] = await Promise.all([
-        getCustomColumnsAction(),
-        getColumnPreferencesAction(),
-        getVolunteerTableGlobalSettingsAction(),
-      ]);
-      setCustomColumns(cols);
-      setColumnPrefs(prefs);
-      setAdminHiddenColumns(global.admin_hidden_columns);
+      if (isAdmin) {
+        const [cols, prefs, global] = await Promise.all([
+          getCustomColumnsAction(),
+          getColumnPreferencesAction(),
+          getVolunteerTableGlobalSettingsAction(),
+        ]);
+        setCustomColumns(cols);
+        setColumnPrefs(prefs);
+        setAdminHiddenColumns(global.admin_hidden_columns);
+      } else {
+        const [cols, prefs] = await Promise.all([
+          getCustomColumnsAction(),
+          getColumnPreferencesAction(),
+        ]);
+        setCustomColumns(cols);
+        setColumnPrefs(prefs);
+        setAdminHiddenColumns([]);
+      }
     } catch (e) {
       console.error("[VolunteersTable] column meta fetch failed:", e);
     }
-  }, []);
+  }, [isAdmin]);
 
-  const globalHiddenSet = useMemo(
-    () => new Set(adminHiddenColumns),
-    [adminHiddenColumns]
-  );
-
-  const effectiveColumnPrefs = useMemo(
-    () => ({
+  const effectiveColumnPrefs = useMemo(() => {
+    if (isAdmin) {
+      return {
+        ...columnPrefs,
+        hidden_columns: sanitizeHiddenColumnIds([
+          ...new Set([...columnPrefs.hidden_columns, ...adminHiddenColumns]),
+        ]).sort(),
+      };
+    }
+    return {
       ...columnPrefs,
-      hidden_columns: sanitizeHiddenColumnIds([
-        ...new Set([...columnPrefs.hidden_columns, ...adminHiddenColumns]),
-      ]).sort(),
-    }),
-    [columnPrefs, adminHiddenColumns]
+      hidden_columns: sanitizeHiddenColumnIds(
+        columnPrefs.hidden_columns_effective ?? columnPrefs.hidden_columns
+      ),
+    };
+  }, [columnPrefs, adminHiddenColumns, isAdmin]);
+
+  const effectiveHiddenSet = useMemo(
+    () => new Set(effectiveColumnPrefs.hidden_columns),
+    [effectiveColumnPrefs.hidden_columns]
   );
 
   useEffect(() => {
@@ -201,6 +223,13 @@ const VolunteersTableContent = ({
       setColumnOrder(fallback);
       return;
     }
+    if (!isAdmin) {
+      const savedSansSelect = columnPrefs.column_order.filter(
+        (id) => id !== "select"
+      );
+      setColumnOrder(["select", ...savedSansSelect]);
+      return;
+    }
     const savedSansSelect = columnPrefs.column_order.filter(
       (id) => id !== "select"
     );
@@ -211,7 +240,65 @@ const VolunteersTableContent = ({
       columnPrefs.prefs_updated_at
     );
     setColumnOrder(["select", ...merged.filter((id) => id !== "select")]);
-  }, [customColumns, columnPrefs.column_order, columnPrefs.prefs_updated_at]);
+  }, [
+    customColumns,
+    columnPrefs.column_order,
+    columnPrefs.prefs_updated_at,
+    isAdmin,
+  ]);
+
+  const columnOrderRef = useRef(columnOrder);
+  columnOrderRef.current = columnOrder;
+  const columnPrefsRef = useRef(columnPrefs);
+  columnPrefsRef.current = columnPrefs;
+  const refreshColumnMetaRef = useRef(refreshColumnMeta);
+  refreshColumnMetaRef.current = refreshColumnMeta;
+  const persistColumnOrderTimerRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+
+  /** Persist column order after header drag-reorder so it survives refresh and future logins (same as Save in Manage columns). */
+  useEffect(() => {
+    if (persistColumnOrderTimerRef.current) {
+      clearTimeout(persistColumnOrderTimerRef.current);
+      persistColumnOrderTimerRef.current = null;
+    }
+    if (columnOrder.length === 0) return;
+
+    const sansSelect = columnOrder.filter((id) => id !== "select");
+    const prefsOrder = columnPrefs.column_order.filter((id) => id !== "select");
+    if (JSON.stringify(sansSelect) === JSON.stringify(prefsOrder)) {
+      return;
+    }
+
+    persistColumnOrderTimerRef.current = setTimeout(() => {
+      persistColumnOrderTimerRef.current = null;
+      void (async (): Promise<void> => {
+        const latest = columnOrderRef.current.filter((id) => id !== "select");
+        const prefs = columnPrefsRef.current;
+        const prefsOrderNow = prefs.column_order.filter(
+          (id) => id !== "select"
+        );
+        if (JSON.stringify(latest) === JSON.stringify(prefsOrderNow)) return;
+        const res = await saveColumnPreferencesAction(
+          latest,
+          prefs.hidden_columns
+        );
+        if (res.success) {
+          await refreshColumnMetaRef.current();
+        } else {
+          toast.error(res.error ?? "Could not save column order");
+        }
+      })();
+    }, 500);
+
+    return (): void => {
+      if (persistColumnOrderTimerRef.current) {
+        clearTimeout(persistColumnOrderTimerRef.current);
+        persistColumnOrderTimerRef.current = null;
+      }
+    };
+  }, [columnOrder, columnPrefs.column_order]);
 
   const {
     data,
@@ -237,7 +324,7 @@ const VolunteersTableContent = ({
     refreshRolesAndCohorts,
     setAllVolunteers,
     debouncedFilters,
-  } = useVolunteersData({ isAdmin, editedRowsRef });
+  } = useVolunteersData({ isAdmin, editedRowsRef, editedRows });
 
   const {
     isSaving,
@@ -269,9 +356,9 @@ const VolunteersTableContent = ({
   const filterableColumnList = useMemo(
     () =>
       buildFilterableColumnList(customColumns).filter(
-        (c) => !globalHiddenSet.has(c.id)
+        (c) => !effectiveHiddenSet.has(c.id)
       ),
-    [customColumns, globalHiddenSet]
+    [customColumns, effectiveHiddenSet]
   );
 
   const sortableColumnOptions = useMemo(
@@ -287,8 +374,8 @@ const VolunteersTableContent = ({
           label: c.name,
           icon: customColumnIcon(c.data_type),
         })),
-      ].filter((c) => !globalHiddenSet.has(c.id)),
-    [customColumns, globalHiddenSet]
+      ].filter((c) => !effectiveHiddenSet.has(c.id)),
+    [customColumns, effectiveHiddenSet]
   );
 
   const filterOptions = useMemo(() => {
@@ -473,6 +560,17 @@ const VolunteersTableContent = ({
     filterableColumnList,
     customColumns,
   ]);
+
+  /** Tag presets + values that appear in volunteer data (cell-created tags) for Manage Tags. */
+  const customColumnsForManageTags = useMemo(
+    () =>
+      mergeCustomTagOptionsFromVolunteers(
+        customColumns,
+        allVolunteers,
+        editedRows
+      ),
+    [customColumns, allVolunteers, editedRows]
+  );
 
   const pendingChanges = useMemo<PendingRowChange[]>(() => {
     return Object.entries(editedRows)
@@ -1167,15 +1265,17 @@ const VolunteersTableContent = ({
                         const customKey = parseCustomColumnTableId(
                           cell.column.id
                         );
+                        /** Table `row.original` is merged with edits; compare custom cells to server baseline from `allVolunteers`. */
+                        const baselineRow =
+                          allVolunteers.find((v) => v.id === row.original.id) ??
+                          row.original;
                         const isModified =
                           edit !== undefined &&
                           (customKey
-                            ? edit.custom_data !== undefined &&
-                              typeof edit.custom_data === "object" &&
-                              !Array.isArray(edit.custom_data) &&
-                              Object.prototype.hasOwnProperty.call(
-                                edit.custom_data as object,
-                                customKey
+                            ? isCustomColumnCellModified(
+                                baselineRow,
+                                customKey,
+                                edit
                               )
                             : (edit as Record<string, unknown>)[
                                 cell.column.id
@@ -1256,6 +1356,7 @@ const VolunteersTableContent = ({
         onClose={() => setIsAddVolunteerOpen(false)}
         optionsData={filterOptions}
         customColumns={customColumns}
+        globalHiddenColumnIds={adminHiddenColumns}
         onSuccess={() => {
           toast.success("Volunteer added");
           setLoading(true);
@@ -1297,8 +1398,10 @@ const VolunteersTableContent = ({
         onClose={() => setIsManageTagsOpen(false)}
         roles={allRoles}
         cohorts={allCohorts}
+        customColumns={customColumnsForManageTags}
         onRefresh={() => {
           setLoading(true);
+          void refreshColumnMeta();
           fetchInitialData();
         }}
       />
