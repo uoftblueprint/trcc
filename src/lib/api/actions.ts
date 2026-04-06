@@ -408,6 +408,7 @@ export async function updateCustomColumnAction(
 export async function getColumnPreferencesAction(): Promise<{
   column_order: string[];
   hidden_columns: string[];
+  prefs_updated_at: string | null;
 }> {
   const userId = await requireAuthenticatedUserId();
   return getColumnPreferencesForUser(userId);

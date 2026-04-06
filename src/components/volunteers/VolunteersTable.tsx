@@ -26,6 +26,7 @@ import {
   buildFilterableColumnList,
   COLUMNS_CONFIG,
   customColumnIcon,
+  orderedColumnIds,
   parseCustomColumnTableId,
   tableIdForCustomColumn,
 } from "./volunteerColumns";
@@ -145,7 +146,12 @@ const VolunteersTableContent = ({
   const [columnPrefs, setColumnPrefs] = useState<{
     column_order: string[];
     hidden_columns: string[];
-  }>({ column_order: [], hidden_columns: [] });
+    prefs_updated_at: string | null;
+  }>({
+    column_order: [],
+    hidden_columns: [],
+    prefs_updated_at: null,
+  });
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
 
   const refreshColumnMeta = useCallback(async (): Promise<void> => {
@@ -175,19 +181,17 @@ const VolunteersTableContent = ({
       setColumnOrder(fallback);
       return;
     }
-    const dataIds = new Set([...builtIn, ...customIds]);
-    const seen = new Set<string>();
-    const ordered: string[] = ["select"];
-    for (const id of columnPrefs.column_order) {
-      if (id === "select" || !dataIds.has(id) || seen.has(id)) continue;
-      seen.add(id);
-      ordered.push(id);
-    }
-    for (const id of [...builtIn, ...customIds]) {
-      if (!seen.has(id)) ordered.push(id);
-    }
-    setColumnOrder(ordered);
-  }, [customColumns, columnPrefs.column_order]);
+    const savedSansSelect = columnPrefs.column_order.filter(
+      (id) => id !== "select"
+    );
+    const merged = orderedColumnIds(
+      builtIn,
+      customColumns,
+      savedSansSelect,
+      columnPrefs.prefs_updated_at
+    );
+    setColumnOrder(["select", ...merged.filter((id) => id !== "select")]);
+  }, [customColumns, columnPrefs.column_order, columnPrefs.prefs_updated_at]);
 
   const {
     data,
@@ -347,9 +351,7 @@ const VolunteersTableContent = ({
               if (v) options[col.id]?.add(String(v));
             });
           } else if (value != null) {
-            if (col.id === "opt_in_communication")
-              options[col.id]?.add(value ? "Yes" : "No");
-            else options[col.id]?.add(String(value));
+            addScalarToOptionsBucket(col.id, ck, value);
           }
         }
       });
@@ -357,6 +359,29 @@ const VolunteersTableContent = ({
 
     for (const edits of Object.values(editedRows)) {
       for (const [colId, value] of Object.entries(edits)) {
+        if (
+          colId === "custom_data" &&
+          value &&
+          typeof value === "object" &&
+          !Array.isArray(value)
+        ) {
+          for (const [key, v] of Object.entries(
+            value as Record<string, unknown>
+          )) {
+            const fid = tableIdForCustomColumn(key);
+            const bucket = options[fid];
+            if (!bucket) continue;
+            if (Array.isArray(v)) {
+              v.forEach((x) => {
+                if (x) bucket.add(String(x));
+              });
+            } else if (v != null) {
+              addScalarToOptionsBucket(fid, key, v);
+            }
+          }
+          continue;
+        }
+
         const bucket = options[colId];
         if (!bucket) continue;
         if (Array.isArray(value)) {
@@ -364,9 +389,8 @@ const VolunteersTableContent = ({
             if (v) bucket.add(String(v));
           });
         } else if (value != null) {
-          if (colId === "opt_in_communication")
-            bucket.add(value ? "Yes" : "No");
-          else bucket.add(String(value));
+          const ck = parseCustomColumnTableId(colId);
+          addScalarToOptionsBucket(colId, ck, value);
         }
       }
     }
@@ -390,6 +414,26 @@ const VolunteersTableContent = ({
           if (idxB === -1) return -1;
           return idxA - idxB;
         });
+      } else if (
+        customColumns.some(
+          (c) =>
+            c.data_type === "tag" &&
+            tableIdForCustomColumn(c.column_key) === key
+        )
+      ) {
+        const tagOrder = customTagOptionOrder[key] ?? [];
+        if (tagOrder.length > 0) {
+          result[key] = arr.sort((a, b) => {
+            const idxA = tagOrder.indexOf(a);
+            const idxB = tagOrder.indexOf(b);
+            if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+            if (idxA === -1) return 1;
+            if (idxB === -1) return -1;
+            return idxA - idxB;
+          });
+        } else {
+          result[key] = arr.sort((a, b) => a.localeCompare(b));
+        }
       } else if (key === "cohorts") {
         result[key] = arr.sort(sortCohorts);
       } else {
@@ -1181,6 +1225,7 @@ const VolunteersTableContent = ({
         isOpen={isAddVolunteerOpen}
         onClose={() => setIsAddVolunteerOpen(false)}
         optionsData={filterOptions}
+        customColumns={customColumns}
         onSuccess={() => {
           toast.success("Volunteer added");
           setLoading(true);
@@ -1230,11 +1275,16 @@ const VolunteersTableContent = ({
 
       <ManageColumnsModal
         isOpen={isManageColumnsOpen}
-        onClose={() => setIsManageColumnsOpen(false)}
+        onClose={() => {
+          setIsManageColumnsOpen(false);
+          void refreshColumnMeta();
+        }}
         isAdmin={isAdmin}
         customColumns={customColumns}
         columnOrder={columnPrefs.column_order}
         hiddenColumns={columnPrefs.hidden_columns}
+        prefsUpdatedAt={columnPrefs.prefs_updated_at}
+        onPreferencesSaved={refreshColumnMeta}
         onApplied={async () => {
           await refreshColumnMeta();
           setLoading(true);

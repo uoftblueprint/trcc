@@ -182,7 +182,11 @@ interface ManageColumnsModalProps {
   customColumns: CustomColumnRow[];
   columnOrder: string[];
   hiddenColumns: string[];
+  /** Last save time for column prefs; used when merging saved order with custom columns. */
+  prefsUpdatedAt?: string | null;
   onApplied: () => void | Promise<void>;
+  /** Called after column order/visibility is saved so the parent can reload prefs into React state. */
+  onPreferencesSaved?: () => void | Promise<void>;
 }
 
 export const ManageColumnsModal = ({
@@ -192,7 +196,9 @@ export const ManageColumnsModal = ({
   customColumns,
   columnOrder: initialOrder,
   hiddenColumns: initialHidden,
+  prefsUpdatedAt = null,
   onApplied,
+  onPreferencesSaved,
 }: ManageColumnsModalProps): React.JSX.Element | null => {
   const [order, setOrder] = useState<string[]>([]);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
@@ -210,10 +216,21 @@ export const ManageColumnsModal = ({
   const [tagOptionsRaw, setTagOptionsRaw] = useState("");
   const [tagMulti, setTagMulti] = useState(false);
 
+  const customColumnIdsKey = useMemo(
+    () => customColumns.map((c) => c.id).join(","),
+    [customColumns]
+  );
+
+  /** Sync from parent only when the modal opens or the set of custom column ids changes — not when prefs refresh from our own persist (avoids clearing pending deletes). */
   useEffect(() => {
     if (!isOpen) return;
     const builtInIds = COLUMNS_CONFIG.map((c) => String(c.id));
-    const base = orderedColumnIds(builtInIds, customColumns, initialOrder);
+    const base = orderedColumnIds(
+      builtInIds,
+      customColumns,
+      initialOrder,
+      prefsUpdatedAt
+    );
     setOrder(base);
     setHidden(new Set(initialHidden));
     setPendingAdds([]);
@@ -223,7 +240,9 @@ export const ManageColumnsModal = ({
     setTagOptionsRaw("");
     setTagMulti(false);
     setConfirmOpen(false);
-  }, [isOpen, customColumns, initialOrder, initialHidden]);
+    // initialOrder / initialHidden / prefsUpdatedAt intentionally omitted: read fresh when isOpen or customColumnIdsKey changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see comment above
+  }, [isOpen, customColumnIdsKey]);
 
   const persistPrefs = useCallback(
     async (nextOrder: string[], nextHidden: Set<string>): Promise<void> => {
@@ -234,12 +253,14 @@ export const ManageColumnsModal = ({
         ]);
         if (!res.success) {
           toast.error(res.error ?? "Could not save column preferences");
+        } else {
+          await onPreferencesSaved?.();
         }
       } finally {
         setSavingPrefs(false);
       }
     },
-    []
+    [onPreferencesSaved]
   );
 
   const handleToggleHidden = useCallback(
@@ -286,16 +307,12 @@ export const ManageColumnsModal = ({
     setPendingDeleteIds((prev) =>
       prev.includes(columnId) ? prev : [...prev, columnId]
     );
-    setOrder((prevOrder) => {
-      const nextOrder = prevOrder.filter((id) => id !== tid);
-      setHidden((prevHidden) => {
-        const nextHidden = new Set(prevHidden);
-        nextHidden.delete(tid);
-        void persistPrefs(nextOrder, nextHidden);
-        return nextHidden;
-      });
-      return nextOrder;
-    });
+    const nextOrder = order.filter((id) => id !== tid);
+    const nextHidden = new Set(hidden);
+    nextHidden.delete(tid);
+    setOrder(nextOrder);
+    setHidden(nextHidden);
+    void persistPrefs(nextOrder, nextHidden);
   };
 
   const handleAddPending = (): void => {
@@ -384,8 +401,14 @@ export const ManageColumnsModal = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="manage-columns-title"
+        onClick={() => {
+          if (!savingPrefs && !applying) onClose();
+        }}
       >
-        <div className="w-full max-w-lg rounded-xl border border-gray-200 bg-white shadow-xl flex flex-col max-h-[min(90vh,640px)]">
+        <div
+          className="w-full max-w-lg rounded-xl border border-gray-200 bg-white shadow-xl flex flex-col max-h-[min(90vh,640px)]"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="px-4 py-3 border-b border-gray-100 shrink-0 flex items-start justify-between gap-2">
             <div>
               <h2
@@ -401,7 +424,8 @@ export const ManageColumnsModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="text-sm text-gray-600 hover:text-gray-900 px-2 py-1"
+              disabled={savingPrefs || applying}
+              className="text-sm text-gray-600 hover:text-gray-900 px-2 py-1 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Close
             </button>

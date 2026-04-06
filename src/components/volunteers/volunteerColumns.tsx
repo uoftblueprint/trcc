@@ -257,7 +257,9 @@ export function buildFilterableColumnList(
 export function orderedColumnIds(
   builtInIds: string[],
   customColumns: CustomColumnRow[],
-  savedOrder: string[]
+  savedOrder: string[],
+  /** When set, custom columns with created_at at or before this time are not auto-appended if missing from savedOrder (e.g. removed from prefs but not yet deleted in DB). */
+  prefsUpdatedAt?: string | null
 ): string[] {
   const customSorted = [...customColumns].sort(
     (a, b) => a.default_position - b.default_position || a.id - b.id
@@ -278,8 +280,28 @@ export function orderedColumnIds(
     seen.add(id);
     out.push(id);
   }
-  for (const id of allKnown) {
-    if (!seen.has(id)) out.push(id);
+  for (const id of builtInIds) {
+    if (!seen.has(id)) {
+      seen.add(id);
+      out.push(id);
+    }
+  }
+  const prefsTime = prefsUpdatedAt ? Date.parse(prefsUpdatedAt) : NaN;
+  for (const c of customSorted) {
+    const id = tableIdForCustomColumn(c.column_key);
+    if (seen.has(id)) continue;
+    const created =
+      c.created_at != null && c.created_at !== ""
+        ? Date.parse(c.created_at)
+        : NaN;
+    const appendNewCustom =
+      !Number.isFinite(prefsTime) ||
+      !Number.isFinite(created) ||
+      created > prefsTime;
+    if (appendNewCustom) {
+      seen.add(id);
+      out.push(id);
+    }
   }
   return out;
 }
@@ -307,7 +329,11 @@ const renderCustomNumber = (
 
 export function buildDynamicColumns(
   customColumns: CustomColumnRow[],
-  userPrefs: { column_order: string[]; hidden_columns: string[] },
+  userPrefs: {
+    column_order: string[];
+    hidden_columns: string[];
+    prefs_updated_at?: string | null;
+  },
   isAdmin: boolean,
   onEdit?: (rowId: number, colId: string, value: unknown) => void,
   optionsData: Record<string, string[]> = {}
@@ -321,7 +347,8 @@ export function buildDynamicColumns(
   let ordered = orderedColumnIds(
     builtInIds,
     customColumns,
-    userPrefs.column_order
+    userPrefs.column_order,
+    userPrefs.prefs_updated_at ?? null
   );
 
   ordered = ordered.filter((id) => fundamental.has(id) || !hidden.has(id));
@@ -425,6 +452,7 @@ export function buildDynamicColumns(
                 type={editableType}
                 isMulti={Boolean(cc.is_multi)}
                 options={optionsData[colId] || cc.tag_options || []}
+                allowAddTags={cc.data_type === "tag"}
               />
             ),
           }

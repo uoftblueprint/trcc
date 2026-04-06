@@ -21,6 +21,8 @@ interface EditableCellProps {
   options?: string[];
   isMulti?: boolean;
   type?: "text" | "options" | "number" | "boolean";
+  /** When true (e.g. custom tag column with no preset list), new tags can be typed like roles/cohorts. */
+  allowAddTags?: boolean;
 }
 
 export const EditableCell = ({
@@ -29,6 +31,7 @@ export const EditableCell = ({
   options = [],
   isMulti = false,
   type = "text",
+  allowAddTags = false,
 }: EditableCellProps): React.JSX.Element => {
   const initialValue = info.getValue();
   const isNotes = info.column.id === "notes";
@@ -53,12 +56,11 @@ export const EditableCell = ({
   const numberInputRef = useRef<HTMLInputElement>(null);
   const draftTextRef = useRef("");
 
-  const allowAdd: boolean = [
-    "cohorts",
-    "prior_roles",
-    "current_roles",
-    "future_interests",
-  ].includes(info.column.id);
+  const allowAdd: boolean =
+    allowAddTags ||
+    ["cohorts", "prior_roles", "current_roles", "future_interests"].includes(
+      info.column.id
+    );
 
   /** Forces a fresh DOM subtree when toggling edit mode; avoids ghost nodes from contentEditable + imperative textContent. */
   const modeKey = isEditing ? "edit" : "view";

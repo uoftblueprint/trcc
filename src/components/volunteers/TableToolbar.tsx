@@ -485,7 +485,7 @@ export const TableToolbar = ({
           </div>
         )}
 
-        {(hasEdits || canUndo || canRedo) && (
+        {role === "admin" && (hasEdits || canUndo || canRedo) && (
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 animate-in fade-in slide-in-from-right-2 duration-200">
             <div className="flex items-center gap-0.5">
               <button

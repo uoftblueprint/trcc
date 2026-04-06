@@ -121,9 +121,6 @@ function normalizeCustomFieldValue(
   }
 
   if (def.data_type === "tag") {
-    const allowed = new Set((def.tag_options ?? []).filter(Boolean));
-    const requireOption = allowed.size > 0;
-
     if (def.is_multi) {
       if (!Array.isArray(raw)) {
         return {
@@ -134,16 +131,6 @@ function normalizeCustomFieldValue(
       const tags = [
         ...new Set(raw.map((x) => String(x).trim()).filter(Boolean)),
       ].sort();
-      if (requireOption) {
-        for (const t of tags) {
-          if (!allowed.has(t)) {
-            return {
-              ok: false,
-              error: `Invalid tag "${t}" for "${def.column_key}"`,
-            };
-          }
-        }
-      }
       return { ok: true, value: tags };
     }
 
@@ -155,9 +142,6 @@ function normalizeCustomFieldValue(
     }
     const t = raw.trim();
     if (t === "") return { ok: true, value: null };
-    if (requireOption && !allowed.has(t)) {
-      return { ok: false, error: `Invalid tag "${t}" for "${def.column_key}"` };
-    }
     return { ok: true, value: t };
   }
 

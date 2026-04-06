@@ -335,8 +335,9 @@ export type Database = {
           p_cohort: Json | null;
           p_roles: Json;
           p_notes: string | null;
+          p_custom_data?: Json | null;
         };
-        Returns: number;
+        Returns: Json;
       };
       remove_custom_column_data: {
         Args: { p_column_key: string };

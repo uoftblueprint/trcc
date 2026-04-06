@@ -14,6 +14,8 @@ function parseStringArray(
 export type ColumnPreferences = {
   column_order: string[];
   hidden_columns: string[];
+  /** When prefs were last saved; used to merge in new custom columns without re-adding removed ones. */
+  prefs_updated_at: string | null;
 };
 
 export async function getColumnPreferencesForUser(
@@ -22,18 +24,23 @@ export async function getColumnPreferencesForUser(
   const client = createAdminClient();
   const { data, error } = await client
     .from("UserColumnPreferences")
-    .select("column_order, hidden_columns")
+    .select("column_order, hidden_columns, updated_at")
     .eq("user_id", userId)
     .maybeSingle();
 
   if (error) throw new Error(error.message);
   if (!data) {
-    return { column_order: [], hidden_columns: [] };
+    return {
+      column_order: [],
+      hidden_columns: [],
+      prefs_updated_at: null,
+    };
   }
 
   return {
     column_order: parseStringArray(data.column_order, []),
     hidden_columns: parseStringArray(data.hidden_columns, []),
+    prefs_updated_at: data.updated_at ?? null,
   };
 }
 
