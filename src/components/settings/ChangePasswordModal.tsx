@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useState, useEffect } from "react";
+import { notifyIfForbiddenError } from "@/lib/client/forbiddenOperationToast";
 import { Lock, X, User, Mail } from "lucide-react";
 import type { StaffRow } from "./ManageStaffTable";
 
@@ -90,9 +91,13 @@ export function ChangePasswordModal({
         reset();
         onClose();
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to update password."
-        );
+        if (notifyIfForbiddenError(err)) {
+          setError("");
+        } else {
+          setError(
+            err instanceof Error ? err.message : "Failed to update password."
+          );
+        }
       } finally {
         setLoading(false);
       }

@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { createAdminClient } from "@/lib/client/supabase/server";
 import type { Database } from "@/lib/client/supabase/types";
 
@@ -9,6 +10,8 @@ export type CohortInsert = Database["public"]["Tables"]["Cohorts"]["Insert"];
 const VALID_TERMS = ["Fall", "Spring", "Summer", "Winter"] as const;
 
 export async function createCohort(data: unknown): Promise<Cohort[]> {
+  await requireAdmin();
+
   if (typeof data !== "object" || data === null) {
     throw new Error("Data must be an object");
   }

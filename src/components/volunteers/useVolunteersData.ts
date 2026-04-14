@@ -39,7 +39,6 @@ function formatFilterTupleForApi(f: FilterTuple): FilterTuple {
 }
 
 interface UseVolunteersDataProps {
-  isAdmin: boolean;
   editedRowsRef: React.RefObject<Record<number, Partial<Volunteer>>>;
 }
 
@@ -67,7 +66,6 @@ export interface UseVolunteersDataReturn {
 }
 
 export const useVolunteersData = ({
-  isAdmin,
   editedRowsRef,
 }: UseVolunteersDataProps): UseVolunteersDataReturn => {
   const [data, setData] = useState<Volunteer[]>([]);
@@ -127,14 +125,12 @@ export const useVolunteersData = ({
 
       setAllVolunteers(formattedAll);
 
-      if (isAdmin) {
-        getRoles().then(setAllRoles).catch(console.error);
-        getCohorts().then(setAllCohorts).catch(console.error);
-      }
+      getRoles().then(setAllRoles).catch(console.error);
+      getCohorts().then(setAllCohorts).catch(console.error);
     } catch (error) {
       console.error("Error fetching volunteer data:", error);
     }
-  }, [isAdmin]);
+  }, []);
 
   useEffect(() => {
     setLoading(true);

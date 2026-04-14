@@ -18,6 +18,7 @@ import { removeVolunteer } from "./removeVolunteer";
 import { removeUser } from "./removeUser";
 import { updateUser } from "./updateUser";
 import { getCurrentUserServer } from "./getCurrentUserServer";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { updateCurrentUserAccount, type ValidationError } from "./updateUser";
 import { createRole } from "./createRole";
 import { createCohort } from "./createCohort";
@@ -27,13 +28,6 @@ import { removeRoleById } from "./removeRole";
 import { removeCohort } from "./removeCohort";
 
 type ImportCSVResponse = Awaited<ReturnType<typeof import_csv>>;
-
-async function requireAdmin(): Promise<void> {
-  const user = await getCurrentUserServer();
-  if (!user || user.role !== "admin") {
-    throw new Error("Unauthorized: admin access required");
-  }
-}
 
 export async function importCsvAction(
   csvString: string

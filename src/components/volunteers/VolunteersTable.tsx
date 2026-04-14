@@ -37,6 +37,11 @@ import { DeleteVolunteersConfirmModal } from "./DeleteVolunteersConfirmModal";
 import { VolunteersTableHelpModal } from "./VolunteersTableHelpModal";
 import { VolunteersShortcutsModal } from "./VolunteersShortcutsModal";
 import { getCurrentUser } from "@/lib/api/getCurrentUser";
+import {
+  isForbiddenOperationMessage,
+  notifyIfForbiddenError,
+  toastForbiddenOperation,
+} from "@/lib/client/forbiddenOperationToast";
 import { removeVolunteersAction } from "@/lib/api/actions";
 import {
   PRONOUN_OPTIONS,
@@ -141,7 +146,7 @@ const VolunteersTableContent = ({
     debouncedGlobalFilter,
     fetchInitialData,
     debouncedFilters,
-  } = useVolunteersData({ isAdmin, editedRowsRef });
+  } = useVolunteersData({ editedRowsRef });
 
   const {
     isSaving,
@@ -599,13 +604,17 @@ const VolunteersTableContent = ({
       const result = await removeVolunteersAction(selectedRowIds);
       if (result.failed > 0) {
         const firstError = result.errors[0];
-        const message =
-          result.failed === 1 && firstError
-            ? firstError
-            : `${result.failed} volunteer(s) could not be deleted${
-                firstError ? ` (e.g. ${firstError})` : ""
-              }`;
-        toast.error(message, { id: deleteToast });
+        if (result.errors.some((e) => isForbiddenOperationMessage(e))) {
+          toastForbiddenOperation();
+        } else {
+          const message =
+            result.failed === 1 && firstError
+              ? firstError
+              : `${result.failed} volunteer(s) could not be deleted${
+                  firstError ? ` (e.g. ${firstError})` : ""
+                }`;
+          toast.error(message, { id: deleteToast });
+        }
       } else {
         toast.success(`${result.succeeded} volunteer(s) deleted`, {
           id: deleteToast,
@@ -618,7 +627,9 @@ const VolunteersTableContent = ({
       }
     } catch (error) {
       console.error("[VolunteersTable] Delete failed:", error);
-      toast.error("Delete failed — please try again", { id: deleteToast });
+      if (!notifyIfForbiddenError(error)) {
+        toast.error("Delete failed — please try again", { id: deleteToast });
+      }
     } finally {
       setIsDeleting(false);
     }
@@ -930,64 +941,68 @@ const VolunteersTableContent = ({
         </div>
       )}
 
-      <AddVolunteerModal
-        isOpen={isAddVolunteerOpen}
-        onClose={() => setIsAddVolunteerOpen(false)}
-        optionsData={filterOptions}
-        onSuccess={() => {
-          toast.success("Volunteer added");
-          setLoading(true);
-          fetchInitialData();
-        }}
-      />
+      {isAdmin && (
+        <>
+          <AddVolunteerModal
+            isOpen={isAddVolunteerOpen}
+            onClose={() => setIsAddVolunteerOpen(false)}
+            optionsData={filterOptions}
+            onSuccess={() => {
+              toast.success("Volunteer added");
+              setLoading(true);
+              fetchInitialData();
+            }}
+          />
 
-      <VolunteersShortcutsModal
-        isOpen={isShortcutsOpen}
-        onClose={() => setIsShortcutsOpen(false)}
-        isAdmin={isAdmin}
-        visibleVolunteers={visibleVolunteersSorted}
-        allVolunteers={allVolunteers}
-        selectedVolunteers={selectedVolunteers}
-        onBulkEdit={handleBulkEdit}
-        onRefresh={async () => {
-          setLoading(true);
-          await fetchInitialData();
-        }}
-        onJumpToVolunteerRow={jumpToVolunteerRow}
-        onApplyMissingEmailFilter={applyMissingEmailFilter}
-        onApplyMissingPhoneFilter={applyMissingPhoneFilter}
-        onApplyMissingEmailOrPhoneFilter={applyMissingEmailOrPhoneFilter}
-        pronounOptions={filterOptions["pronouns"] ?? []}
-      />
+          <VolunteersShortcutsModal
+            isOpen={isShortcutsOpen}
+            onClose={() => setIsShortcutsOpen(false)}
+            isAdmin={isAdmin}
+            visibleVolunteers={visibleVolunteersSorted}
+            allVolunteers={allVolunteers}
+            selectedVolunteers={selectedVolunteers}
+            onBulkEdit={handleBulkEdit}
+            onRefresh={async () => {
+              setLoading(true);
+              await fetchInitialData();
+            }}
+            onJumpToVolunteerRow={jumpToVolunteerRow}
+            onApplyMissingEmailFilter={applyMissingEmailFilter}
+            onApplyMissingPhoneFilter={applyMissingPhoneFilter}
+            onApplyMissingEmailOrPhoneFilter={applyMissingEmailOrPhoneFilter}
+            pronounOptions={filterOptions["pronouns"] ?? []}
+          />
 
-      <ImportCSVModal
-        isOpen={isImportCSVOpen}
-        onClose={() => setIsImportCSVOpen(false)}
-        onSuccess={() => {
-          toast.success("CSV imported successfully");
-          setLoading(true);
-          fetchInitialData();
-        }}
-      />
+          <ImportCSVModal
+            isOpen={isImportCSVOpen}
+            onClose={() => setIsImportCSVOpen(false)}
+            onSuccess={() => {
+              toast.success("CSV imported successfully");
+              setLoading(true);
+              fetchInitialData();
+            }}
+          />
 
-      <ManageTagsModal
-        isOpen={isManageTagsOpen}
-        onClose={() => setIsManageTagsOpen(false)}
-        roles={allRoles}
-        cohorts={allCohorts}
-        onRefresh={() => {
-          setLoading(true);
-          fetchInitialData();
-        }}
-      />
+          <ManageTagsModal
+            isOpen={isManageTagsOpen}
+            onClose={() => setIsManageTagsOpen(false)}
+            roles={allRoles}
+            cohorts={allCohorts}
+            onRefresh={() => {
+              setLoading(true);
+              fetchInitialData();
+            }}
+          />
 
-      <DeleteVolunteersConfirmModal
-        isOpen={deleteModalOpen}
-        volunteers={volunteersPendingDelete}
-        isDeleting={isDeleting}
-        onConfirm={handleDeleteSelected}
-        onCancel={() => setDeleteModalOpen(false)}
-      />
+          <DeleteVolunteersConfirmModal
+            isOpen={deleteModalOpen}
+            volunteers={volunteersPendingDelete}
+            isDeleting={isDeleting}
+            onConfirm={handleDeleteSelected}
+            onCancel={() => setDeleteModalOpen(false)}
+          />
+        </>
+      )}
 
       {isChangesModalOpen && (
         <>

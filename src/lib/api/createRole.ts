@@ -1,5 +1,6 @@
 "use server";
 
+import { getCurrentUserServer } from "@/lib/api/getCurrentUserServer";
 import { createAdminClient } from "@/lib/client/supabase/server";
 import type { Database } from "@/lib/client/supabase/types";
 
@@ -142,6 +143,14 @@ function buildRoleInputs(input: unknown): RoleInput[] {
  */
 export async function createRole(input: unknown): Promise<CreateRoleResponse> {
   try {
+    const actor = await getCurrentUserServer();
+    if (!actor || actor.role !== "admin") {
+      return {
+        success: false,
+        error: "Unauthorized: admin access required",
+      };
+    }
+
     // Validate input
     const validationErrors = validateRolesInput(input);
     if (validationErrors.length > 0) {

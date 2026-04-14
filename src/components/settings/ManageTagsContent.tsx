@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { Calendar, ChevronDown, Plus, Tag, Trash2, User } from "lucide-react";
 import clsx from "clsx";
 import toast from "react-hot-toast";
+import {
+  notifyIfForbidden,
+  notifyIfForbiddenError,
+} from "@/lib/client/forbiddenOperationToast";
 import type { CohortRow, RoleRow } from "@/components/volunteers/types";
 import {
   createCohortTagAction,
@@ -271,16 +275,28 @@ export function ManageTagsContent({
     const row = roles.find((r) => r.id === id);
     if (!draft || !row) return;
     startTransition(async () => {
-      const res = await updateRoleTagAction(id, {
-        name: draft.name,
-        type: draft.type,
-        is_active: row.is_active,
-      });
-      if (res.success) {
-        toast.success("Role saved");
-        refresh();
-      } else {
-        toast.error(res.error ?? "Could not save role");
+      try {
+        const res = await updateRoleTagAction(id, {
+          name: draft.name,
+          type: draft.type,
+          is_active: row.is_active,
+        });
+        if (res.success) {
+          toast.success("Role saved");
+          refresh();
+        } else {
+          if (!notifyIfForbidden(res.error)) {
+            toast.error(res.error ?? "Could not save role");
+          }
+          setRoleDrafts((prev) => ({
+            ...prev,
+            [id]: { name: row.name, type: row.type },
+          }));
+        }
+      } catch (e) {
+        if (!notifyIfForbiddenError(e)) {
+          toast.error("Could not save role");
+        }
         setRoleDrafts((prev) => ({
           ...prev,
           [id]: { name: row.name, type: row.type },
@@ -300,12 +316,24 @@ export function ManageTagsContent({
       return;
     }
     startTransition(async () => {
-      const res = await removeRoleTagAction(row.id);
-      if (res.success) {
-        toast.success("Role removed");
-        refresh();
-      } else {
-        toast.error(res.error ?? "Could not remove role");
+      try {
+        const res = await removeRoleTagAction(row.id);
+        if (res.success) {
+          toast.success("Role removed");
+          refresh();
+        } else {
+          if (!notifyIfForbidden(res.error)) {
+            toast.error(res.error ?? "Could not remove role");
+          }
+          setRoleDrafts((prev) => ({
+            ...prev,
+            [id]: { name: row.name, type: row.type },
+          }));
+        }
+      } catch (e) {
+        if (!notifyIfForbiddenError(e)) {
+          toast.error("Could not remove role");
+        }
         setRoleDrafts((prev) => ({
           ...prev,
           [id]: { name: row.name, type: row.type },
@@ -322,18 +350,24 @@ export function ManageTagsContent({
       return;
     }
     startTransition(async () => {
-      const res = await createRoleTagAction({
-        name,
-        type: newRoleType,
-        is_active: true,
-      });
-      if (res.success) {
-        toast.success("Role created");
-        setNewRoleName("");
-        setNewRoleType("current");
-        refresh();
-      } else {
-        toast.error(res.error ?? "Could not create role");
+      try {
+        const res = await createRoleTagAction({
+          name,
+          type: newRoleType,
+          is_active: true,
+        });
+        if (res.success) {
+          toast.success("Role created");
+          setNewRoleName("");
+          setNewRoleType("current");
+          refresh();
+        } else if (!notifyIfForbidden(res.error)) {
+          toast.error(res.error ?? "Could not create role");
+        }
+      } catch (e) {
+        if (!notifyIfForbiddenError(e)) {
+          toast.error("Could not create role");
+        }
       }
     });
   };
@@ -348,16 +382,28 @@ export function ManageTagsContent({
       return;
     }
     startTransition(async () => {
-      const res = await updateCohortTagAction(id, {
-        term: draft.term,
-        year: y,
-        is_active: row.is_active,
-      });
-      if (res.success) {
-        toast.success("Cohort saved");
-        refresh();
-      } else {
-        toast.error(res.error ?? "Could not save cohort");
+      try {
+        const res = await updateCohortTagAction(id, {
+          term: draft.term,
+          year: y,
+          is_active: row.is_active,
+        });
+        if (res.success) {
+          toast.success("Cohort saved");
+          refresh();
+        } else {
+          if (!notifyIfForbidden(res.error)) {
+            toast.error(res.error ?? "Could not save cohort");
+          }
+          setCohortDrafts((prev) => ({
+            ...prev,
+            [id]: { term: row.term, year: String(row.year) },
+          }));
+        }
+      } catch (e) {
+        if (!notifyIfForbiddenError(e)) {
+          toast.error("Could not save cohort");
+        }
         setCohortDrafts((prev) => ({
           ...prev,
           [id]: { term: row.term, year: String(row.year) },
@@ -377,12 +423,24 @@ export function ManageTagsContent({
       return;
     }
     startTransition(async () => {
-      const res = await removeCohortTagAction(row.year, row.term);
-      if (res.success) {
-        toast.success("Cohort removed");
-        refresh();
-      } else {
-        toast.error(res.error ?? "Could not remove cohort");
+      try {
+        const res = await removeCohortTagAction(row.year, row.term);
+        if (res.success) {
+          toast.success("Cohort removed");
+          refresh();
+        } else {
+          if (!notifyIfForbidden(res.error)) {
+            toast.error(res.error ?? "Could not remove cohort");
+          }
+          setCohortDrafts((prev) => ({
+            ...prev,
+            [id]: { term: row.term, year: String(row.year) },
+          }));
+        }
+      } catch (e) {
+        if (!notifyIfForbiddenError(e)) {
+          toast.error("Could not remove cohort");
+        }
         setCohortDrafts((prev) => ({
           ...prev,
           [id]: { term: row.term, year: String(row.year) },
@@ -401,16 +459,22 @@ export function ManageTagsContent({
       return;
     }
     startTransition(async () => {
-      const res = await removeAllRoleTagsAction();
-      if (res.success) {
-        toast.success(
-          res.removed === 0
-            ? "No roles to remove"
-            : `Removed ${res.removed} role(s)`
-        );
-        refresh();
-      } else {
-        toast.error(res.error);
+      try {
+        const res = await removeAllRoleTagsAction();
+        if (res.success) {
+          toast.success(
+            res.removed === 0
+              ? "No roles to remove"
+              : `Removed ${res.removed} role(s)`
+          );
+          refresh();
+        } else if (!notifyIfForbidden(res.error)) {
+          toast.error(res.error);
+        }
+      } catch (e) {
+        if (!notifyIfForbiddenError(e)) {
+          toast.error("Could not remove roles.");
+        }
       }
     });
   };
@@ -425,16 +489,22 @@ export function ManageTagsContent({
       return;
     }
     startTransition(async () => {
-      const res = await removeAllCohortTagsAction();
-      if (res.success) {
-        toast.success(
-          res.removed === 0
-            ? "No cohorts to remove"
-            : `Removed ${res.removed} cohort(s)`
-        );
-        refresh();
-      } else {
-        toast.error(res.error);
+      try {
+        const res = await removeAllCohortTagsAction();
+        if (res.success) {
+          toast.success(
+            res.removed === 0
+              ? "No cohorts to remove"
+              : `Removed ${res.removed} cohort(s)`
+          );
+          refresh();
+        } else if (!notifyIfForbidden(res.error)) {
+          toast.error(res.error);
+        }
+      } catch (e) {
+        if (!notifyIfForbiddenError(e)) {
+          toast.error("Could not remove cohorts.");
+        }
       }
     });
   };
@@ -447,17 +517,23 @@ export function ManageTagsContent({
       return;
     }
     startTransition(async () => {
-      const res = await createCohortTagAction({
-        term: newCohortTerm,
-        year: y,
-        is_active: true,
-      });
-      if (res.success) {
-        toast.success("Cohort created");
-        setNewCohortYear(String(new Date().getFullYear()));
-        refresh();
-      } else {
-        toast.error(res.error ?? "Could not create cohort");
+      try {
+        const res = await createCohortTagAction({
+          term: newCohortTerm,
+          year: y,
+          is_active: true,
+        });
+        if (res.success) {
+          toast.success("Cohort created");
+          setNewCohortYear(String(new Date().getFullYear()));
+          refresh();
+        } else if (!notifyIfForbidden(res.error)) {
+          toast.error(res.error ?? "Could not create cohort");
+        }
+      } catch (e) {
+        if (!notifyIfForbiddenError(e)) {
+          toast.error("Could not create cohort");
+        }
       }
     });
   };

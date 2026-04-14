@@ -1,7 +1,13 @@
 "use client";
 
 import React, { useRef, useState } from "react";
+import toast from "react-hot-toast";
 import { X, Upload, CheckCircle, AlertCircle } from "lucide-react";
+import {
+  isForbiddenOperationMessage,
+  notifyIfForbiddenError,
+  toastForbiddenOperation,
+} from "@/lib/client/forbiddenOperationToast";
 import { importCsvAction } from "@/lib/api/actions";
 import {
   CSV_IMPORT_GOOGLE_SHEETS_STEPS,
@@ -101,9 +107,20 @@ export const ImportCSVModal = ({
     try {
       const text = await file.text();
       const importResult = await importCsvAction(text);
+      if (
+        importResult.parseErrors.some((e) =>
+          isForbiddenOperationMessage(e.message)
+        )
+      ) {
+        toastForbiddenOperation();
+      }
       setResult(importResult);
       if (importResult.summary.dbSucceeded > 0) {
         onSuccess();
+      }
+    } catch (e) {
+      if (!notifyIfForbiddenError(e)) {
+        toast.error("Import failed. Please try again.");
       }
     } finally {
       setSubmitting(false);

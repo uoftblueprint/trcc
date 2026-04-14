@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getCurrentUserServer } from "@/lib/api/getCurrentUserServer";
 import { createAdminClient } from "../client/supabase/server";
 import type { Database } from "../client/supabase/types";
 
@@ -120,6 +121,11 @@ export async function updateUser(
   _userId: string,
   body: unknown
 ): Promise<UpdateUserResponse> {
+  const actor = await getCurrentUserServer();
+  if (!actor || actor.role !== "admin") {
+    return { error: "Unauthorized: admin access required" };
+  }
+
   const { cleanedPatch, errors } = validateUserUpdateBody(body);
 
   if (errors.length > 0 || !cleanedPatch) {

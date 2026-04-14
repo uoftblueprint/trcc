@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getCurrentUserServer } from "@/lib/api/getCurrentUserServer";
 import type { Database } from "../client/supabase/types";
 import { createAdminClient } from "../client/supabase/server";
 
@@ -8,6 +9,11 @@ export async function deleteUser(
   userId: string,
   client?: SupabaseClient<Database>
 ): Promise<DeleteUserResponse> {
+  const actor = await getCurrentUserServer();
+  if (!actor || actor.role !== "admin") {
+    return { success: false, error: "Unauthorized: admin access required" };
+  }
+
   if (!userId || typeof userId !== "string") {
     return { success: false, error: "User ID is required" };
   }

@@ -1,16 +1,33 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { getCurrentUser } from "@/lib/api/getCurrentUser";
 
-const NAV_ITEMS = [
+const BASE_NAV_ITEMS = [
   { href: "/settings/account", label: "Account Info" },
-  { href: "/settings/manage", label: "Manage Users" },
 ] as const;
+
+const ADMIN_NAV_ITEM = {
+  href: "/settings/manage",
+  label: "Manage Users",
+} as const;
 
 export function SettingsNav(): React.JSX.Element {
   const pathname = usePathname();
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    getCurrentUser()
+      .then((u) => setIsAdmin(u.role === "admin"))
+      .catch(() => setIsAdmin(false));
+  }, []);
+
+  const navItems =
+    isAdmin === true
+      ? [...BASE_NAV_ITEMS, ADMIN_NAV_ITEM]
+      : [...BASE_NAV_ITEMS];
 
   return (
     <nav
@@ -22,7 +39,7 @@ export function SettingsNav(): React.JSX.Element {
         gap: "0.25rem",
       }}
     >
-      {NAV_ITEMS.map(({ href, label }) => {
+      {navItems.map(({ href, label }) => {
         const isActive =
           pathname === href ||
           pathname.startsWith(href + "/") ||

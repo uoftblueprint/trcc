@@ -1,5 +1,9 @@
 import { useState, useCallback, useRef } from "react";
 import toast from "react-hot-toast";
+import {
+  isForbiddenOperationMessage,
+  toastForbiddenOperation,
+} from "@/lib/client/forbiddenOperationToast";
 import { Volunteer, RoleRow, CohortRow } from "./types";
 import { updateVolunteer } from "@/lib/api/updateVolunteer";
 import { createRole } from "@/lib/api/createRole";
@@ -458,9 +462,13 @@ export const useVolunteerEdits = ({
     syncHistoryStacks();
 
     if (currentErrors.length > 0) {
-      toast.error(`${currentErrors.length} update(s) failed`, {
-        id: savingToast,
-      });
+      if (currentErrors.some((e) => isForbiddenOperationMessage(e))) {
+        toastForbiddenOperation({ id: savingToast });
+      } else {
+        toast.error(`${currentErrors.length} update(s) failed`, {
+          id: savingToast,
+        });
+      }
     } else {
       toast.success("All changes saved", { id: savingToast });
     }

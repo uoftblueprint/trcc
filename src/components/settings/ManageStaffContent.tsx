@@ -3,6 +3,12 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { Users, UserPlus } from "lucide-react";
 import toast from "react-hot-toast";
+import {
+  isForbiddenOperationMessage,
+  notifyIfForbidden,
+  notifyIfForbiddenError,
+  toastForbiddenOperation,
+} from "@/lib/client/forbiddenOperationToast";
 import { useUser } from "@/lib/client/userContext";
 import { ManageStaffTable, type StaffRow } from "./ManageStaffTable";
 import { NewUserModal } from "./NewUserModal";
@@ -119,9 +125,17 @@ export function ManageStaffContent({
       ) {
         return; // skip empty password updates
       }
-      const result = await updateUserAction(userId, { [apiField]: apiValue });
-      if (!result.success) {
-        setActionError(result.error ?? "Update failed");
+      try {
+        const result = await updateUserAction(userId, { [apiField]: apiValue });
+        if (!result.success) {
+          if (!notifyIfForbidden(result.error)) {
+            setActionError(result.error ?? "Update failed");
+          }
+        }
+      } catch (e) {
+        if (!notifyIfForbiddenError(e)) {
+          setActionError("Update failed");
+        }
       }
     },
     []
@@ -129,11 +143,17 @@ export function ManageStaffContent({
 
   const handleDeleteUser = useCallback(async (userId: string) => {
     setActionError(null);
-    const result = await deleteUserAction(userId);
-    if (result.success) {
-      setStaffList((prev) => prev.filter((u) => u.id !== userId));
-    } else {
-      setActionError(result.error ?? "Failed to delete user");
+    try {
+      const result = await deleteUserAction(userId);
+      if (result.success) {
+        setStaffList((prev) => prev.filter((u) => u.id !== userId));
+      } else if (!notifyIfForbidden(result.error)) {
+        setActionError(result.error ?? "Failed to delete user");
+      }
+    } catch (e) {
+      if (!notifyIfForbiddenError(e)) {
+        setActionError("Failed to delete user");
+      }
     }
   }, []);
 
@@ -141,24 +161,30 @@ export function ManageStaffContent({
     setCreateError(null);
     const role =
       user.memberType === "Admin" ? ("admin" as const) : ("staff" as const);
-    const result = await createUserAction({
-      name: user.name,
-      email: user.email,
-      password: user.password,
-      role,
-    });
+    try {
+      const result = await createUserAction({
+        name: user.name,
+        email: user.email,
+        password: user.password,
+        role,
+      });
 
-    if (result.success) {
-      const newRow: StaffRow = {
-        ...user,
-        id: result.data.id,
-      };
-      setStaffList((prev) => [...prev, newRow]);
-    } else {
-      const details = result.validationErrors
-        ?.map((e) => `${e.field}: ${e.message}`)
-        .join(", ");
-      setCreateError(details ? `${result.error} (${details})` : result.error);
+      if (result.success) {
+        const newRow: StaffRow = {
+          ...user,
+          id: result.data.id,
+        };
+        setStaffList((prev) => [...prev, newRow]);
+      } else if (!notifyIfForbidden(result.error)) {
+        const details = result.validationErrors
+          ?.map((e) => `${e.field}: ${e.message}`)
+          .join(", ");
+        setCreateError(details ? `${result.error} (${details})` : result.error);
+      }
+    } catch (e) {
+      if (!notifyIfForbiddenError(e)) {
+        setCreateError("Could not create user. Please try again.");
+      }
     }
   }, []);
 
@@ -188,6 +214,7 @@ export function ManageStaffContent({
     let succeeded = 0;
     let failed = 0;
     const errors: string[] = [];
+    let sawForbidden = false;
 
     for (const change of pendingChanges) {
       const current = staffList.find((r) => r.id === change.userId);
@@ -203,12 +230,24 @@ export function ManageStaffContent({
         }
       }
 
-      const result = await updateUserAction(change.userId, patch);
-      if (result.success) {
-        succeeded++;
-      } else {
+      try {
+        const result = await updateUserAction(change.userId, patch);
+        if (result.success) {
+          succeeded++;
+        } else {
+          failed++;
+          errors.push(`${change.label}: ${result.error}`);
+          if (isForbiddenOperationMessage(result.error)) {
+            sawForbidden = true;
+          }
+        }
+      } catch (e) {
         failed++;
-        errors.push(`${change.label}: ${result.error}`);
+        const msg = e instanceof Error ? e.message : String(e);
+        errors.push(`${change.label}: ${msg}`);
+        if (isForbiddenOperationMessage(msg)) {
+          sawForbidden = true;
+        }
       }
     }
 
@@ -221,6 +260,8 @@ export function ManageStaffContent({
           : `${succeeded} users updated successfully.`
       );
       setSavedData([...staffList]);
+    } else if (sawForbidden) {
+      toastForbiddenOperation();
     } else {
       toast.error(`${failed} update(s) failed:\n${errors.join("\n")}`, {
         duration: 6000,
@@ -234,9 +275,19 @@ export function ManageStaffContent({
     );
     if (!confirmed) return;
 
-    const result = await removeUserAction(user.id);
+    let result: Awaited<ReturnType<typeof removeUserAction>>;
+    try {
+      result = await removeUserAction(user.id);
+    } catch (e) {
+      if (!notifyIfForbiddenError(e)) {
+        toast.error("Failed to remove user.");
+      }
+      return;
+    }
     if (!result.success) {
-      toast.error(result.error ?? "Failed to remove user.");
+      if (!notifyIfForbidden(result.error)) {
+        toast.error(result.error ?? "Failed to remove user.");
+      }
       return;
     }
 
@@ -247,8 +298,19 @@ export function ManageStaffContent({
 
   const handlePasswordChange = useCallback(
     async (userId: string, password: string) => {
-      const result = await updateUserPasswordAction(userId, password);
+      let result: Awaited<ReturnType<typeof updateUserPasswordAction>>;
+      try {
+        result = await updateUserPasswordAction(userId, password);
+      } catch (e) {
+        if (notifyIfForbiddenError(e)) {
+          return;
+        }
+        throw e;
+      }
       if (!result.success) {
+        if (notifyIfForbidden(result.error)) {
+          return;
+        }
         throw new Error(result.error ?? "Failed to update password.");
       }
 

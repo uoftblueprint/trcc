@@ -1,3 +1,4 @@
+import { getCurrentUserServer } from "@/lib/api/getCurrentUserServer";
 import { createAdminClient } from "@/lib/client/supabase/server";
 
 /**
@@ -25,6 +26,11 @@ export async function removeCohort(
   year: number,
   term: string
 ): Promise<RemoveCohortResponse> {
+  const actor = await getCurrentUserServer();
+  if (!actor || actor.role !== "admin") {
+    return { success: false, error: "Unauthorized: admin access required" };
+  }
+
   const client = createAdminClient();
 
   try {

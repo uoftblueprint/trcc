@@ -1,3 +1,4 @@
+import { getCurrentUserServer } from "@/lib/api/getCurrentUserServer";
 import { createAdminClient } from "@/lib/client/supabase/server";
 import type { Tables, TablesUpdate } from "@/lib/client/supabase/types";
 
@@ -7,7 +8,7 @@ type RolePatch = Pick<TablesUpdate<"Roles">, "name" | "type" | "is_active">;
 
 type UpdateRoleResult =
   | { status: 200; body: { role: Tables<"Roles"> } }
-  | { status: 400 | 404 | 409 | 500; body: { error: string } };
+  | { status: 400 | 403 | 404 | 409 | 500; body: { error: string } };
 
 const ALLOWED_FIELDS = new Set<keyof RolePatch>(["name", "type", "is_active"]);
 
@@ -76,6 +77,14 @@ export async function updateRole(
   roleId: unknown,
   body: unknown
 ): Promise<UpdateRoleResult> {
+  const actor = await getCurrentUserServer();
+  if (!actor || actor.role !== "admin") {
+    return {
+      status: 403,
+      body: { error: "Unauthorized: admin access required" },
+    };
+  }
+
   if (!Number.isInteger(roleId) || (roleId as number) <= 0) {
     return { status: 400, body: { error: "Invalid role id" } };
   }

@@ -1,3 +1,4 @@
+import { getCurrentUserServer } from "@/lib/api/getCurrentUserServer";
 import { createAdminClient } from "../client/supabase/server";
 
 type RemoveUserResponse = { success: true } | { success: false; error: string };
@@ -11,6 +12,11 @@ type RemoveUserResponse = { success: true } | { success: false; error: string };
  * partial failure so the caller can surface it.
  */
 export async function removeUser(userId: string): Promise<RemoveUserResponse> {
+  const actor = await getCurrentUserServer();
+  if (!actor || actor.role !== "admin") {
+    return { success: false, error: "Unauthorized: admin access required" };
+  }
+
   if (!userId || typeof userId !== "string") {
     return { success: false, error: "Invalid user ID." };
   }

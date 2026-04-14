@@ -7,6 +7,7 @@ import styles from "./page.module.css";
 import EditIcon from "../../../components/icons/editIcon";
 import { useUser } from "@/lib/client/userContext";
 import { getCurrentUser } from "@/lib/api/getCurrentUser";
+import { notifyIfForbidden } from "@/lib/client/forbiddenOperationToast";
 import { updateAccountSettingsAction } from "@/lib/api/actions";
 import { UserCircle2 } from "lucide-react";
 
@@ -134,7 +135,9 @@ export default function Page(): React.JSX.Element {
         result.validationErrors && result.validationErrors.length > 0
           ? result.validationErrors.map((v) => v.message).join(" ")
           : result.error;
-      toast.error(msg);
+      if (!notifyIfForbidden(msg)) {
+        toast.error(msg);
+      }
       return;
     }
     const next: ProfileFields = {

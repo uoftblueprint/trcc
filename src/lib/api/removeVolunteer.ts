@@ -1,3 +1,4 @@
+import { getCurrentUserServer } from "@/lib/api/getCurrentUserServer";
 import { createAdminClient } from "../client/supabase/server";
 
 interface RemoveVolunteerResponse {
@@ -42,6 +43,15 @@ interface RemoveVolunteerResponse {
 export async function removeVolunteer(
   id: number
 ): Promise<RemoveVolunteerResponse> {
+  const actor = await getCurrentUserServer();
+  if (!actor || actor.role !== "admin") {
+    return {
+      error: { message: "Unauthorized: admin access required" },
+      data: null,
+      status: 403,
+    };
+  }
+
   // Validate input
   if (typeof id !== "number" || id <= 0 || !Number.isInteger(id)) {
     return {

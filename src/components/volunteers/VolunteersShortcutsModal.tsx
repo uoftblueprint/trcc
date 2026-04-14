@@ -14,6 +14,11 @@ import {
   ChevronRight,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import {
+  isForbiddenOperationMessage,
+  notifyIfForbiddenError,
+  toastForbiddenOperation,
+} from "@/lib/client/forbiddenOperationToast";
 import type { Volunteer } from "./types";
 import { createVolunteerAction } from "@/lib/api/actions";
 import {
@@ -247,6 +252,7 @@ export const VolunteersShortcutsModal = ({
     let fail = 0;
     const errors: string[] = [];
 
+    let sawForbidden = false;
     try {
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i]!;
@@ -267,6 +273,9 @@ export const VolunteersShortcutsModal = ({
           ok += 1;
         } else {
           fail += 1;
+          if (isForbiddenOperationMessage(result.error)) {
+            sawForbidden = true;
+          }
           const label = row.name_org.slice(0, 40);
           errors.push(`Line ${i + 1} (${label}): ${result.error}`);
         }
@@ -278,7 +287,15 @@ export const VolunteersShortcutsModal = ({
         await onRefresh();
       }
       if (fail > 0) {
-        toast.error(`${fail} row${fail === 1 ? "" : "s"} failed.`);
+        if (sawForbidden) {
+          toastForbiddenOperation();
+        } else {
+          toast.error(`${fail} row${fail === 1 ? "" : "s"} failed.`);
+        }
+      }
+    } catch (e) {
+      if (!notifyIfForbiddenError(e)) {
+        toast.error("Batch create failed. Please try again.");
       }
     } finally {
       setBatchSubmitting(false);

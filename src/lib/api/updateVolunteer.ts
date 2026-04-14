@@ -1,5 +1,6 @@
 "use server";
 
+import { getCurrentUserServer } from "@/lib/api/getCurrentUserServer";
 import { createAdminClient } from "../client/supabase/server";
 import type { Tables, TablesUpdate } from "../client/supabase/types";
 
@@ -30,7 +31,7 @@ type CohortInput = { year: number; term: string };
 
 type UpdateVolunteerResult =
   | { status: 200; body: { volunteer: Tables<"Volunteers"> } }
-  | { status: 400 | 404 | 500; body: { error: string } };
+  | { status: 400 | 403 | 404 | 500; body: { error: string } };
 
 type VolunteerValidationResult = {
   updates?: Partial<VolunteerUpdatePayload>;
@@ -265,6 +266,14 @@ export async function updateVolunteer(
   volunteerId: unknown,
   body: unknown
 ): Promise<UpdateVolunteerResult> {
+  const actor = await getCurrentUserServer();
+  if (!actor || actor.role !== "admin") {
+    return {
+      status: 403,
+      body: { error: "Unauthorized: admin access required" },
+    };
+  }
+
   if (!Number.isInteger(volunteerId) || (volunteerId as number) <= 0) {
     return { status: 400, body: { error: "Invalid volunteer id" } };
   }

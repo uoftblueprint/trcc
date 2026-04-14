@@ -3,6 +3,10 @@
 import React, { useState, useEffect, useCallback, useId } from "react";
 import { X, UserPlus } from "lucide-react";
 import clsx from "clsx";
+import {
+  notifyIfForbidden,
+  notifyIfForbiddenError,
+} from "@/lib/client/forbiddenOperationToast";
 import { createVolunteerAction } from "@/lib/api/actions";
 import type { CohortTerm } from "@/lib/api/createVolunteer";
 import { NEW_VOLUNTEER_FORM_COLUMNS } from "./volunteerColumns";
@@ -422,8 +426,14 @@ export const AddVolunteerModal = ({
         resetForm();
         onSuccess();
         onClose();
+      } else if (notifyIfForbidden(result.error)) {
+        setError(null);
       } else {
         setError(result.error);
+      }
+    } catch (e) {
+      if (!notifyIfForbiddenError(e)) {
+        setError("Something went wrong. Please try again.");
       }
     } finally {
       setSubmitting(false);

@@ -1,3 +1,4 @@
+import { getCurrentUserServer } from "@/lib/api/getCurrentUserServer";
 import { createAdminClient } from "../client/supabase/server";
 
 /**
@@ -49,6 +50,11 @@ export async function removeRole(
   roleName: string,
   roleType: string
 ): Promise<RemoveRoleResponse> {
+  const actor = await getCurrentUserServer();
+  if (!actor || actor.role !== "admin") {
+    return { success: false, error: "Unauthorized: admin access required" };
+  }
+
   const client = createAdminClient();
   try {
     const { data, error } = await client

@@ -1,3 +1,4 @@
+import { getCurrentUserServer } from "@/lib/api/getCurrentUserServer";
 import { createClient } from "@/lib/client/supabase";
 import { createAdminClient } from "@/lib/client/supabase/server";
 import type { Tables } from "@/lib/client/supabase/types";
@@ -32,6 +33,11 @@ async function getEmailByIdMap(): Promise<Map<string, string>> {
  * select + auth.admin.listUsers.
  */
 export async function getUsers(): Promise<UserRowWithEmail[]> {
+  const actor = await getCurrentUserServer();
+  if (!actor || actor.role !== "admin") {
+    throw new Error("Unauthorized: admin access required");
+  }
+
   const client = await createClient();
 
   if (process.env.NODE_ENV === "development" && process.env["API_URL"]) {

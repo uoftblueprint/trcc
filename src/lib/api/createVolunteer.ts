@@ -1,4 +1,5 @@
 // API function to create a new volunteer in the database
+import { getCurrentUserServer } from "@/lib/api/getCurrentUserServer";
 import { createClient } from "@/lib/client/supabase";
 import type { Json, TablesInsert } from "@/lib/client/supabase/types";
 
@@ -284,6 +285,14 @@ export async function createVolunteer(
   input: CreateVolunteerInput
 ): Promise<CreateVolunteerResponse> {
   try {
+    const actor = await getCurrentUserServer();
+    if (!actor || actor.role !== "admin") {
+      return {
+        success: false,
+        error: "Unauthorized: admin access required",
+      };
+    }
+
     const validationErrors = validateInput(input);
     if (validationErrors.length > 0) {
       return {

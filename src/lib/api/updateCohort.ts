@@ -1,3 +1,4 @@
+import { getCurrentUserServer } from "@/lib/api/getCurrentUserServer";
 import { createAdminClient } from "@/lib/client/supabase/server";
 import type { Tables, TablesUpdate } from "@/lib/client/supabase/types";
 
@@ -5,7 +6,7 @@ type CohortPatch = Pick<TablesUpdate<"Cohorts">, "term" | "year" | "is_active">;
 
 type UpdateCohortResult =
   | { status: 200; body: { cohort: Tables<"Cohorts"> } }
-  | { status: 400 | 404 | 409 | 500; body: { error: string } };
+  | { status: 400 | 403 | 404 | 409 | 500; body: { error: string } };
 
 const ALLOWED_FIELDS = new Set<keyof CohortPatch>([
   "term",
@@ -70,6 +71,14 @@ export async function updateCohort(
   cohortId: unknown,
   body: unknown
 ): Promise<UpdateCohortResult> {
+  const actor = await getCurrentUserServer();
+  if (!actor || actor.role !== "admin") {
+    return {
+      status: 403,
+      body: { error: "Unauthorized: admin access required" },
+    };
+  }
+
   if (!Number.isInteger(cohortId) || (cohortId as number) <= 0) {
     return { status: 400, body: { error: "Invalid cohort id" } };
   }

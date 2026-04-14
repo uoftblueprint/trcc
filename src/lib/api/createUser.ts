@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getCurrentUserServer } from "@/lib/api/getCurrentUserServer";
 import type { Database } from "../client/supabase/types";
 import { createAdminClient } from "../client/supabase/server";
 
@@ -89,6 +90,11 @@ export async function createUser(
   input: CreateUserInput,
   client?: SupabaseClient<Database>
 ): Promise<CreateUserResponse> {
+  const actor = await getCurrentUserServer();
+  if (!actor || actor.role !== "admin") {
+    return { success: false, error: "Unauthorized: admin access required" };
+  }
+
   const validationErrors = validateInput(input);
   if (validationErrors.length > 0) {
     return { success: false, error: "Validation failed", validationErrors };

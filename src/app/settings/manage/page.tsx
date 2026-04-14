@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getUsers } from "@/lib/api";
 import type { StaffRow } from "../../../components/settings/ManageStaffTable";
 import { ManageStaffContent } from "../../../components/settings/ManageStaffContent";
@@ -87,6 +88,9 @@ export default async function ManageStaffPage(): Promise<React.JSX.Element> {
   const currentUser = await getCurrentUserServer();
   if (!currentUser) {
     return <NoProfileMessage />;
+  }
+  if (currentUser.role === "staff") {
+    redirect("/settings/account");
   }
   if (!canManageStaff(currentUser.role)) {
     return <AccessDeniedMessage role={currentUser.role} />;

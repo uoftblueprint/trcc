@@ -1,4 +1,5 @@
 import Papa, { ParseResult } from "papaparse";
+import { getCurrentUserServer } from "@/lib/api/getCurrentUserServer";
 import { createClient } from "../client/supabase";
 import { Tables } from "../client/supabase/types";
 
@@ -421,6 +422,31 @@ function parseRows(rows: ParseRowsInput[]): ParseRowsResult {
 export async function import_csv(
   csv_string: string
 ): Promise<ImportCSVResponse> {
+  const actor = await getCurrentUserServer();
+  if (!actor || actor.role !== "admin") {
+    return {
+      status: "failed",
+      summary: {
+        totalRows: 0,
+        parsedSucceeded: 0,
+        parseFailed: 0,
+        dbSucceeded: 0,
+        dbFailed: 0,
+        dbInserted: 0,
+        dbUpdated: 0,
+        dbDuplicates: 0,
+      },
+      parseErrors: [
+        {
+          rowIndex: -1,
+          message: "Unauthorized: admin access required",
+        },
+      ],
+      parseWarnings: [],
+      dbErrors: [],
+    };
+  }
+
   const parsed_csv: ParseResult<Record<string, string | undefined>> =
     Papa.parse<Record<string, string | undefined>>(csv_string, {
       header: true,
