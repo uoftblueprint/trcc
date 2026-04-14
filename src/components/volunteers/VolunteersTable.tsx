@@ -383,7 +383,7 @@ const VolunteersTableContent = ({
   /** Filtered rows in table sort order (matches column headers), for shortcuts like copy-all emails/phones. */
   const visibleVolunteersSorted = useMemo(
     () => table.getSortedRowModel().rows.map((r) => r.original),
-    [table, data, sorting, debouncedGlobalFilter]
+    [table]
   );
 
   const {

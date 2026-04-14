@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useState, type ReactElement } from "react";
+import { useEffect, useLayoutEffect, useState, type ReactElement } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -14,7 +14,6 @@ import styles from "@/styles/login.module.css";
 type AlertState = { type: "success" | "error"; message: string } | null;
 
 export default function Page(): ReactElement {
-  const supabase = createClient();
   const router = useRouter();
 
   const [password, setPassword] = useState("");
@@ -23,6 +22,13 @@ export default function Page(): ReactElement {
   const [updating, setUpdating] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(true);
   const [bootMessage, setBootMessage] = useState("Loading…");
+  const [supabase, setSupabase] = useState<ReturnType<
+    typeof createClient
+  > | null>(null);
+
+  useEffect(() => {
+    setSupabase(createClient());
+  }, []);
 
   useLayoutEffect(() => {
     const code = new URLSearchParams(window.location.search).get("code");
@@ -64,6 +70,14 @@ export default function Page(): ReactElement {
     event: React.FormEvent<HTMLFormElement>
   ): Promise<void> => {
     event.preventDefault();
+
+    if (!supabase) {
+      setAlert({
+        type: "error",
+        message: "Reset session is still loading. Please try again.",
+      });
+      return;
+    }
 
     if (!password.trim()) {
       setAlert({ type: "error", message: "Please enter a new password." });
@@ -159,7 +173,7 @@ export default function Page(): ReactElement {
 
           <button
             type="submit"
-            disabled={updating}
+            disabled={updating || !supabase}
             className={styles["submitButton"]}
           >
             {updating ? "Updating…" : "Update password"}
