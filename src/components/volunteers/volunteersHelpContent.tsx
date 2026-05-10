@@ -126,8 +126,8 @@ export function VolunteersHelpContent({
                 remove volunteers (you’ll confirm in a dialog).
               </li>
               <li>
-                New tags (roles, cohorts) can be typed in the cell editor; save
-                to persist them.
+                New tags (training, position, committee, language) can be typed
+                in the cell editor; save to persist them.
               </li>
             </ul>
           </section>

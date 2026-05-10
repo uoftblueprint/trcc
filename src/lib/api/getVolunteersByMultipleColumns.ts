@@ -14,18 +14,6 @@ const OP = {
   OR: "OR",
 } as const;
 
-const VALID_COHORT_TERM_REGEX = /^(Fall|Spring|Summer|Winter)$/i;
-
-/** General columns where filter text should match like table search: case-insensitive substring. */
-const TEXT_SUBSTRING_MATCH_FIELDS = new Set<string>([
-  "name_org",
-  "pseudonym",
-  "email",
-  "phone",
-  "position",
-  "notes",
-]);
-
 const ALLOWED_FIELDS = [
   "name_org",
   "pseudonym",
@@ -44,6 +32,16 @@ const ALLOWED_FIELDS = [
   "cohorts",
   CONTACT_INCOMPLETE_FIELD,
 ];
+
+/** Volunteer scalar columns filtered with substring match (ilike), not exact `in()`. */
+const TEXT_SUBSTRING_MATCH_FIELDS = new Set<string>([
+  "name_org",
+  "pseudonym",
+  "email",
+  "phone",
+  "position",
+  "notes",
+]);
 
 export type FilterTuple = {
   field: string;
@@ -107,17 +105,18 @@ export async function getVolunteersByMultipleColumns(
         else if (f.field === "prior_roles") roleType = "prior";
         else roleType = "future_interest";
 
-        return filterIdsByRoles(
+        return filterIdsByRolesTextSearch(
           client,
           f.miniOp,
           f.values as string[],
           roleType
         );
       } else if (f.field === "cohorts") {
-        return filterIdsByCohorts(
+        return filterIdsByRolesTextSearch(
           client,
           f.miniOp,
-          f.values as [string, string][]
+          f.values as string[],
+          "training"
         );
       } else {
         return filterIdsByGeneral(
@@ -191,18 +190,10 @@ export async function validateMultipleColumnFilter(
       }
     } else if (f.field === "cohorts") {
       const invalid = f.values.some(
-        (v) =>
-          !Array.isArray(v) ||
-          v.length !== 2 ||
-          typeof v[0] !== "string" ||
-          !VALID_COHORT_TERM_REGEX.test(v[0]) ||
-          typeof v[1] !== "string" ||
-          isNaN(parseInt(v[1])) ||
-          !(1900 <= parseInt(v[1]) && parseInt(v[1]) <= 2100)
+        (v) => typeof v !== "string" || (v as string).trim() === ""
       );
-
       if (invalid)
-        return { valid: false, error: "Invalid cohort filter values" };
+        return { valid: false, error: "Invalid training filter values" };
     } else {
       const invalid = f.values.some((v) => typeof v !== "string");
       if (invalid)
@@ -215,72 +206,48 @@ export async function validateMultipleColumnFilter(
   return { valid: true, cleanedFiltersList };
 }
 
-function filterMatchingIds(
-  mappedData: Map<number, Set<string>>,
-  op: string,
-  targetValues: string[]
-): Set<number> {
-  const validIds = new Set<number>();
-
-  for (const [id, foundItems] of mappedData) {
-    if (op === OP.OR || targetValues.every((v) => foundItems.has(v))) {
-      validIds.add(id);
-    }
-  }
-  return validIds;
-}
-
-async function filterIdsByRoles(
+async function filterIdsByRolesTextSearch(
   client: SupabaseClient<Database>,
   op: string,
-  values: string[],
-  type: string
+  patterns: string[],
+  roleType: string
 ): Promise<Set<number>> {
+  const trimmed = patterns.map((p) => p.trim()).filter((p) => p.length > 0);
+  if (trimmed.length === 0) return new Set<number>();
+
   const { data, error } = await client
     .from("VolunteerRoles")
     .select("volunteer_id, Roles!inner(name, type)")
-    .eq("Roles.type", type)
-    .in("Roles.name", values);
+    .eq("Roles.type", roleType);
 
   if (error) throw error;
 
   const mappedRoles = new Map<number, Set<string>>();
-  for (const role of data) {
-    if (!mappedRoles.has(role.volunteer_id))
-      mappedRoles.set(role.volunteer_id, new Set());
-    mappedRoles.get(role.volunteer_id)?.add(role.Roles.name);
+  for (const row of data ?? []) {
+    const name = row.Roles?.name;
+    if (!name) continue;
+    const vid = row.volunteer_id;
+    if (!mappedRoles.has(vid)) mappedRoles.set(vid, new Set());
+    mappedRoles.get(vid)?.add(name);
   }
 
-  return filterMatchingIds(mappedRoles, op, values);
-}
+  const nameMatchesPattern = (names: Set<string>, pattern: string): boolean => {
+    const low = pattern.toLowerCase();
+    for (const n of names) {
+      if (n.toLowerCase().includes(low)) return true;
+    }
+    return false;
+  };
 
-async function filterIdsByCohorts(
-  client: SupabaseClient<Database>,
-  op: string,
-  values: [string, string][]
-): Promise<Set<number>> {
-  const orCondition = values
-    .map((v) => `and(term.eq.${v[0]},year.eq.${v[1]})`)
-    .join(",");
-
-  const { data, error } = await client
-    .from("VolunteerCohorts")
-    .select("volunteer_id, Cohorts!inner(term, year)")
-    .or(orCondition, { referencedTable: "Cohorts" });
-
-  if (error) throw error;
-
-  const mappedCohorts = new Map<number, Set<string>>();
-  for (const cohort of data) {
-    const key = `${cohort.Cohorts.term}-${cohort.Cohorts.year}`;
-    if (!mappedCohorts.has(cohort.volunteer_id))
-      mappedCohorts.set(cohort.volunteer_id, new Set());
-    mappedCohorts.get(cohort.volunteer_id)?.add(key);
+  const validIds = new Set<number>();
+  for (const [id, names] of mappedRoles) {
+    if (op === OP.OR) {
+      if (trimmed.some((p) => nameMatchesPattern(names, p))) validIds.add(id);
+    } else if (trimmed.every((p) => nameMatchesPattern(names, p))) {
+      validIds.add(id);
+    }
   }
-
-  const targetValues = values.map((v) => `${v[0]}-${v[1]}`);
-
-  return filterMatchingIds(mappedCohorts, op, targetValues);
+  return validIds;
 }
 
 function ilikeSubstringPattern(term: string): string {

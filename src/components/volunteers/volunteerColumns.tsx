@@ -6,14 +6,17 @@ import { HeaderWithIcon } from "./HeaderWithIcon";
 import { EditableCell } from "./EditableCell";
 import { NotesDisplay } from "./NotesDisplay";
 import {
-  CaseSensitive,
-  Hash,
-  User,
   AtSign,
-  Phone,
-  List,
-  TextAlignStart,
   Bell,
+  Briefcase,
+  CaseSensitive,
+  GraduationCap,
+  Hash,
+  Languages,
+  Phone,
+  TextAlignStart,
+  User,
+  UsersRound,
 } from "lucide-react";
 
 type FilterType = "text" | "options" | null;
@@ -108,8 +111,8 @@ export const COLUMNS_CONFIG: ColumnConfig[] = [
   },
   {
     id: "cohorts",
-    label: "Cohort",
-    icon: List,
+    label: "Training",
+    icon: GraduationCap,
     filterType: "options",
     isMulti: true,
     size: 150,
@@ -117,8 +120,8 @@ export const COLUMNS_CONFIG: ColumnConfig[] = [
   },
   {
     id: "prior_roles",
-    label: "Prior Role",
-    icon: User,
+    label: "Position",
+    icon: Briefcase,
     filterType: "options",
     isMulti: true,
     size: 180,
@@ -126,8 +129,8 @@ export const COLUMNS_CONFIG: ColumnConfig[] = [
   },
   {
     id: "current_roles",
-    label: "Current Role",
-    icon: User,
+    label: "Committee",
+    icon: UsersRound,
     filterType: "options",
     isMulti: true,
     size: 180,
@@ -135,8 +138,8 @@ export const COLUMNS_CONFIG: ColumnConfig[] = [
   },
   {
     id: "future_interests",
-    label: "Future Interest",
-    icon: User,
+    label: "Language",
+    icon: Languages,
     filterType: "options",
     isMulti: true,
     size: 180,

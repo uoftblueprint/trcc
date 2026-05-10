@@ -8,7 +8,12 @@ type RoleInsert = Database["public"]["Tables"]["Roles"]["Insert"];
 type RoleInput = Pick<RoleInsert, "name" | "type" | "is_active">;
 
 // Valid role types
-const VALID_ROLE_TYPES = ["prior", "current", "future_interest"] as const;
+const VALID_ROLE_TYPES = [
+  "prior",
+  "current",
+  "future_interest",
+  "training",
+] as const;
 export type RoleType = (typeof VALID_ROLE_TYPES)[number];
 
 // Validation error type

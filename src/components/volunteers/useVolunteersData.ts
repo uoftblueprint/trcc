@@ -6,16 +6,15 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { Volunteer, CohortRow, RoleRow } from "./types";
+import { Volunteer, RoleRow } from "./types";
 import {
   FilterTuple,
   getVolunteersByMultipleColumns,
 } from "@/lib/api/getVolunteersByMultipleColumns";
 import { getVolunteersTable } from "@/lib/api/getVolunteersTable";
 import { getRoles } from "@/lib/api/getRoles";
-import { getCohorts } from "@/lib/api/getCohorts";
 import { useDebounce } from "@/hooks/useDebounce";
-import { sortCohorts, sortRoles } from "./utils";
+import { sortRoles } from "./utils";
 import { SortingState, RowSelectionState } from "@tanstack/react-table";
 
 export const DEFAULT_OPT_IN_FILTER: FilterTuple = {
@@ -25,15 +24,6 @@ export const DEFAULT_OPT_IN_FILTER: FilterTuple = {
 };
 
 function formatFilterTupleForApi(f: FilterTuple): FilterTuple {
-  if (f.field === "cohorts") {
-    return {
-      ...f,
-      values: (f.values as string[]).map((v) => {
-        const [term, year] = v.split(" ");
-        return [term, year] as [string, string];
-      }),
-    };
-  }
   if (f.field === DEFAULT_OPT_IN_FILTER.field) {
     return {
       ...f,
@@ -55,7 +45,6 @@ export interface UseVolunteersDataReturn {
   setData: React.Dispatch<React.SetStateAction<Volunteer[]>>;
   allVolunteers: Volunteer[];
   allRoles: RoleRow[];
-  allCohorts: CohortRow[];
   loading: boolean;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   filters: FilterTuple[];
@@ -87,7 +76,6 @@ export const useVolunteersData = ({
   const [loading, setLoading] = useState<boolean>(true);
 
   const [allRoles, setAllRoles] = useState<RoleRow[]>([]);
-  const [allCohorts, setAllCohorts] = useState<CohortRow[]>([]);
 
   const [filters, setFilters] = useState<FilterTuple[]>([
     DEFAULT_OPT_IN_FILTER,
@@ -109,30 +97,25 @@ export const useVolunteersData = ({
       const volunteerData = await getVolunteersTable();
 
       const formattedAll: Volunteer[] = volunteerData.map((entry) => {
-        const formatTag = (item: CohortRow | RoleRow): string => {
-          if ("term" in item && "year" in item && item.term && item.year) {
-            return `${item.term} ${item.year}`;
-          }
-          if ("name" in item && item.name) {
-            return item.name;
-          }
-          return String(item.id) || "";
-        };
+        const formatRoleName = (r: RoleRow): string => r.name;
 
         return {
           ...entry.volunteer,
-          cohorts: entry.cohorts.map(formatTag).sort(sortCohorts),
+          cohorts: entry.roles
+            .filter((r) => r.type === "training")
+            .map(formatRoleName)
+            .sort(sortRoles),
           current_roles: entry.roles
             .filter((r) => r.type === "current")
-            .map(formatTag)
+            .map(formatRoleName)
             .sort(sortRoles),
           prior_roles: entry.roles
             .filter((r) => r.type === "prior")
-            .map(formatTag)
+            .map(formatRoleName)
             .sort(sortRoles),
           future_interests: entry.roles
             .filter((r) => r.type === "future_interest")
-            .map(formatTag)
+            .map(formatRoleName)
             .sort(sortRoles),
         };
       });
@@ -141,7 +124,6 @@ export const useVolunteersData = ({
 
       if (isAdmin) {
         getRoles().then(setAllRoles).catch(console.error);
-        getCohorts().then(setAllCohorts).catch(console.error);
       }
     } catch (error) {
       console.error("Error fetching volunteer data:", error);
@@ -155,11 +137,10 @@ export const useVolunteersData = ({
   const refreshRolesAndCohorts = useCallback(async (): Promise<void> => {
     if (!isAdmin) return;
     try {
-      const [roles, cohorts] = await Promise.all([getRoles(), getCohorts()]);
+      const roles = await getRoles();
       setAllRoles(roles);
-      setAllCohorts(cohorts);
     } catch (e) {
-      console.error("Error refreshing roles/cohorts:", e);
+      console.error("Error refreshing roles:", e);
     }
   }, [isAdmin]);
 
@@ -290,7 +271,6 @@ export const useVolunteersData = ({
     setData,
     allVolunteers,
     allRoles,
-    allCohorts,
     loading,
     setLoading,
     filters,

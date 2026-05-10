@@ -2,11 +2,10 @@ import { createElement, useState, useCallback, useRef } from "react";
 import { flushSync } from "react-dom";
 import toast from "react-hot-toast";
 import { Pencil } from "lucide-react";
-import { Volunteer, RoleRow, CohortRow } from "./types";
+import { Volunteer, RoleRow } from "./types";
 import { updateVolunteer } from "@/lib/api/updateVolunteer";
 import { createRole } from "@/lib/api/createRole";
-import { createCohort } from "@/lib/api/createCohort";
-import { sortCohorts, sortRoles } from "./utils";
+import { sortRoles } from "./utils";
 
 interface UseVolunteerEditsProps {
   editedRows: Record<number, Partial<Volunteer>>;
@@ -15,7 +14,6 @@ interface UseVolunteerEditsProps {
   >;
   allVolunteers: Volunteer[];
   allRoles: RoleRow[];
-  allCohorts: CohortRow[];
   setData: React.Dispatch<React.SetStateAction<Volunteer[]>>;
   setAllVolunteers: React.Dispatch<React.SetStateAction<Volunteer[]>>;
   bumpDisplayRefresh: () => void;
@@ -82,11 +80,10 @@ const normalizeValue = (colId: string, value: unknown): unknown => {
     if (value === "No") return false;
     return null;
   }
-  if (colId === "cohorts" && Array.isArray(value)) {
-    return [...(value as string[])].sort(sortCohorts);
-  }
   if (
-    ["current_roles", "prior_roles", "future_interests"].includes(colId) &&
+    ["cohorts", "current_roles", "prior_roles", "future_interests"].includes(
+      colId
+    ) &&
     Array.isArray(value)
   ) {
     return [...(value as string[])].sort(sortRoles);
@@ -99,7 +96,6 @@ export const useVolunteerEdits = ({
   setEditedRows,
   allVolunteers,
   allRoles,
-  allCohorts,
   setData,
   setAllVolunteers,
   bumpDisplayRefresh,
@@ -331,36 +327,11 @@ export const useVolunteerEdits = ({
     let usedFullRefetchAfterFatalError = false;
 
     try {
-      const knownCohortTerms = new Set(
-        allCohorts.map((c) => `${c.term.toLowerCase()} ${c.year}`)
-      );
       const knownRoles = new Set(
         allRoles.map((r) => `${r.name.toLowerCase()}|${r.type}`)
       );
 
       for (const updates of Object.values(editedRows)) {
-        if (updates.cohorts) {
-          for (const cName of updates.cohorts) {
-            const [term, year] = cName.trim().split(/\s+/);
-            if (!term || !year)
-              throw new Error(
-                `Invalid cohort format "${cName}". Use 'Term Year'`
-              );
-            const normalizedTerm =
-              term.charAt(0).toUpperCase() + term.slice(1).toLowerCase();
-            const cohortKey = `${normalizedTerm.toLowerCase()} ${year}`;
-            if (!knownCohortTerms.has(cohortKey)) {
-              await createCohort({
-                term: normalizedTerm,
-                year: Number(year),
-                is_active: true,
-              });
-              knownCohortTerms.add(cohortKey);
-              referenceDataDirty = true;
-            }
-          }
-        }
-
         const checkAndCreateRoles = async (
           roleArray: string[] | undefined,
           type: string
@@ -381,6 +352,10 @@ export const useVolunteerEdits = ({
           }
         };
 
+        await checkAndCreateRoles(
+          updates.cohorts as string[] | undefined,
+          "training"
+        );
         await checkAndCreateRoles(
           updates.current_roles as string[] | undefined,
           "current"
@@ -403,24 +378,13 @@ export const useVolunteerEdits = ({
 
           if (!volunteer) throw new Error(`Volunteer ID ${id} not found`);
 
-          if (updates.cohorts !== undefined) {
-            payload["cohorts"] = (updates.cohorts as string[]).map(
-              (cName: string) => {
-                const [term, year] = cName.trim().split(/\s+/);
-                const safeTerm = term || "";
-                const normalizedTerm =
-                  safeTerm.charAt(0).toUpperCase() +
-                  safeTerm.slice(1).toLowerCase();
-                return { term: normalizedTerm, year: Number(year) };
-              }
-            );
-          }
-
-          if (
+          const needsRoleMerge =
+            updates.cohorts !== undefined ||
             updates.current_roles !== undefined ||
             updates.prior_roles !== undefined ||
-            updates.future_interests !== undefined
-          ) {
+            updates.future_interests !== undefined;
+
+          if (needsRoleMerge) {
             const mergedRoles: { name: string; type: string }[] = [];
             const appendRoles = (
               roleArray: string[] | undefined,
@@ -433,6 +397,11 @@ export const useVolunteerEdits = ({
               );
             };
 
+            appendRoles(
+              updates.cohorts as string[] | undefined,
+              volunteer.cohorts,
+              "training"
+            );
             appendRoles(
               updates.current_roles as string[] | undefined,
               volunteer.current_roles,
@@ -450,6 +419,7 @@ export const useVolunteerEdits = ({
             );
 
             payload["roles"] = mergedRoles;
+            delete payload["cohorts"];
             delete payload["current_roles"];
             delete payload["prior_roles"];
             delete payload["future_interests"];

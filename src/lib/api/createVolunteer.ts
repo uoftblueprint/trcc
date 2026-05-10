@@ -3,7 +3,12 @@ import { createClient } from "@/lib/client/supabase";
 import type { Json, TablesInsert } from "@/lib/client/supabase/types";
 
 // Valid role types
-const VALID_ROLE_TYPES = ["prior", "current", "future_interest"] as const;
+const VALID_ROLE_TYPES = [
+  "prior",
+  "current",
+  "future_interest",
+  "training",
+] as const;
 export type RoleType = (typeof VALID_ROLE_TYPES)[number];
 
 // Valid cohort terms

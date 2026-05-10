@@ -22,12 +22,12 @@ export const CSV_IMPORT_OPTIONAL_COLUMNS = [
   { header: "phone", label: "Phone" },
   {
     header: "cohort",
-    label: "Cohort",
+    label: "Training (CSV column: cohort)",
     note: "Optional. If filled, use a year, a space, then Fall, Winter, Spring, or Summer — e.g. 2024 Fall.",
   },
   {
     header: "position",
-    label: "Position",
+    label: "Volunteer position (CSV column: position)",
     note: "Optional. CL / EBU / Staff / Training are recognized for special roles; other titles (e.g. Volunteer, Coordinator) are saved as volunteer or member when the word “member” appears.",
   },
   {
@@ -37,8 +37,8 @@ export const CSV_IMPORT_OPTIONAL_COLUMNS = [
   },
   {
     header: "accompaniment",
-    label: "Role columns (one column each)",
-    note: "Also: chat, f2f, front desk, grants, training team, board member. Leave blank or write “no”, or use text that includes interested, active, or prior.",
+    label: "Tag columns (one column each)",
+    note: "Also: chat, f2f, front desk, grants, training team, board member. Leave blank or write “no”, or use text that includes committee, language, or position (legacy sheets: active, interested, or prior).",
   },
 ] as const;
 
@@ -80,19 +80,19 @@ export const CSV_IMPORT_TROUBLESHOOTING: ReadonlyArray<{
     ],
   },
   {
-    problem: "Invalid cohort or “cohort not applied” (yellow/blue notice)",
+    problem: "Invalid training or “training not applied” (yellow/blue notice)",
     fixes: [
-      "Use a four-digit year, a space, then Fall, Winter, Spring, or Summer — for example: 2024 Fall.",
+      "The spreadsheet column is still named cohort. Use a four-digit year, a space, then Fall, Winter, Spring, or Summer — for example: 2024 Fall.",
       "Avoid formats like 2026Winter or Winter2021; there must be a space between year and season.",
-      "The person is still saved; fix the cohort cell and use Import again if you want the cohort attached.",
+      "The person is still saved; fix that cell and use Import again if you want the training attached.",
     ],
   },
   {
-    problem: "Invalid role column (accompaniment, chat, f2f, etc.)",
+    problem: "Invalid tag column (accompaniment, chat, f2f, etc.)",
     fixes: [
-      "Leave the cell empty or write no if that role does not apply.",
-      "Otherwise use words that include interested, active, or prior (for example: 1. Active).",
-      "If you see a blue notice: that person was still imported without that role — fix the cell and Import again to attach it.",
+      "Leave the cell empty or write no if that tag does not apply.",
+      "Otherwise use text that includes committee, language, or position (legacy: active, interested, or prior — for example: 1. Active).",
+      "If you see a blue notice: that person was still imported without that tag — fix the cell and Import again to attach it.",
     ],
   },
   {
@@ -127,7 +127,7 @@ const COLUMN_KEY_TO_LABEL: Record<string, string> = {
   volunteer: "Volunteer (name)",
   email: "Email",
   position: "Position",
-  cohort: "Cohort",
+  cohort: "Training (cohort column)",
   pronouns: "Pronouns",
   phone: "Phone",
   "notes (copied from prior traning sheet)": "Notes",
@@ -170,7 +170,7 @@ function hintForParseError(
     return "Use a normal email shape, like name@example.com.";
   }
   if (message.includes("Invalid cohort")) {
-    return "Use a year, a space, then Fall, Winter, Spring, or Summer — for example: 2024 Fall.";
+    return "Use a year, a space, then Fall, Winter, Spring, or Summer — for example: 2024 Fall. (Spreadsheet column: cohort.)";
   }
   if (
     message.includes("Invalid position") ||
@@ -180,7 +180,7 @@ function hintForParseError(
   }
   if (message.includes("Invalid role status")) {
     const role = columnLabel(columnKey);
-    return `In ${role ?? "this role column"}, use text that includes interested, active, or prior — or leave it empty / use “no” if they do not have that role.`;
+    return `In ${role ?? "this tag column"}, use text that includes committee, language, or position (or legacy active, interested, prior) — or leave it empty / use “no” if it does not apply.`;
   }
   if (message.includes("missing required header")) {
     return "Add a header row with the exact column names listed under “Required columns” in the help section above (spelling can use capitals or lowercase).";
@@ -293,13 +293,13 @@ export function formatCsvImportWarningForDisplay(w: {
   let hint: string | null = null;
   if (col === "cohort") {
     hint =
-      "Use a year, a space, then Fall, Winter, Spring, or Summer — for example: 2024 Fall. You can fix the sheet and use Import again to attach a cohort.";
+      "Use a year, a space, then Fall, Winter, Spring, or Summer — for example: 2024 Fall. You can fix the sheet and use Import again to attach training (cohort column).";
   } else if (col === "email") {
     hint =
       "Use a normal email like name@example.com, or leave the cell empty. You can add the email later in the table or re-import after fixing the sheet.";
   } else if (ROLE_COLUMN_KEYS.has(col)) {
     hint =
-      "Use text that includes interested, active, or prior — or leave the cell empty or write “no”. Re-import after fixing to attach this role.";
+      "Use text that includes committee, language, or position (or legacy interested, active, prior) — or leave the cell empty or write “no”. Re-import after fixing to attach this tag.";
   }
   return {
     ...d,

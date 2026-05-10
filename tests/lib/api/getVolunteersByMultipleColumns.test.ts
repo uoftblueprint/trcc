@@ -88,6 +88,14 @@ describe("validateMultipleColumnFilter (unit)", () => {
     if (!result.valid) expect(result.error).toMatch(/Invalid filter values/);
   });
 
+  it("accepts cohort filter as free-text substring (training column)", async () => {
+    const filtersList: FilterTuple[] = [
+      { field: "cohorts", miniOp: "OR", values: ["2024 Fall"] },
+    ];
+    const result = await validateMultipleColumnFilter(filtersList, "AND");
+    expect(result.valid).toBe(true);
+  });
+
   it("rejects any invalid cohort value", async () => {
     const filtersList: FilterTuple[] = [
       {

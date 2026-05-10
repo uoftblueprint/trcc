@@ -3,15 +3,8 @@
 import { createAdminClient } from "../client/supabase/server";
 import type { Tables, TablesUpdate } from "../client/supabase/types";
 
-const ROLE_TYPES = ["prior", "current", "future_interest"] as const;
-const COHORT_TERMS = ["fall", "summer", "winter", "spring"] as const;
+const ROLE_TYPES = ["prior", "current", "future_interest", "training"] as const;
 const POSITION_VALUES = ["member", "volunteer", "staff"] as const;
-const COHORT_TERM_CANONICAL: Record<(typeof COHORT_TERMS)[number], string> = {
-  fall: "Fall",
-  summer: "Summer",
-  winter: "Winter",
-  spring: "Spring",
-};
 
 type VolunteerUpdatePayload = Pick<
   TablesUpdate<"Volunteers">,
@@ -26,7 +19,6 @@ type VolunteerUpdatePayload = Pick<
 >;
 
 type RoleInput = { name: string; type: (typeof ROLE_TYPES)[number] };
-type CohortInput = { year: number; term: string };
 
 type UpdateVolunteerResult =
   | { status: 200; body: { volunteer: Tables<"Volunteers"> } }
@@ -35,13 +27,10 @@ type UpdateVolunteerResult =
 type VolunteerValidationResult = {
   updates?: Partial<VolunteerUpdatePayload>;
   role?: RoleInput;
-  cohort?: CohortInput;
   roles?: RoleInput[];
-  cohorts?: CohortInput[];
   error?: string;
 };
 
-// keep this in sync with allowed patch fields on the volunteers table
 const ALLOWED_VOLUNTEER_FIELDS = new Set<keyof VolunteerUpdatePayload>([
   "name_org",
   "email",
@@ -55,9 +44,7 @@ const ALLOWED_VOLUNTEER_FIELDS = new Set<keyof VolunteerUpdatePayload>([
 const ALLOWED_TOP_LEVEL_FIELDS = new Set<string>([
   ...ALLOWED_VOLUNTEER_FIELDS,
   "role",
-  "cohort",
   "roles",
-  "cohorts",
 ]);
 
 function validateVolunteerUpdateBody(body: unknown): VolunteerValidationResult {
@@ -76,7 +63,6 @@ function validateVolunteerUpdateBody(body: unknown): VolunteerValidationResult {
     };
   }
 
-  // name_org is the only required patchable field; validate it eagerly
   const updates: Partial<VolunteerUpdatePayload> = {};
   if ("name_org" in payload) {
     const value = payload["name_org"];
@@ -92,7 +78,6 @@ function validateVolunteerUpdateBody(body: unknown): VolunteerValidationResult {
     updates.name_org = value;
   }
 
-  // optional string-ish fields can be patched with string or null
   const stringFields = [
     "email",
     "phone",
@@ -139,9 +124,7 @@ function validateVolunteerUpdateBody(body: unknown): VolunteerValidationResult {
 
   const hasFields = Object.keys(updates).length > 0;
   let role: RoleInput | undefined;
-  let cohort: CohortInput | undefined;
   let roles: RoleInput[] | undefined;
-  let cohorts: CohortInput[] | undefined;
 
   if ("role" in payload) {
     const r = payload["role"];
@@ -162,36 +145,6 @@ function validateVolunteerUpdateBody(body: unknown): VolunteerValidationResult {
       };
     }
     role = { name, type: type as RoleInput["type"] };
-  }
-
-  if ("cohort" in payload) {
-    const c = payload["cohort"];
-    if (!c || typeof c !== "object" || Array.isArray(c)) {
-      return { error: "Field cohort must be an object" };
-    }
-    const { year, term } = c as Record<string, unknown>;
-    if (!Number.isInteger(year)) {
-      return { error: "Field cohort.year must be an integer" };
-    }
-    if (typeof term !== "string") {
-      return {
-        error: `Field cohort.term must be one of ${COHORT_TERMS.join(", ")}`,
-      };
-    }
-    const normalizedTerm = term.trim().toLowerCase();
-    if (
-      !COHORT_TERMS.includes(normalizedTerm as (typeof COHORT_TERMS)[number])
-    ) {
-      return {
-        error: `Field cohort.term must be one of ${COHORT_TERMS.join(", ")}`,
-      };
-    }
-    cohort = {
-      year: year as number,
-      term: COHORT_TERM_CANONICAL[
-        normalizedTerm as (typeof COHORT_TERMS)[number]
-      ],
-    };
   }
 
   if ("roles" in payload) {
@@ -216,47 +169,16 @@ function validateVolunteerUpdateBody(body: unknown): VolunteerValidationResult {
     }
   }
 
-  if ("cohorts" in payload) {
-    const cs = payload["cohorts"];
-    if (!Array.isArray(cs)) return { error: "Field cohorts must be an array" };
-    cohorts = [];
-    for (const c of cs) {
-      if (!c || typeof c !== "object" || Array.isArray(c))
-        return { error: "Each cohort must be an object" };
-      const { year, term } = c as Record<string, unknown>;
-      if (!Number.isInteger(year))
-        return { error: "Field cohorts[].year must be an integer" };
-      if (typeof term !== "string")
-        return { error: "Field cohorts[].term must be a string" };
-      const normalizedTerm = term.trim().toLowerCase();
-      if (
-        !COHORT_TERMS.includes(normalizedTerm as (typeof COHORT_TERMS)[number])
-      ) {
-        return {
-          error: `Field cohorts[].term must be one of ${COHORT_TERMS.join(", ")}`,
-        };
-      }
-      cohorts.push({
-        year: year as number,
-        term: COHORT_TERM_CANONICAL[
-          normalizedTerm as (typeof COHORT_TERMS)[number]
-        ],
-      });
-    }
-  }
-
-  if (!hasFields && !role && !cohort && !roles && !cohorts) {
+  if (!hasFields && !role && roles === undefined) {
     return {
       error:
-        "At least one updatable field is required (volunteer fields, role, or cohort)",
+        "At least one updatable field is required (volunteer fields or roles)",
     };
   }
 
   const result: VolunteerValidationResult = { updates };
   if (role) result.role = role;
-  if (cohort) result.cohort = cohort;
-  if (roles) result.roles = roles;
-  if (cohorts) result.cohorts = cohorts;
+  if (roles !== undefined) result.roles = roles;
 
   return result;
 }
@@ -270,10 +192,10 @@ export async function updateVolunteer(
   }
 
   const validation = validateVolunteerUpdateBody(body);
-  if (!validation.updates) {
+  if (validation.error) {
     return {
       status: 400,
-      body: { error: validation.error ?? "Invalid volunteer update payload" },
+      body: { error: validation.error },
     };
   }
 
@@ -304,30 +226,6 @@ export async function updateVolunteer(
     roleRow = data;
   }
 
-  let cohortRow: { id: number } | null = null;
-  if (validation.cohort) {
-    const { year, term } = validation.cohort;
-    const { data, error } = await client
-      .from("Cohorts")
-      .select("id")
-      .eq("year", year)
-      .ilike("term", term)
-      .maybeSingle();
-
-    if (error) {
-      return { status: 500, body: { error: error.message } };
-    }
-
-    if (!data) {
-      return {
-        status: 400,
-        body: { error: `Cohort not found: ${term} ${year}` },
-      };
-    }
-
-    cohortRow = data;
-  }
-
   let roleIds: number[] = [];
   if (validation.roles !== undefined && validation.roles.length > 0) {
     const { data: foundRoles, error: rolesError } = await client
@@ -345,28 +243,6 @@ export async function updateVolunteer(
         return {
           status: 400,
           body: { error: `Role not found: ${r.name} (${r.type})` },
-        };
-    }
-  }
-
-  let cohortIds: number[] = [];
-  if (validation.cohorts !== undefined && validation.cohorts.length > 0) {
-    const { data: foundCohorts, error: cohortsError } = await client
-      .from("Cohorts")
-      .select("id, term, year");
-    if (cohortsError)
-      return { status: 500, body: { error: cohortsError.message } };
-
-    for (const c of validation.cohorts) {
-      const match = foundCohorts?.find(
-        (fc) =>
-          fc.term.toLowerCase() === c.term.toLowerCase() && fc.year === c.year
-      );
-      if (match) cohortIds.push(match.id);
-      else
-        return {
-          status: 400,
-          body: { error: `Cohort not found: ${c.term} ${c.year}` },
         };
     }
   }
@@ -413,33 +289,6 @@ export async function updateVolunteer(
     }
   }
 
-  if (validation.cohort && cohortRow) {
-    const { data: cohortLink, error: cohortLinkError } = await client
-      .from("VolunteerCohorts")
-      .select("cohort_id")
-      .eq("volunteer_id", volunteerId as number)
-      .eq("cohort_id", cohortRow.id)
-      .maybeSingle();
-
-    if (cohortLinkError) {
-      return { status: 500, body: { error: cohortLinkError.message } };
-    }
-
-    if (!cohortLink) {
-      const { error: cohortInsertError } = await client
-        .from("VolunteerCohorts")
-        .insert({
-          volunteer_id: volunteerId as number,
-          cohort_id: cohortRow.id,
-          created_at: timestamp,
-        });
-
-      if (cohortInsertError) {
-        return { status: 500, body: { error: cohortInsertError.message } };
-      }
-    }
-  }
-
   if (validation.roles !== undefined) {
     const { error: delError } = await client
       .from("VolunteerRoles")
@@ -456,27 +305,6 @@ export async function updateVolunteer(
       }));
       const { error: insError } = await client
         .from("VolunteerRoles")
-        .insert(insertPayload);
-      if (insError) return { status: 500, body: { error: insError.message } };
-    }
-  }
-
-  if (validation.cohorts !== undefined) {
-    const { error: delError } = await client
-      .from("VolunteerCohorts")
-      .delete()
-      .eq("volunteer_id", volunteerId as number);
-    if (delError) return { status: 500, body: { error: delError.message } };
-
-    if (cohortIds.length > 0) {
-      cohortIds = [...new Set(cohortIds)];
-      const insertPayload = cohortIds.map((cId) => ({
-        volunteer_id: volunteerId as number,
-        cohort_id: cId,
-        created_at: timestamp,
-      }));
-      const { error: insError } = await client
-        .from("VolunteerCohorts")
         .insert(insertPayload);
       if (insError) return { status: 500, body: { error: insError.message } };
     }

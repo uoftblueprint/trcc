@@ -676,8 +676,8 @@ export const VolunteersShortcutsModal = ({
                 </span>
                 . If the second value has no{" "}
                 <span className="font-mono">@</span>, it is stored as phone.
-                Avoid commas inside names. New volunteers have no roles or
-                cohorts until you edit them.
+                Avoid commas inside names. New volunteers have no tags or
+                training until you edit them.
               </p>
               <textarea
                 value={batchText}

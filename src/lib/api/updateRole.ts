@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/client/supabase/server";
 import type { Tables, TablesUpdate } from "@/lib/client/supabase/types";
 
-const ROLE_TYPES = ["prior", "current", "future_interest"] as const;
+const ROLE_TYPES = ["prior", "current", "future_interest", "training"] as const;
 
 type RolePatch = Pick<TablesUpdate<"Roles">, "name" | "type" | "is_active">;
 

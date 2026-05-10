@@ -3,13 +3,12 @@
 import React, { useEffect } from "react";
 import { Tags, X } from "lucide-react";
 import { ManageTagsContent } from "@/components/settings/ManageTagsContent";
-import type { CohortRow, RoleRow } from "./types";
+import type { RoleRow } from "./types";
 
 interface ManageTagsModalProps {
   isOpen: boolean;
   onClose: () => void;
   roles: RoleRow[];
-  cohorts: CohortRow[];
   onRefresh: () => void;
 }
 
@@ -17,7 +16,6 @@ export function ManageTagsModal({
   isOpen,
   onClose,
   roles,
-  cohorts,
   onRefresh,
 }: ManageTagsModalProps): React.JSX.Element | null {
   useEffect(() => {
@@ -63,8 +61,9 @@ export function ManageTagsModal({
                   id="manage-tags-modal-desc"
                   className="text-sm text-gray-600 mt-1.5 leading-relaxed max-w-xl"
                 >
-                  Edit role names and cohort terms used in filters, imports, and
-                  the spreadsheet editor.
+                  Edit tag names for Training, Position, Committee, and Language
+                  — the same tags used in filters, CSV import, and the
+                  spreadsheet editor.
                 </p>
               </div>
             </div>
@@ -80,7 +79,6 @@ export function ManageTagsModal({
           <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5 bg-linear-to-b from-gray-50/90 to-white">
             <ManageTagsContent
               initialRoles={roles}
-              initialCohorts={cohorts}
               loadError={null}
               onRefresh={onRefresh}
               embedded
