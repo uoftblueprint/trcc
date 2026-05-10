@@ -36,6 +36,8 @@ export const EditableCell = ({
   const [isNotesExpanded, setIsNotesExpanded] = useState<boolean>(false);
   const [value, setValue] = useState<unknown>(initialValue);
   const [inputValue, setInputValue] = useState<string>("");
+  /** Newline-separated draft for text columns that store string[] (one line per value). */
+  const [multiLineDraft, setMultiLineDraft] = useState<string>("");
 
   const [modalCoords, setModalCoords] = useState<{
     top: number;
@@ -58,6 +60,8 @@ export const EditableCell = ({
     "current_roles",
     "future_interests",
   ].includes(info.column.id);
+
+  const isMultiLineText = type === "text" && isMulti;
 
   /** Forces a fresh DOM subtree when toggling edit mode; avoids ghost nodes from contentEditable + imperative textContent. */
   const modeKey = isEditing ? "edit" : "view";
@@ -87,8 +91,15 @@ export const EditableCell = ({
 
     setInputValue("");
     if (type === "text") {
-      const text = String(value ?? "");
-      draftTextRef.current = text;
+      if (isMultiLineText) {
+        const arr = Array.isArray(value) ? (value as string[]) : [];
+        const joined = arr.join("\n");
+        draftTextRef.current = joined;
+        setMultiLineDraft(joined);
+      } else {
+        const text = String(value ?? "");
+        draftTextRef.current = text;
+      }
     }
     setIsEditing(true);
   };
@@ -151,6 +162,7 @@ export const EditableCell = ({
 
   useEffect(() => {
     if (!isEditing || type !== "text") return;
+    if (isNotes || isMultiLineText) return;
     const editor = inlineEditorRef.current;
     if (!editor) return;
     editor.textContent = draftTextRef.current;
@@ -163,13 +175,21 @@ export const EditableCell = ({
     range.collapse(false);
     selection.removeAllRanges();
     selection.addRange(range);
-  }, [isEditing, type]);
+  }, [isEditing, type, isNotes, isMultiLineText]);
 
   const handleDelete = useCallback((): void => {
-    const cleared = isMulti ? [] : type === "options" ? null : "";
+    const cleared =
+      isMulti || isMultiLineText ? [] : type === "options" ? null : "";
     setValue(cleared);
     onEdit(info.row.original.id, info.column.id, cleared);
-  }, [isMulti, type, info.row.original.id, info.column.id, onEdit]);
+  }, [
+    isMulti,
+    isMultiLineText,
+    type,
+    info.row.original.id,
+    info.column.id,
+    onEdit,
+  ]);
 
   const applyValue = (val: string): void => {
     if (isMulti) {
@@ -202,7 +222,7 @@ export const EditableCell = ({
       applyValue(newTag);
       if (!alreadyExists) {
         const toastId = `new-tag-${info.column.id}-${newTag.toLowerCase()}`;
-        toast(`New tag "${newTag}" created — remember to save your changes.`, {
+        toast(`"${newTag}" added — remember to save your changes.`, {
           id: toastId,
           icon: <Tag className="h-5 w-5 shrink-0 text-gray-700" aria-hidden />,
           duration: 4000,
@@ -263,8 +283,8 @@ export const EditableCell = ({
               placeholder={
                 allowAdd
                   ? isMulti
-                    ? "Search or create..."
-                    : "Select or create..."
+                    ? "Search or add..."
+                    : "Select or add..."
                   : "Search..."
               }
               value={inputValue}
@@ -365,6 +385,45 @@ export const EditableCell = ({
       );
     }
 
+    if (isMultiLineText) {
+      const commitLinesAndExit = (): void => {
+        const lines = multiLineDraft
+          .split("\n")
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
+        setValue(lines);
+        handleSave(lines);
+      };
+      const cancelMulti = (): void => {
+        setValue(initialValue);
+        setIsEditing(false);
+      };
+      return (
+        <textarea
+          key={modeKey}
+          className={
+            "w-full min-h-[5.5rem] max-h-52 px-2 py-1.5 text-sm outline-none " +
+            "border border-purple-200 rounded-md resize-y font-sans " +
+            "focus:ring-2 focus:ring-purple-300/40"
+          }
+          value={multiLineDraft}
+          onChange={(e) => setMultiLineDraft(e.target.value)}
+          onBlur={commitLinesAndExit}
+          onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
+            if (e.key === "Escape") {
+              e.preventDefault();
+              cancelMulti();
+            }
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          autoFocus
+          rows={5}
+          spellCheck={false}
+          aria-label="Edit values, one per line"
+        />
+      );
+    }
+
     return (
       <div
         key={modeKey}
@@ -395,7 +454,7 @@ export const EditableCell = ({
   }
 
   const renderReadOnlyTags = (): React.ReactNode => {
-    if (type === "options") {
+    if (type === "options" || isMultiLineText) {
       if (Array.isArray(value)) {
         return (value as string[]).map((v, i) => (
           <VolunteerTag key={i} label={v} />
@@ -440,7 +499,9 @@ export const EditableCell = ({
         title={
           isNotes
             ? "Double-click or press Enter to edit. Use Show more to read long notes."
-            : "Click to select, double-click or press Enter to edit"
+            : isMultiLineText
+              ? "Double-click or press Enter to edit. One line per value."
+              : "Click to select, double-click or press Enter to edit"
         }
       />
       <div className="relative z-10 w-full h-full min-h-6 cursor-text flex items-center gap-1 flex-wrap overflow-hidden pointer-events-none">

@@ -47,8 +47,11 @@ enum RawCol {
   BOARD_MEMBER = "board member",
 }
 
-// Mapping of raw role types to new ones
+// Mapping of phrases in role cells to DB role types (Position / Committee / Language).
 const RAW_TO_VALID_ROLE_TYPE = new Map([
+  ["committee", "current"],
+  ["language", "future_interest"],
+  ["position", "prior"],
   ["interested", "future_interest"],
   ["active", "current"],
   ["prior", "prior"],
@@ -228,8 +231,9 @@ function parseCohort(cohort: string, result: ParsedVolunteer): boolean {
 /**
  * Parses a role field from raw CSV data and adds it to the volunteer's roles array with an appropriate status.
  * Assumes the value is not "no" or null (those should be filtered out by the caller).
- * Attempts to match the raw field value against known status indicators ("interested", "active", "prior")
- * and maps them to valid role status values ("future_interest", "current", "prior").
+ * Attempts to match the raw field value against known indicators (committee,
+ * language, position, or legacy interested / active / prior) and maps them to
+ * DB role types used for the Committee, Language, and Position columns.
  * If no matching status is found, the function returns false (parse error).
  *
  * @param value - The raw role status field value from the CSV (must not be "no" or empty)
@@ -322,7 +326,7 @@ function parseRow(
         column: RawCol.COHORT,
         value: cohortValue,
         message:
-          "Cohort not applied — format was not recognized. Volunteer was still imported without this cohort.",
+          "Training not applied — format was not recognized. Volunteer was still imported without this training.",
       });
     }
   }
@@ -343,7 +347,7 @@ function parseRow(
             rowIndex,
             column: rawRoleColumn,
             value: roleValue,
-            message: `Role not applied — could not read status for ${roleName}. Volunteer was still imported without this role.`,
+            message: `Tag not applied — could not read column for ${roleName}. Volunteer was still imported without this tag.`,
           });
         }
       }

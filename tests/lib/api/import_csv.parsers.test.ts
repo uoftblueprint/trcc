@@ -167,6 +167,34 @@ describe("import_csv helper functions", () => {
       expect(result.roles).toEqual([{ name: "Front Desk", status: "prior" }]);
     });
 
+    it("maps committee to current", () => {
+      const result = createEmptyVolunteer();
+      const ok = parseRole("committee member", "Chat Counsellor", result);
+
+      expect(ok).toBe(true);
+      expect(result.roles).toEqual([
+        { name: "Chat Counsellor", status: "current" },
+      ]);
+    });
+
+    it("maps language to future_interest", () => {
+      const result = createEmptyVolunteer();
+      const ok = parseRole("language training", "Accompaniment", result);
+
+      expect(ok).toBe(true);
+      expect(result.roles).toEqual([
+        { name: "Accompaniment", status: "future_interest" },
+      ]);
+    });
+
+    it("maps position to prior", () => {
+      const result = createEmptyVolunteer();
+      const ok = parseRole("volunteer position", "F2F", result);
+
+      expect(ok).toBe(true);
+      expect(result.roles).toEqual([{ name: "F2F", status: "prior" }]);
+    });
+
     it("returns false for unknown role status", () => {
       const result = createEmptyVolunteer();
       const ok = parseRole("maybe", "Front Desk", result);
@@ -227,7 +255,9 @@ describe("import_csv helper functions", () => {
         expect(parsed.rowWarnings).toHaveLength(1);
         expect(parsed.rowWarnings[0]?.column).toBe("cohort");
         expect(parsed.rowWarnings[0]?.value).toBe("2026Winter");
-        expect(parsed.rowWarnings[0]?.message).toContain("Cohort not applied");
+        expect(parsed.rowWarnings[0]?.message).toContain(
+          "Training not applied"
+        );
       }
     });
 

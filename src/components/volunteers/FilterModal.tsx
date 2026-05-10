@@ -75,7 +75,16 @@ export const FilterModal = ({
           (c) => c.id === initialFilter.field
         );
         if (initialColDef?.type === "text") {
-          setInputValue(initialFilter.values[0] as string);
+          if (initialFilter.field === "cohorts") {
+            const parts = initialFilter.values.map((v) => {
+              if (Array.isArray(v) && v.length === 2)
+                return `${String(v[0])} ${String(v[1])}`;
+              return String(v);
+            });
+            setInputValue(parts.join(", "));
+          } else {
+            setInputValue(String(initialFilter.values[0] ?? ""));
+          }
           setSelectedOptions([]);
         } else {
           setSelectedOptions(initialFilter.values as string[]);
@@ -226,7 +235,11 @@ export const FilterModal = ({
               <input
                 ref={valueInputRef}
                 type="text"
-                placeholder={`Type ${colDef.label}...`}
+                placeholder={
+                  colDef.isMulti
+                    ? `Text contained in ${colDef.label}…`
+                    : `Type ${colDef.label}…`
+                }
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => {

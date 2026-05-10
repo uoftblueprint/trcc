@@ -38,12 +38,7 @@ import { VolunteersTableHelpModal } from "./VolunteersTableHelpModal";
 import { VolunteersShortcutsModal } from "./VolunteersShortcutsModal";
 import { getCurrentUser } from "@/lib/api/getCurrentUser";
 import { removeVolunteersAction } from "@/lib/api/actions";
-import {
-  PRONOUN_OPTIONS,
-  OPT_IN_OPTIONS,
-  sortCohorts,
-  sortRoles,
-} from "./utils";
+import { PRONOUN_OPTIONS, OPT_IN_OPTIONS, sortRoles } from "./utils";
 import { useVolunteersData } from "./useVolunteersData";
 import { useVolunteerEdits } from "./useVolunteerEdits";
 import type { CopyCellFormat } from "./copySelectedCells";
@@ -125,7 +120,6 @@ const VolunteersTableContent = ({
     setData,
     allVolunteers,
     allRoles,
-    allCohorts,
     loading,
     setLoading,
     filters,
@@ -163,7 +157,6 @@ const VolunteersTableContent = ({
     setEditedRows,
     allVolunteers,
     allRoles,
-    allCohorts,
     setData,
     setAllVolunteers,
     bumpDisplayRefresh,
@@ -178,11 +171,9 @@ const VolunteersTableContent = ({
       if (col.type === "options") options[col.id] = new Set();
     });
 
-    allCohorts.forEach((c) => {
-      if (c.is_active) options["cohorts"]?.add(`${c.term} ${c.year}`);
-    });
     allRoles.forEach((r) => {
       if (!r.is_active) return;
+      if (r.type === "training") options["cohorts"]?.add(r.name);
       if (r.type === "current") options["current_roles"]?.add(r.name);
       if (r.type === "prior") options["prior_roles"]?.add(r.name);
       if (r.type === "future_interest")
@@ -244,14 +235,12 @@ const VolunteersTableContent = ({
           if (idxB === -1) return -1;
           return idxA - idxB;
         });
-      } else if (key === "cohorts") {
-        result[key] = arr.sort(sortCohorts);
       } else {
         result[key] = arr.sort(sortRoles);
       }
     }
     return result;
-  }, [allVolunteers, allRoles, allCohorts, editedRows]);
+  }, [allVolunteers, allRoles, editedRows]);
 
   const pendingChanges = useMemo<PendingRowChange[]>(() => {
     return Object.entries(editedRows)
@@ -398,7 +387,8 @@ const VolunteersTableContent = ({
   const clearValueForColumn = useCallback((colId: string): unknown => {
     const col = COLUMNS_CONFIG.find((c) => String(c.id) === colId);
     if (!col) return "";
-    if (col.filterType === "options") return col.isMulti ? [] : null;
+    if (col.isMulti) return [];
+    if (col.filterType === "options") return null;
     return "";
   }, []);
 
@@ -980,7 +970,6 @@ const VolunteersTableContent = ({
         isOpen={isManageTagsOpen}
         onClose={() => setIsManageTagsOpen(false)}
         roles={allRoles}
-        cohorts={allCohorts}
         onRefresh={() => {
           setLoading(true);
           fetchInitialData();

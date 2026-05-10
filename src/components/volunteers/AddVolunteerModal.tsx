@@ -4,13 +4,10 @@ import React, { useState, useEffect, useCallback, useId } from "react";
 import { X, UserPlus } from "lucide-react";
 import clsx from "clsx";
 import { createVolunteerAction } from "@/lib/api/actions";
-import type { CohortTerm } from "@/lib/api/createVolunteer";
 import { NEW_VOLUNTEER_FORM_COLUMNS } from "./volunteerColumns";
 import type { Volunteer } from "./types";
 import { VolunteerTag } from "./VolunteerTag";
 import { OPT_IN_OPTIONS } from "./utils";
-
-const COHORT_TERMS: CohortTerm[] = ["Fall", "Winter", "Spring", "Summer"];
 
 const inputClass =
   "w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 shadow-sm transition " +
@@ -39,11 +36,13 @@ const FORM_SECTIONS: {
     columnIds: ["name_org", "pseudonym", "pronouns", "email", "phone"],
   },
   {
-    title: "Cohorts",
+    title: "Training",
+    description:
+      "Add any text labels (same idea as Position). Suggestions come from tags your admins created.",
     columnIds: ["cohorts"],
   },
   {
-    title: "Roles",
+    title: "Position, committee, and language",
     columnIds: ["prior_roles", "current_roles", "future_interests"],
   },
   {
@@ -51,20 +50,6 @@ const FORM_SECTIONS: {
     columnIds: ["opt_in_communication", "notes"],
   },
 ];
-
-type CohortFormRow = { term: CohortTerm; year: string };
-
-function parseCohortLabel(
-  label: string
-): { term: CohortTerm; year: string } | null {
-  const parts = label.trim().split(/\s+/);
-  if (parts.length < 2) return null;
-  const year = parts[parts.length - 1]!;
-  const term = parts.slice(0, -1).join(" ");
-  if (!/^\d{4}$/.test(year)) return null;
-  if (!COHORT_TERMS.includes(term as CohortTerm)) return null;
-  return { term: term as CohortTerm, year };
-}
 
 function SectionCard({
   title,
@@ -163,7 +148,7 @@ function MultiRoleField({
           type="text"
           className="flex-1 min-w-40 border-0 bg-transparent py-1 px-1 text-sm outline-none placeholder:text-gray-400"
           placeholder={
-            values.length > 0 ? "Add another…" : "Type a role, then press Enter"
+            values.length > 0 ? "Add another…" : "Type a tag, then press Enter"
           }
           value={draft}
           list={suggestionOptions.length > 0 ? datalistId : undefined}
@@ -187,138 +172,12 @@ function MultiRoleField({
   );
 }
 
-function CohortField({
-  label,
-  icon: Icon,
-  cohortLabels,
-  cohortRows,
-  setCohortRows,
-  currentYear,
-}: {
-  label: string;
-  icon: React.ElementType;
-  cohortLabels: string[];
-  cohortRows: CohortFormRow[];
-  setCohortRows: React.Dispatch<React.SetStateAction<CohortFormRow[]>>;
-  currentYear: number;
-}): React.JSX.Element {
-  const [term, setTerm] = useState<CohortTerm>("Fall");
-  const [year, setYear] = useState(String(currentYear));
-
-  const addDraft = useCallback((): void => {
-    const y = parseInt(year.trim(), 10);
-    if (!Number.isInteger(y) || y < 1900 || y > 2100) return;
-    const yStr = String(y);
-    setCohortRows((rows) => {
-      if (rows.some((r) => r.term === term && r.year === yStr)) return rows;
-      return [...rows, { term, year: yStr }];
-    });
-  }, [term, year, setCohortRows]);
-
-  const applyPreset = useCallback(
-    (presetLabel: string): void => {
-      const parsed = parseCohortLabel(presetLabel);
-      if (!parsed) return;
-      setCohortRows((rows) => {
-        if (
-          rows.some((r) => r.term === parsed.term && r.year === parsed.year)
-        ) {
-          return rows;
-        }
-        return [...rows, parsed];
-      });
-    },
-    [setCohortRows]
-  );
-
-  const removeAt = (index: number): void => {
-    setCohortRows((rows) => rows.filter((_, i) => i !== index));
-  };
-
-  return (
-    <div className="flex flex-col gap-2">
-      <FieldLabel icon={Icon}>{label}</FieldLabel>
-
-      <div
-        className={
-          "flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 " +
-          "bg-white px-2 py-2 shadow-sm focus-within:ring-2 focus-within:ring-purple-500/25 focus-within:border-purple-400"
-        }
-      >
-        {cohortRows.map((row, i) => (
-          <VolunteerTag
-            key={`${row.term}-${row.year}-${i}`}
-            label={`${row.term} ${row.year}`}
-            onRemove={() => removeAt(i)}
-          />
-        ))}
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={term}
-            onChange={(e) => setTerm(e.target.value as CohortTerm)}
-            className="w-23 shrink-0 rounded-md border border-gray-200 bg-gray-50/80 py-1.5 pl-1.5 pr-6 text-sm text-gray-900 outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-500/30"
-            aria-label="Cohort term"
-          >
-            {COHORT_TERMS.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            min={1900}
-            max={2100}
-            value={year}
-            onChange={(e) => setYear(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addDraft();
-              }
-            }}
-            className="w-16 shrink-0 rounded-md border border-gray-200 bg-gray-50/80 py-1.5 px-1.5 text-center text-sm tabular-nums outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-500/30"
-            aria-label="Cohort year"
-          />
-          <button
-            type="button"
-            onClick={addDraft}
-            className="rounded-md bg-accent-purple px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-dark-accent-purple transition-colors"
-          >
-            Add
-          </button>
-        </div>
-      </div>
-
-      {cohortLabels.length > 0 ? (
-        <div className="flex flex-col gap-1.5 pt-0.5">
-          <p className="text-xs text-gray-500">Existing tags:</p>
-          <div className="flex flex-wrap gap-1.5">
-            {cohortLabels.map((presetLabel) => (
-              <button
-                key={presetLabel}
-                type="button"
-                onClick={() => applyPreset(presetLabel)}
-                className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 shadow-sm transition hover:border-purple-300 hover:bg-purple-50/70"
-              >
-                {presetLabel}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 export const AddVolunteerModal = ({
   isOpen,
   onClose,
   onSuccess,
   optionsData = {},
 }: AddVolunteerModalProps): React.JSX.Element | null => {
-  const currentYear = new Date().getFullYear();
-
   const [nameOrg, setNameOrg] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -329,7 +188,7 @@ export const AddVolunteerModal = ({
   const [currentRoles, setCurrentRoles] = useState<string[]>([]);
   const [priorRoles, setPriorRoles] = useState<string[]>([]);
   const [futureRoles, setFutureRoles] = useState<string[]>([]);
-  const [cohortRows, setCohortRows] = useState<CohortFormRow[]>([]);
+  const [trainingRoles, setTrainingRoles] = useState<string[]>([]);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -338,7 +197,7 @@ export const AddVolunteerModal = ({
   const currentRoleOptions = optionsData["current_roles"] ?? [];
   const priorRoleOptions = optionsData["prior_roles"] ?? [];
   const futureRoleOptions = optionsData["future_interests"] ?? [];
-  const cohortLabels = optionsData["cohorts"] ?? [];
+  const trainingTagOptions = optionsData["cohorts"] ?? [];
 
   const resetForm = useCallback((): void => {
     setNameOrg("");
@@ -351,7 +210,7 @@ export const AddVolunteerModal = ({
     setCurrentRoles([]);
     setPriorRoles([]);
     setFutureRoles([]);
-    setCohortRows([]);
+    setTrainingRoles([]);
     setError(null);
   }, []);
 
@@ -373,21 +232,11 @@ export const AddVolunteerModal = ({
     e.preventDefault();
     setError(null);
 
-    for (let i = 0; i < cohortRows.length; i++) {
-      const row = cohortRows[i]!;
-      const y = parseInt(row.year, 10);
-      if (!Number.isInteger(y) || y < 1900 || y > 2100) {
-        setError(`Cohort row ${i + 1}: enter a valid year (1900–2100).`);
-        return;
-      }
-    }
-
-    const cohorts = cohortRows.map((row) => ({
-      year: parseInt(row.year, 10),
-      term: row.term,
-    }));
-
     const roles = [
+      ...trainingRoles.map((name) => ({
+        name: name.trim(),
+        type: "training" as const,
+      })),
       ...currentRoles.map((name) => ({
         name: name.trim(),
         type: "current" as const,
@@ -415,7 +264,7 @@ export const AddVolunteerModal = ({
           notes: notes.trim() || null,
         },
         roles,
-        cohorts,
+        cohorts: [],
       });
 
       if (result.success) {
@@ -513,14 +362,13 @@ export const AddVolunteerModal = ({
         );
       case "cohorts":
         return (
-          <CohortField
+          <MultiRoleField
             key={col.id}
             label={col.label}
             icon={col.icon}
-            cohortLabels={cohortLabels}
-            cohortRows={cohortRows}
-            setCohortRows={setCohortRows}
-            currentYear={currentYear}
+            options={trainingTagOptions}
+            values={trainingRoles}
+            onChange={setTrainingRoles}
           />
         );
       case "prior_roles":
@@ -623,8 +471,8 @@ export const AddVolunteerModal = ({
                   </h2>
                 </div>
                 <p className="text-sm text-gray-600 mt-2 leading-relaxed">
-                  Add multiple cohorts and roles if you need them. You can add
-                  more later and edit the volunteer later.
+                  Add multiple training terms and tags if you need them. You can
+                  add more later by editing the volunteer.
                 </p>
               </div>
             </div>

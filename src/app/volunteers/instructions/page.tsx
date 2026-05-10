@@ -57,8 +57,8 @@ export default async function VolunteersInstructionsPage(): Promise<React.JSX.El
                   Avoid exporting or sharing personal information unless needed.
                 </li>
                 <li>
-                  Double-check notes and role/cohort tags before confirming
-                  save.
+                  Double-check notes and tags (training, position, committee,
+                  language) before confirming save.
                 </li>
               </ul>
             </section>

@@ -13,6 +13,7 @@ export type UserInsert = Database["public"]["Tables"]["Users"]["Insert"];
 
 // Valid Values (from CHECK constraints)
 export const VALID_ROLE_TYPES = [
+  "training",
   "prior",
   "current",
   "future_interest",
@@ -74,7 +75,7 @@ export function makeTestRoleInsert(
   return {
     id: overrides.id ?? uniqueTestId(),
     name: overrides.name ?? `TEST_Role_${token}`,
-    // Must be one of: 'prior', 'current', 'future_interest'
+    // One of: training, prior, current, future_interest
     type: overrides.type ?? "current",
     is_active: overrides.is_active ?? true,
     ...overrides,
