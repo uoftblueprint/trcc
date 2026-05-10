@@ -714,7 +714,7 @@ const VolunteersTableContent = ({
           />
         </div>
         {(filters.length > 0 || sorting.length > 0) && (
-          <div className="border-t border-gray-100 px-3 pb-3 pt-2">
+          <div className="border-t border-gray-300 px-3 pb-3 pt-2">
             <FilterBar
               filters={filters}
               setFilters={setFilters}
@@ -762,7 +762,7 @@ const VolunteersTableContent = ({
         <div className="border border-gray-200 rounded-xl bg-white shadow-sm p-0 select-none">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left table-fixed border-collapse">
-              <thead className="border-b border-gray-200">
+              <thead className="border-b border-gray-300">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>
                     {headerGroup.headers.map((header) => (
@@ -841,7 +841,7 @@ const VolunteersTableContent = ({
                       data-volunteer-row-id={row.original.id}
                       data-state={row.getIsSelected() ? "selected" : undefined}
                       className={clsx(
-                        "group transition-colors border-b border-gray-100 bg-white hover:bg-gray-50",
+                        "group transition-colors border-b border-gray-300 bg-white hover:bg-gray-50",
                         "data-[state=selected]:bg-blue-100/30 data-[state=selected]:hover:bg-blue-100/50"
                       )}
                     >
@@ -997,7 +997,7 @@ const VolunteersTableContent = ({
             aria-labelledby="unsaved-changes-title"
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-101 w-full max-w-2xl max-h-[85vh] bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden"
           >
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div className="px-5 py-4 border-b border-gray-300 flex items-center justify-between">
               <h2
                 id="unsaved-changes-title"
                 className="text-lg font-semibold text-gray-900"
@@ -1021,10 +1021,10 @@ const VolunteersTableContent = ({
                     key={row.volunteerId}
                     className="border border-gray-200 rounded-lg"
                   >
-                    <div className="px-4 py-2 border-b border-gray-100 bg-gray-50 text-sm font-medium text-gray-900">
+                    <div className="px-4 py-2 border-b border-gray-300 bg-gray-50 text-sm font-medium text-gray-900">
                       {row.volunteerLabel} ({row.changes.length})
                     </div>
-                    <div className="divide-y divide-gray-100">
+                    <div className="divide-y divide-gray-300">
                       {row.changes.map((change) => (
                         <div
                           key={`${row.volunteerId}-${change.colId}`}

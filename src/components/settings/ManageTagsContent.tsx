@@ -373,7 +373,7 @@ export function ManageTagsContent({
           >
             <div className="overflow-x-auto rounded-xl border border-gray-200/90 bg-white shadow-inner shadow-gray-100/80">
               <table className="w-full text-sm text-left">
-                <thead className="bg-gray-100/70 text-[11px] font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-200/90">
+                <thead className="bg-gray-100/70 text-[11px] font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-300">
                   <tr>
                     <th className="px-3 py-2.5 pl-4">Name</th>
                     <th className="px-3 py-2.5 pr-4 text-right whitespace-nowrap w-[1%] min-w-48">
@@ -381,7 +381,7 @@ export function ManageTagsContent({
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100/90 bg-white">
+                <tbody className="divide-y divide-gray-300 bg-white">
                   {columnRoles.length === 0 ? (
                     <tr>
                       <td colSpan={2} className="px-4 py-10">
