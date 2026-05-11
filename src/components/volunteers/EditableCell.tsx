@@ -97,7 +97,7 @@ export const EditableCell = ({
         draftTextRef.current = joined;
         setMultiLineDraft(joined);
       } else {
-        const text = String(value ?? "");
+        const text = String(initialValue ?? "");
         draftTextRef.current = text;
       }
     }
@@ -162,7 +162,9 @@ export const EditableCell = ({
 
   useEffect(() => {
     if (!isEditing || type !== "text") return;
-    if (isNotes || isMultiLineText) return;
+    // Multi-line tag columns use a controlled <textarea>; notes and other text
+    // columns use contentEditable and need draftTextRef applied after mount.
+    if (isMultiLineText) return;
     const editor = inlineEditorRef.current;
     if (!editor) return;
     editor.textContent = draftTextRef.current;
@@ -175,7 +177,7 @@ export const EditableCell = ({
     range.collapse(false);
     selection.removeAllRanges();
     selection.addRange(range);
-  }, [isEditing, type, isNotes, isMultiLineText]);
+  }, [isEditing, type, isMultiLineText]);
 
   const handleDelete = useCallback((): void => {
     const cleared =

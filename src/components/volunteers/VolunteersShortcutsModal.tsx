@@ -207,28 +207,64 @@ export const VolunteersShortcutsModal = ({
   };
 
   const handleCopyEmails = async (): Promise<void> => {
-    const text = collectVisibleEmailsCommaSeparated(visibleVolunteers);
+    const rows = visibleVolunteers;
+    const text = collectVisibleEmailsCommaSeparated(rows);
     if (!text) {
-      toast("No emails in the current view.");
+      const n = rows.length;
+      if (n === 0) {
+        toast("No volunteers match the current view.");
+      } else {
+        toast(
+          n === 1
+            ? "This volunteer is in the list, but their Email field is empty."
+            : `${n} volunteers match this view, but none have a saved email.`
+        );
+      }
       return;
     }
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("Emails copied to clipboard.");
+      const withEmail = rows.filter((v) => Boolean(v.email?.trim())).length;
+      const skipped = rows.length - withEmail;
+      if (skipped > 0) {
+        toast.success(
+          `Copied ${withEmail} email${withEmail === 1 ? "" : "s"}. ${skipped} row${skipped === 1 ? " has" : "s have"} no Email field and were skipped.`
+        );
+      } else {
+        toast.success("Emails copied to clipboard.");
+      }
     } catch {
       toast.error("Could not copy to clipboard.");
     }
   };
 
   const handleCopyPhones = async (): Promise<void> => {
-    const text = collectVisiblePhonesCommaSeparated(visibleVolunteers);
+    const rows = visibleVolunteers;
+    const text = collectVisiblePhonesCommaSeparated(rows);
     if (!text) {
-      toast("No phone numbers in the current view.");
+      const n = rows.length;
+      if (n === 0) {
+        toast("No volunteers match the current view.");
+      } else {
+        toast(
+          n === 1
+            ? "This volunteer is in the list, but their Phone field is empty—add a number in the Phone column, then Save."
+            : `${n} volunteers match this view, but none have a saved phone number. Add numbers in the Phone column, then Save.`
+        );
+      }
       return;
     }
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("Phone numbers copied to clipboard.");
+      const withPhone = rows.filter((v) => Boolean(v.phone?.trim())).length;
+      const skipped = rows.length - withPhone;
+      if (skipped > 0) {
+        toast.success(
+          `Copied ${withPhone} phone number${withPhone === 1 ? "" : "s"}. ${skipped} row${skipped === 1 ? " has" : "s have"} no Phone field and were skipped.`
+        );
+      } else {
+        toast.success("Phone numbers copied to clipboard.");
+      }
     } catch {
       toast.error("Could not copy to clipboard.");
     }
@@ -339,6 +375,15 @@ export const VolunteersShortcutsModal = ({
   );
   const labelVolunteers = allVolunteers;
 
+  const visibleEmailCount = useMemo(
+    () => visibleVolunteers.filter((v) => Boolean(v.email?.trim())).length,
+    [visibleVolunteers]
+  );
+  const visiblePhoneCount = useMemo(
+    () => visibleVolunteers.filter((v) => Boolean(v.phone?.trim())).length,
+    [visibleVolunteers]
+  );
+
   if (!isOpen) return null;
 
   const visibleCount = visibleVolunteers.length;
@@ -386,6 +431,22 @@ export const VolunteersShortcutsModal = ({
               search and filters. Paginated rows not on this page are not
               included unless noted.
             </p>
+            {visibleCount > 0 ? (
+              <p className="text-xs text-gray-600 rounded-lg bg-gray-50 px-3 py-2 border border-gray-200/90">
+                In this view,{" "}
+                <span className="font-semibold text-gray-800">
+                  {visibleEmailCount}
+                </span>{" "}
+                row{visibleEmailCount === 1 ? "" : "s"} have a saved{" "}
+                <strong>Email</strong> and{" "}
+                <span className="font-semibold text-gray-800">
+                  {visiblePhoneCount}
+                </span>{" "}
+                have a saved <strong>Phone</strong>. Copy actions only include
+                non-empty addresses—add them in the table (then Save) if you
+                need them here.
+              </p>
+            ) : null}
 
             <CollapsibleShortcutsSection
               sectionId="formatPhones"
@@ -418,13 +479,21 @@ export const VolunteersShortcutsModal = ({
               onToggle={() => toggleSection("copyEmails")}
             >
               <p className="text-xs text-gray-600">
-                Copies non-empty emails from the current view, comma-separated,
-                in the same order as the sorted table and with filters applied.
+                Copies addresses from the <strong>Email</strong> column only.
+                Blank cells are skipped. Output is comma-separated, in table
+                order, with filters applied.
               </p>
               <button
                 type="button"
                 onClick={() => void handleCopyEmails()}
                 disabled={visibleCount === 0}
+                title={
+                  visibleCount === 0
+                    ? "No rows in the current view"
+                    : visibleEmailCount === 0
+                      ? "No saved emails in this view—click for an explanation, or add emails in the table"
+                      : "Copy comma-separated emails"
+                }
                 className="mt-1 self-start rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-800 hover:border-purple-300 hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50"
               >
                 Copy all emails
@@ -439,14 +508,21 @@ export const VolunteersShortcutsModal = ({
               onToggle={() => toggleSection("copyPhones")}
             >
               <p className="text-xs text-gray-600">
-                Copies non-empty phone numbers from the current view,
-                comma-separated, in the same order as the sorted table and with
-                filters applied.
+                Copies numbers from the <strong>Phone</strong> column only.
+                Blank cells are skipped. Output is comma-separated, in table
+                order, with filters applied.
               </p>
               <button
                 type="button"
                 onClick={() => void handleCopyPhones()}
                 disabled={visibleCount === 0}
+                title={
+                  visibleCount === 0
+                    ? "No rows in the current view"
+                    : visiblePhoneCount === 0
+                      ? "No saved phones in this view—click for an explanation, or add phones in the table"
+                      : "Copy comma-separated phone numbers"
+                }
                 className="mt-1 self-start rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-800 hover:border-purple-300 hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50"
               >
                 Copy all phone numbers
