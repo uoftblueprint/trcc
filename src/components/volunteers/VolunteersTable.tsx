@@ -369,11 +369,10 @@ const VolunteersTableContent = ({
     }
   }, [table, data, debouncedGlobalFilter, sorting, pageSize]);
 
-  /** Filtered rows in table sort order (matches column headers), for shortcuts like copy-all emails/phones. */
-  const visibleVolunteersSorted = useMemo(
-    () => table.getSortedRowModel().rows.map((r) => r.original),
-    [table]
-  );
+  /** All rows matching filters + global search, in table sort order (every page—not only the current page). Used for shortcuts like copy-all emails/phones. Must not be `useMemo([table])`: the table instance is stable, so that would stay stuck on the first render (often empty). */
+  const visibleVolunteersSorted = table
+    .getSortedRowModel()
+    .rows.map((r) => r.original);
 
   const {
     selectedCells,
