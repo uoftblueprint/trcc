@@ -24,38 +24,39 @@ export const sortRoles = (a: string, b: string): number => a.localeCompare(b);
 export const formatCellData = (value: unknown): string => {
   if (Array.isArray(value)) return value.join(", ");
   if (value === null || value === undefined) return "";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
   return String(value);
 };
 
-const TAG_COLORS = [
-  "bg-tag-blue",
-  "bg-tag-green",
-  "bg-tag-yellow",
-  "bg-tag-pink",
-  "bg-tag-purple",
-  "bg-tag-orange",
-  "bg-tag-brown",
-  "bg-tag-red",
-  "bg-tag-gray",
+/** Theme tokens from `src/styles/variables.css` @theme — use inline so colors always apply (avoids purged Tailwind classes). */
+const TAG_BG_VARS = [
+  "var(--color-tag-blue)",
+  "var(--color-tag-green)",
+  "var(--color-tag-yellow)",
+  "var(--color-tag-pink)",
+  "var(--color-tag-purple)",
+  "var(--color-tag-orange)",
+  "var(--color-tag-brown)",
+  "var(--color-tag-red)",
 ] as const;
 
-const EXPLICIT_TAG_COLORS: Record<string, string> = {
-  yes: "bg-tag-green",
-  no: "bg-tag-red",
-  "she/her": "bg-tag-pink",
-  "he/him": "bg-tag-purple",
-  "they/them": "bg-tag-yellow",
-  "emergency back-up": "bg-tag-red",
+const EXPLICIT_TAG_BG: Record<string, string> = {
+  yes: "var(--color-tag-green)",
+  no: "var(--color-tag-red)",
+  "she/her": "var(--color-tag-pink)",
+  "he/him": "var(--color-tag-purple)",
+  "they/them": "var(--color-tag-yellow)",
+  "emergency back-up": "var(--color-tag-red)",
 };
 
-const KEYWORD_TAG_COLORS: [string, string][] = [
-  ["fall", "bg-tag-yellow"],
-  ["summer", "bg-tag-green"],
-  ["spring", "bg-tag-blue"],
-  ["winter", "bg-tag-pink"],
+const KEYWORD_TAG_BG: [string, string][] = [
+  ["fall", "var(--color-tag-yellow)"],
+  ["summer", "var(--color-tag-green)"],
+  ["spring", "var(--color-tag-blue)"],
+  ["winter", "var(--color-tag-pink)"],
 ];
 
-const assignedColors = new Map<string, string>();
+const assignedTagBackground = new Map<string, string>();
 
 function stableColorIndexForLabel(text: string): number {
   let h = 0;
@@ -65,21 +66,22 @@ function stableColorIndexForLabel(text: string): number {
   return Math.abs(h);
 }
 
-export const getTagColorClass = (label: string): string => {
+/** Returns a CSS `background-color` value (theme variable) for tag labels. */
+export function getTagBackgroundColor(label: string): string {
   const text = label.toLowerCase();
 
-  const explicit = EXPLICIT_TAG_COLORS[text];
+  const explicit = EXPLICIT_TAG_BG[text];
   if (explicit) return explicit;
 
-  for (const [keyword, color] of KEYWORD_TAG_COLORS) {
-    if (text.includes(keyword)) return color;
+  for (const [keyword, bg] of KEYWORD_TAG_BG) {
+    if (text.includes(keyword)) return bg;
   }
 
-  const cached = assignedColors.get(text);
+  const cached = assignedTagBackground.get(text);
   if (cached) return cached;
 
-  const idx = stableColorIndexForLabel(text) % TAG_COLORS.length;
-  const color = TAG_COLORS[idx] ?? "bg-tag-gray";
-  assignedColors.set(text, color);
-  return color;
-};
+  const idx = stableColorIndexForLabel(text) % TAG_BG_VARS.length;
+  const bg = TAG_BG_VARS[idx] ?? "var(--color-tag-gray)";
+  assignedTagBackground.set(text, bg);
+  return bg;
+}

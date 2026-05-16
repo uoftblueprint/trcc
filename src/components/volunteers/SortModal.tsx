@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Trash2, Plus } from "lucide-react";
 import clsx from "clsx";
 import { COLUMNS_CONFIG } from "./volunteerColumns";
+import type { SelectorColumn } from "./ColumnSelector";
 import { SortingState } from "@tanstack/react-table";
 import { ColumnSelector } from "./ColumnSelector";
 import { fixedPanelLeftPx } from "./FilterModal";
@@ -12,6 +13,8 @@ interface SortModalProps {
   onClose: () => void;
   sorting: SortingState;
   setSorting: React.Dispatch<React.SetStateAction<SortingState>>;
+  /** Columns available for sorting (defaults to built-in table columns). */
+  sortableColumns?: SelectorColumn[];
   alignRight?: boolean;
   /** When set, panel uses `position:fixed` so it is not clipped/misplaced inside scroll parents. */
   anchorRect?: DOMRectReadOnly | null;
@@ -22,9 +25,17 @@ export const SortModal = ({
   onClose,
   sorting,
   setSorting,
+  sortableColumns: sortableColumnsProp,
   alignRight = false,
   anchorRect = null,
 }: SortModalProps): React.JSX.Element | null => {
+  const sortableColumns: SelectorColumn[] =
+    sortableColumnsProp ??
+    COLUMNS_CONFIG.map((c) => ({
+      id: String(c.id),
+      label: c.label,
+      icon: c.icon,
+    }));
   const [editingIndex, setEditingIndex] = useState<number | "NEW" | null>(null);
 
   useEffect(() => {
@@ -70,13 +81,13 @@ export const SortModal = ({
     setEditingIndex(null);
   };
 
-  const availableColumns = COLUMNS_CONFIG.filter((col) => {
+  const availableColumns = sortableColumns.filter((col) => {
     const existingSortIndex = sorting.findIndex((s) => s.id === col.id);
     if (existingSortIndex === -1) return true;
     if (editingIndex !== "NEW" && existingSortIndex === editingIndex)
       return true;
     return false;
-  }).map((c) => ({ id: c.id as string, label: c.label, icon: c.icon }));
+  });
 
   return (
     <>
@@ -108,7 +119,7 @@ export const SortModal = ({
           <>
             <div className="flex flex-col gap-2">
               {sorting.map((sort, index) => {
-                const colDef = COLUMNS_CONFIG.find((c) => c.id === sort.id);
+                const colDef = sortableColumns.find((c) => c.id === sort.id);
                 const Icon = colDef?.icon;
                 return (
                   <div key={sort.id} className="flex items-center gap-2">

@@ -1,7 +1,7 @@
 "use server";
 
 import { createAdminClient } from "../client/supabase/server";
-import type { Tables, TablesUpdate } from "../client/supabase/types";
+import type { Json, Tables, TablesUpdate } from "../client/supabase/types";
 
 const ROLE_TYPES = ["prior", "current", "future_interest"] as const;
 const COHORT_TERMS = ["fall", "summer", "winter", "spring"] as const;
@@ -34,6 +34,7 @@ type UpdateVolunteerResult =
 
 type VolunteerValidationResult = {
   updates?: Partial<VolunteerUpdatePayload>;
+  customDataPatch?: Record<string, unknown>;
   role?: RoleInput;
   cohort?: CohortInput;
   roles?: RoleInput[];
@@ -54,11 +55,145 @@ const ALLOWED_VOLUNTEER_FIELDS = new Set<keyof VolunteerUpdatePayload>([
 ]);
 const ALLOWED_TOP_LEVEL_FIELDS = new Set<string>([
   ...ALLOWED_VOLUNTEER_FIELDS,
+  "custom_data",
   "role",
   "cohort",
   "roles",
   "cohorts",
 ]);
+
+type CustomColDef = Pick<
+  Tables<"CustomColumns">,
+  "column_key" | "data_type" | "tag_options" | "is_multi"
+>;
+
+function normalizeCustomFieldValue(
+  def: CustomColDef,
+  raw: unknown
+): { ok: true; value: unknown } | { ok: false; error: string } {
+  if (raw === null) {
+    return { ok: true, value: null };
+  }
+
+  if (def.data_type === "text") {
+    if (typeof raw !== "string")
+      return {
+        ok: false,
+        error: `Custom "${def.column_key}" must be a string or null`,
+      };
+    const t = raw.trim();
+    return { ok: true, value: t === "" ? null : raw };
+  }
+
+  if (def.data_type === "number") {
+    if (raw === "") return { ok: true, value: null };
+    if (typeof raw === "number") {
+      if (!Number.isFinite(raw))
+        return {
+          ok: false,
+          error: `Custom "${def.column_key}" must be a finite number`,
+        };
+      return { ok: true, value: raw };
+    }
+    if (typeof raw === "string") {
+      const s = raw.trim();
+      if (s === "") return { ok: true, value: null };
+      const n = Number(s);
+      if (!Number.isFinite(n))
+        return {
+          ok: false,
+          error: `Custom "${def.column_key}" must be a number`,
+        };
+      return { ok: true, value: n };
+    }
+    return {
+      ok: false,
+      error: `Custom "${def.column_key}" must be a number or null`,
+    };
+  }
+
+  if (def.data_type === "boolean") {
+    if (typeof raw === "boolean") return { ok: true, value: raw };
+    return {
+      ok: false,
+      error: `Custom "${def.column_key}" must be a boolean or null`,
+    };
+  }
+
+  if (def.data_type === "tag") {
+    if (def.is_multi) {
+      if (!Array.isArray(raw)) {
+        return {
+          ok: false,
+          error: `Custom "${def.column_key}" must be an array of tags or null`,
+        };
+      }
+      const tags = [
+        ...new Set(raw.map((x) => String(x).trim()).filter(Boolean)),
+      ].sort();
+      return { ok: true, value: tags };
+    }
+
+    if (typeof raw !== "string") {
+      return {
+        ok: false,
+        error: `Custom "${def.column_key}" must be a string tag or null`,
+      };
+    }
+    const t = raw.trim();
+    if (t === "") return { ok: true, value: null };
+    return { ok: true, value: t };
+  }
+
+  return { ok: false, error: `Unknown data type for "${def.column_key}"` };
+}
+
+async function mergeVolunteerCustomData(
+  client: ReturnType<typeof createAdminClient>,
+  volunteerId: number,
+  patch: Record<string, unknown>
+): Promise<{ ok: true; merged: Json } | { ok: false; error: string }> {
+  const { data: defs, error: defErr } = await client
+    .from("CustomColumns")
+    .select("column_key, data_type, tag_options, is_multi");
+
+  if (defErr) return { ok: false, error: defErr.message };
+  const byKey = new Map((defs ?? []).map((d) => [d.column_key, d]));
+
+  const { data: row, error: rowErr } = await client
+    .from("Volunteers")
+    .select("custom_data")
+    .eq("id", volunteerId)
+    .maybeSingle();
+
+  if (rowErr) return { ok: false, error: rowErr.message };
+
+  const base =
+    row?.custom_data &&
+    typeof row.custom_data === "object" &&
+    !Array.isArray(row.custom_data)
+      ? { ...(row.custom_data as Record<string, unknown>) }
+      : {};
+
+  for (const [key, raw] of Object.entries(patch)) {
+    const def = byKey.get(key);
+    if (!def) {
+      return { ok: false, error: `Unknown custom column key: ${key}` };
+    }
+    const norm = normalizeCustomFieldValue(def, raw);
+    if (!norm.ok) {
+      return { ok: false, error: norm.error };
+    }
+    const v = norm.value;
+    if (v === null || v === undefined) {
+      delete base[key];
+    } else {
+      base[key] = v;
+    }
+  }
+
+  return { ok: true, merged: base as Json };
+}
 
 function validateVolunteerUpdateBody(body: unknown): VolunteerValidationResult {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
@@ -137,7 +272,22 @@ function validateVolunteerUpdateBody(body: unknown): VolunteerValidationResult {
     }
   }
 
+  let customDataPatch: Record<string, unknown> | undefined;
+  if ("custom_data" in payload) {
+    const cd = payload["custom_data"];
+    if (cd === undefined) {
+      /* not patching custom_data */
+    } else if (cd === null || typeof cd !== "object" || Array.isArray(cd)) {
+      return { error: "Field custom_data must be an object" };
+    } else {
+      customDataPatch = { ...(cd as Record<string, unknown>) };
+    }
+  }
+
   const hasFields = Object.keys(updates).length > 0;
+  const hasCustomPatch =
+    customDataPatch !== undefined && Object.keys(customDataPatch).length > 0;
+
   let role: RoleInput | undefined;
   let cohort: CohortInput | undefined;
   let roles: RoleInput[] | undefined;
@@ -245,14 +395,16 @@ function validateVolunteerUpdateBody(body: unknown): VolunteerValidationResult {
     }
   }
 
-  if (!hasFields && !role && !cohort && !roles && !cohorts) {
+  if (!hasFields && !role && !cohort && !roles && !cohorts && !hasCustomPatch) {
     return {
       error:
-        "At least one updatable field is required (volunteer fields, role, or cohort)",
+        "At least one updatable field is required (volunteer fields, role, cohort, or custom_data)",
     };
   }
 
   const result: VolunteerValidationResult = { updates };
+  if (hasCustomPatch && customDataPatch)
+    result.customDataPatch = customDataPatch;
   if (role) result.role = role;
   if (cohort) result.cohort = cohort;
   if (roles) result.roles = roles;
@@ -270,7 +422,7 @@ export async function updateVolunteer(
   }
 
   const validation = validateVolunteerUpdateBody(body);
-  if (!validation.updates) {
+  if (validation.error || validation.updates === undefined) {
     return {
       status: 400,
       body: { error: validation.error ?? "Invalid volunteer update payload" },
@@ -279,6 +431,22 @@ export async function updateVolunteer(
 
   const client = createAdminClient();
   const timestamp = new Date().toISOString();
+
+  let mergedCustomData: Json | undefined;
+  if (
+    validation.customDataPatch &&
+    Object.keys(validation.customDataPatch).length > 0
+  ) {
+    const merged = await mergeVolunteerCustomData(
+      client,
+      volunteerId as number,
+      validation.customDataPatch
+    );
+    if (!merged.ok) {
+      return { status: 400, body: { error: merged.error } };
+    }
+    mergedCustomData = merged.merged;
+  }
 
   let roleRow: { id: number } | null = null;
   if (validation.role) {
@@ -373,7 +541,13 @@ export async function updateVolunteer(
 
   const { data: volunteer, error: volunteerError } = await client
     .from("Volunteers")
-    .update({ ...validation.updates, updated_at: timestamp })
+    .update({
+      ...validation.updates,
+      ...(mergedCustomData !== undefined
+        ? { custom_data: mergedCustomData }
+        : {}),
+      updated_at: timestamp,
+    })
     .eq("id", volunteerId as number)
     .select()
     .maybeSingle();

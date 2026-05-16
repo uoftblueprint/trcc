@@ -3,6 +3,7 @@
 import React, { useEffect } from "react";
 import { Tags, X } from "lucide-react";
 import { ManageTagsContent } from "@/components/settings/ManageTagsContent";
+import type { CustomColumnRow } from "@/lib/api/customColumns";
 import type { CohortRow, RoleRow } from "./types";
 
 interface ManageTagsModalProps {
@@ -11,6 +12,7 @@ interface ManageTagsModalProps {
   roles: RoleRow[];
   cohorts: CohortRow[];
   onRefresh: () => void;
+  customColumns?: CustomColumnRow[];
 }
 
 export function ManageTagsModal({
@@ -19,6 +21,7 @@ export function ManageTagsModal({
   roles,
   cohorts,
   onRefresh,
+  customColumns = [],
 }: ManageTagsModalProps): React.JSX.Element | null {
   useEffect(() => {
     if (!isOpen) return;
@@ -63,8 +66,8 @@ export function ManageTagsModal({
                   id="manage-tags-modal-desc"
                   className="text-sm text-gray-600 mt-1.5 leading-relaxed max-w-xl"
                 >
-                  Edit role names and cohort terms used in filters, imports, and
-                  the spreadsheet editor.
+                  Edit role names, cohort terms, and custom tag column options
+                  used in filters, imports, and the spreadsheet editor.
                 </p>
               </div>
             </div>
@@ -81,9 +84,11 @@ export function ManageTagsModal({
             <ManageTagsContent
               initialRoles={roles}
               initialCohorts={cohorts}
+              initialCustomTagColumns={customColumns}
               loadError={null}
               onRefresh={onRefresh}
               embedded
+              defaultCollapsed
             />
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { getTagColorClass } from "./utils";
+import { getTagBackgroundColor } from "./utils";
 import clsx from "clsx";
 
 export const VolunteerTag = ({
@@ -13,9 +13,9 @@ export const VolunteerTag = ({
 
   return (
     <span
+      style={{ backgroundColor: getTagBackgroundColor(label) }}
       className={clsx(
         "px-2 py-0.5 rounded text-xs font-medium inline-flex items-center gap-1",
-        getTagColorClass(label),
         "text-gray-800"
       )}
     >

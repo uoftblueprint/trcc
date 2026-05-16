@@ -11,6 +11,7 @@ const {
   parseRow,
   parseRows,
   validateHeaders,
+  parseCustomDataFromCsvRow,
 } = __testables;
 
 describe("import_csv helper functions", () => {
@@ -375,6 +376,60 @@ describe("import_csv helper functions", () => {
 
     it("returns all required headers for empty input", () => {
       expect(validateHeaders([])).toHaveLength(2);
+    });
+  });
+
+  describe("parseCustomDataFromCsvRow", () => {
+    const col = (
+      column_key: string,
+      data_type: string,
+      extra: { is_multi?: boolean; tag_options?: string[] | null } = {}
+    ): {
+      column_key: string;
+      data_type: string;
+      tag_options: string[] | null;
+      is_multi: boolean;
+    } => ({
+      column_key,
+      data_type,
+      tag_options: extra.tag_options ?? null,
+      is_multi: extra.is_multi ?? false,
+    });
+
+    it("maps custom:text and ignores empty cells", () => {
+      const { custom_data, errors } = parseCustomDataFromCsvRow(
+        { "custom:note": "hello", volunteer: "x" },
+        [col("note", "text")],
+        1
+      );
+      expect(custom_data).toEqual({ note: "hello" });
+      expect(errors).toHaveLength(0);
+    });
+
+    it("errors on unknown custom key with a value", () => {
+      const { custom_data, errors } = parseCustomDataFromCsvRow(
+        { "custom:unknown": "x" },
+        [col("note", "text")],
+        2
+      );
+      expect(Object.keys(custom_data)).toHaveLength(0);
+      expect(errors.some((e) => e.message.includes("Unknown custom"))).toBe(
+        true
+      );
+    });
+
+    it("parses boolean and multi-tag values", () => {
+      const { custom_data, errors } = parseCustomDataFromCsvRow(
+        {
+          "custom:active": "yes",
+          "custom:skills": "a; b, c",
+        },
+        [col("active", "boolean"), col("skills", "tag", { is_multi: true })],
+        0
+      );
+      expect(custom_data["active"]).toBe(true);
+      expect(custom_data["skills"]).toEqual(["a", "b", "c"]);
+      expect(errors).toHaveLength(0);
     });
   });
 });

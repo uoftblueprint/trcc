@@ -23,6 +23,9 @@ import { FilterModal, filterModalAlignRight } from "./FilterModal";
 import { SortModal } from "./SortModal";
 import { SortingState } from "@tanstack/react-table";
 import type { CopyCellFormat } from "./copySelectedCells";
+import type { FilterableColumnDesc } from "./volunteerColumns";
+import type { SelectorColumn } from "./ColumnSelector";
+import { Columns3 } from "lucide-react";
 
 interface TableToolbarProps {
   globalFilter: string;
@@ -32,6 +35,9 @@ interface TableToolbarProps {
   sorting: SortingState;
   setSorting: React.Dispatch<React.SetStateAction<SortingState>>;
   filterOptions: Record<string, string[]>;
+  filterableColumns: FilterableColumnDesc[];
+  sortableColumns: SelectorColumn[];
+  onOpenManageColumns: () => void;
   role: string | null;
   selectedCount: number;
   isDeleting: boolean;
@@ -64,6 +70,9 @@ export const TableToolbar = ({
   sorting,
   setSorting,
   filterOptions,
+  filterableColumns,
+  sortableColumns,
+  onOpenManageColumns,
   role,
   selectedCount,
   isDeleting,
@@ -264,6 +273,7 @@ export const TableToolbar = ({
                   setFilterAnchorRect(null);
                 }}
                 optionsData={filterOptions}
+                filterableColumns={filterableColumns}
                 alignRight={mainFilterAlignRight}
                 anchorRect={isMainFilterOpen ? filterAnchorRect : null}
               />
@@ -312,12 +322,23 @@ export const TableToolbar = ({
                 }}
                 sorting={sorting}
                 setSorting={setSorting}
+                sortableColumns={sortableColumns}
                 alignRight={sortModalAlignRight}
                 anchorRect={isSortModalOpen ? sortAnchorRect : null}
               />
             </div>
 
-            {role === "admin" && !hasEdits && (
+            <button
+              type="button"
+              onClick={onOpenManageColumns}
+              className={neutralBtn}
+              aria-label="Manage table columns"
+            >
+              <Columns3 className="h-4 w-4 shrink-0" />
+              <span className="whitespace-nowrap">Columns</span>
+            </button>
+
+            {role === "admin" && (
               <button
                 type="button"
                 onClick={onOpenShortcuts}

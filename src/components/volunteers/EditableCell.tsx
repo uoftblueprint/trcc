@@ -20,7 +20,9 @@ interface EditableCellProps {
   onEdit: (rowId: number, colId: string, value: unknown) => void;
   options?: string[];
   isMulti?: boolean;
-  type?: "text" | "options";
+  type?: "text" | "options" | "number" | "boolean";
+  /** When true (e.g. custom tag column with no preset list), new tags can be typed like roles/cohorts. */
+  allowAddTags?: boolean;
 }
 
 export const EditableCell = ({
@@ -29,6 +31,7 @@ export const EditableCell = ({
   options = [],
   isMulti = false,
   type = "text",
+  allowAddTags = false,
 }: EditableCellProps): React.JSX.Element => {
   const initialValue = info.getValue();
   const isNotes = info.column.id === "notes";
@@ -50,20 +53,20 @@ export const EditableCell = ({
   const popoverRef = useRef<HTMLDivElement>(null);
   const cellRef = useRef<HTMLDivElement>(null);
   const inlineEditorRef = useRef<HTMLDivElement>(null);
+  const numberInputRef = useRef<HTMLInputElement>(null);
   const draftTextRef = useRef("");
 
-  const allowAdd: boolean = [
-    "cohorts",
-    "prior_roles",
-    "current_roles",
-    "future_interests",
-  ].includes(info.column.id);
+  const allowAdd: boolean =
+    allowAddTags ||
+    ["cohorts", "prior_roles", "current_roles", "future_interests"].includes(
+      info.column.id
+    );
 
   /** Forces a fresh DOM subtree when toggling edit mode; avoids ghost nodes from contentEditable + imperative textContent. */
   const modeKey = isEditing ? "edit" : "view";
 
   useEffect(() => {
-    if (isEditing && type === "text") return;
+    if (isEditing && (type === "text" || type === "number")) return;
     setValue(initialValue);
   }, [initialValue, isEditing, type]);
 
@@ -89,6 +92,13 @@ export const EditableCell = ({
     if (type === "text") {
       const text = String(value ?? "");
       draftTextRef.current = text;
+    }
+    if (type === "number") {
+      setInputValue(
+        value === null || value === undefined || value === ""
+          ? ""
+          : String(value)
+      );
     }
     setIsEditing(true);
   };
@@ -131,12 +141,17 @@ export const EditableCell = ({
   );
 
   useEffect(() => {
-    if (!isEditing || type === "text") return;
+    if (!isEditing) return;
+    if (type !== "options" && type !== "number" && type !== "boolean") return;
 
     const handleOutsideInteraction = (e: Event): void => {
       const target = e.target as Node;
       if (popoverRef.current?.contains(target)) return;
       if (cellRef.current?.contains(target)) return;
+      if (type === "boolean") {
+        setIsEditing(false);
+        return;
+      }
       handleSave();
     };
 
@@ -166,7 +181,12 @@ export const EditableCell = ({
   }, [isEditing, type]);
 
   const handleDelete = useCallback((): void => {
-    const cleared = isMulti ? [] : type === "options" ? null : "";
+    let cleared: unknown;
+    if (isMulti) cleared = [];
+    else if (type === "options") cleared = null;
+    else if (type === "boolean") cleared = null;
+    else if (type === "number") cleared = null;
+    else cleared = "";
     setValue(cleared);
     onEdit(info.row.original.id, info.column.id, cleared);
   }, [isMulti, type, info.row.original.id, info.column.id, onEdit]);
@@ -323,6 +343,134 @@ export const EditableCell = ({
     );
   }
 
+  if (isEditing && type === "number") {
+    const commitNumber = (): void => {
+      const raw = inputValue.trim();
+      if (raw === "") {
+        setValue(null);
+        handleSave(null);
+        return;
+      }
+      const n = Number(raw);
+      if (!Number.isFinite(n)) {
+        toast.error("Enter a valid number");
+        return;
+      }
+      setValue(n);
+      handleSave(n);
+    };
+
+    return (
+      <div
+        key={modeKey}
+        ref={cellRef}
+        className="relative w-full h-full flex items-center min-h-6"
+      >
+        <div
+          ref={popoverRef}
+          data-volunteers-overlay
+          style={{
+            position: "fixed",
+            top: `${modalCoords.top}px`,
+            left: `${modalCoords.left}px`,
+            width: `${modalCoords.width}px`,
+            zIndex: 99999,
+          }}
+          className="bg-white rounded-xl shadow-xl border border-gray-100 p-3 flex flex-col gap-2"
+        >
+          <input
+            ref={numberInputRef}
+            type="number"
+            autoFocus
+            className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm tabular-nums outline-none focus:ring-2 focus:ring-purple-300"
+            value={inputValue}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>): void =>
+              setInputValue(e.target.value)
+            }
+            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>): void => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commitNumber();
+              }
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setValue(initialValue);
+                setIsEditing(false);
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={commitNumber}
+            className="text-sm font-medium text-purple-700 hover:text-purple-900 py-1"
+          >
+            Apply
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isEditing && type === "boolean") {
+    const setBool = (next: boolean | null): void => {
+      setValue(next);
+      onEdit(info.row.original.id, info.column.id, next);
+      setIsEditing(false);
+    };
+
+    return (
+      <div
+        key={modeKey}
+        ref={cellRef}
+        className="relative w-full h-full flex items-center min-h-6"
+      >
+        <div
+          ref={popoverRef}
+          data-volunteers-overlay
+          style={{
+            position: "fixed",
+            top: `${modalCoords.top}px`,
+            left: `${modalCoords.left}px`,
+            width: `${modalCoords.width}px`,
+            zIndex: 99999,
+          }}
+          className="bg-white rounded-xl shadow-xl border border-gray-100 p-3 flex flex-col gap-2"
+        >
+          <label className="flex items-center gap-2 cursor-pointer text-sm">
+            <input
+              type="radio"
+              name={`bool-${info.column.id}-${info.row.id}`}
+              checked={value === true}
+              onChange={() => setBool(true)}
+              className="rounded border-gray-300 text-purple-600"
+            />
+            Yes
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer text-sm">
+            <input
+              type="radio"
+              name={`bool-${info.column.id}-${info.row.id}`}
+              checked={value === false}
+              onChange={() => setBool(false)}
+              className="rounded border-gray-300 text-purple-600"
+            />
+            No
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
+            <input
+              type="radio"
+              name={`bool-${info.column.id}-${info.row.id}`}
+              checked={value !== true && value !== false}
+              onChange={() => setBool(null)}
+              className="rounded border-gray-300 text-purple-600"
+            />
+            (empty)
+          </label>
+        </div>
+      </div>
+    );
+  }
+
   if (isEditing && type === "text") {
     const commitAndExit = (): void => {
       const text = (inlineEditorRef.current?.textContent ?? "").replace(
@@ -395,6 +543,15 @@ export const EditableCell = ({
   }
 
   const renderReadOnlyTags = (): React.ReactNode => {
+    if (type === "boolean") {
+      if (value === true) return <VolunteerTag label="Yes" />;
+      if (value === false) return <VolunteerTag label="No" />;
+      return "";
+    }
+    if (type === "number") {
+      if (value === null || value === undefined || value === "") return "";
+      return <span className="tabular-nums">{String(value)}</span>;
+    }
     if (type === "options") {
       if (Array.isArray(value)) {
         return (value as string[]).map((v, i) => (

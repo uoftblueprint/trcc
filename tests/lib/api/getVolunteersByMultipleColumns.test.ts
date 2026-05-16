@@ -115,6 +115,21 @@ describe("validateMultipleColumnFilter (unit)", () => {
     if (!result.valid)
       expect(result.error).toMatch(/Invalid general or role filter values/);
   });
+
+  it("rejects number range on non-number fields", async () => {
+    const filtersList: FilterTuple[] = [
+      {
+        field: "name_org",
+        miniOp: "AND",
+        values: ["1", "5"],
+        numberRange: true,
+      },
+    ];
+    const result = await validateMultipleColumnFilter(filtersList, "OR");
+    expect(result.valid).toBe(false);
+    if (!result.valid)
+      expect(result.error).toMatch(/Invalid number range filter field/);
+  });
 });
 
 // Integration tests

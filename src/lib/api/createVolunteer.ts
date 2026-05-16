@@ -109,6 +109,18 @@ function validateVolunteerData(
     }
   }
 
+  if (data["custom_data"] !== undefined && data["custom_data"] !== null) {
+    if (
+      typeof data["custom_data"] !== "object" ||
+      Array.isArray(data["custom_data"])
+    ) {
+      errors.push({
+        field: "volunteer.custom_data",
+        message: "custom_data must be a plain object",
+      });
+    }
+  }
+
   return errors;
 }
 
@@ -266,7 +278,7 @@ function validateInput(input: unknown): ValidationError[] {
 }
 
 function volunteerToJson(volunteer: VolunteerInput): Record<string, unknown> {
-  return {
+  const row: Record<string, unknown> = {
     name_org: volunteer.name_org,
     pseudonym: volunteer.pseudonym ?? null,
     pronouns: volunteer.pronouns ?? null,
@@ -275,6 +287,16 @@ function volunteerToJson(volunteer: VolunteerInput): Record<string, unknown> {
     opt_in_communication: volunteer.opt_in_communication ?? true,
     notes: volunteer.notes ?? null,
   };
+  const cd = volunteer.custom_data;
+  if (
+    cd !== undefined &&
+    cd !== null &&
+    typeof cd === "object" &&
+    !Array.isArray(cd)
+  ) {
+    row["custom_data"] = cd;
+  }
+  return row;
 }
 
 /**
