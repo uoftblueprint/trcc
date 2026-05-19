@@ -42,6 +42,11 @@ ON CONFLICT ON CONSTRAINT "VolunteerRoles_pkey" DO NOTHING;
 DELETE FROM public."VolunteerCohorts";
 
 -- 3) Upsert from CSV: cohort cell becomes a training tag; role seeding includes training
+-- Return type changed from jsonb to bigint; CREATE OR REPLACE cannot alter that (42P13).
+DROP FUNCTION IF EXISTS public.upsert_volunteer_with_roles_and_cohorts(
+  text, text, text, text, text, jsonb, jsonb, text
+);
+
 CREATE OR REPLACE FUNCTION public.upsert_volunteer_with_roles_and_cohorts(
   p_name text,
   p_pronouns text,
@@ -187,6 +192,9 @@ $$;
 
 COMMENT ON FUNCTION public.upsert_volunteer_with_roles_and_cohorts(text, text, text, text, text, jsonb, jsonb, text) IS
   'Upserts volunteer by (name_org, email). Roles use status prior|current|future_interest|training. Legacy p_cohort JSON adds a training tag.';
+
+GRANT EXECUTE ON FUNCTION public.upsert_volunteer_with_roles_and_cohorts(text, text, text, text, text, jsonb, jsonb, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.upsert_volunteer_with_roles_and_cohorts(text, text, text, text, text, jsonb, jsonb, text) TO service_role;
 
 -- 4) Create volunteer RPC: ignore p_cohorts (training lives in p_roles with type training)
 CREATE OR REPLACE FUNCTION public.create_volunteer_with_roles_and_cohorts(
