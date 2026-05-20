@@ -5,7 +5,7 @@ import {
   makeTestRoleInsert,
   makeTestVolunteerRoleInsert,
   makeTestTrainingRoleInsert,
-  trainingLabel,
+  testTrainingLabel,
 } from "../support/factories";
 import {
   getVolunteersByMultipleColumns,
@@ -134,7 +134,6 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
   beforeAll(async () => {
     // Clean up any existing test data first to prevent unique constraint violations
     await deleteWhere(client, "Volunteers", "name_org", "TEST_%");
-    await deleteWhere(client, "Roles", "name", "TEST_%");
     await deleteWhere(client, "Roles", "name", "TEST_%");
 
     const { data: v, error: vError } = await client
@@ -280,7 +279,7 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
       {
         field: "cohorts",
         miniOp: "OR",
-        values: [trainingLabel("Fall")],
+        values: [testTrainingLabel("Fall")],
       },
     ];
     const { data } = await getVolunteersByMultipleColumns(filters, "AND");
@@ -296,7 +295,7 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
       {
         field: "cohorts",
         miniOp: "AND",
-        values: [trainingLabel("Fall"), trainingLabel("Winter")],
+        values: [testTrainingLabel("Fall"), testTrainingLabel("Winter")],
       },
     ];
     const { data } = await getVolunteersByMultipleColumns(filters, "AND");
@@ -337,7 +336,7 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
       {
         field: "cohorts",
         miniOp: "OR",
-        values: [trainingLabel("Fall"), trainingLabel("Winter")],
+        values: [testTrainingLabel("Fall"), testTrainingLabel("Winter")],
       },
       {
         field: "name_org",
@@ -359,7 +358,7 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
       {
         field: "cohorts",
         miniOp: "OR",
-        values: [trainingLabel("Winter")],
+        values: [testTrainingLabel("Winter")],
       },
     ];
     const { data } = await getVolunteersByMultipleColumns(filters, "OR");
