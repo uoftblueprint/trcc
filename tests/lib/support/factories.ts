@@ -45,13 +45,21 @@ export function trainingLabel(term: string, year: number = TEST_YEAR): string {
   return `${term} ${year}`;
 }
 
+/** Isolated training label for tests (avoids colliding with migrated/imported tags). */
+export function testTrainingLabel(
+  term: string,
+  year: number = TEST_YEAR
+): string {
+  return `TEST_${term} ${year}`;
+}
+
 export function makeTestTrainingRoleInsert(
   term: string,
   year: number = TEST_YEAR,
   overrides: Partial<RoleInsert> = {}
 ): RoleInsert {
   return makeTestRoleInsert({
-    name: trainingLabel(term, year),
+    name: testTrainingLabel(term, year),
     type: "training",
     ...overrides,
   });

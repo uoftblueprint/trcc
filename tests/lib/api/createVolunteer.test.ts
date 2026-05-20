@@ -521,25 +521,22 @@ describe("createVolunteer", () => {
               email: `type-${type}@example.com`,
             },
             roles: [{ name: `TEST_RPC_Type_Role_${type}`, type }],
-            cohorts: [{ year: TEST_YEAR, term: "Fall" }],
+            cohorts: [],
           };
           const result = await createVolunteer(input);
           expect(result.success).toBe(true);
           if (!result.success) return;
 
-          const { data: vr } = await client
+          const { data: vr, error: vrError } = await client
             .from("VolunteerRoles")
-            .select("role_id")
+            .select("role_id, Roles!inner(type)")
             .eq("volunteer_id", result.data.id)
+            .eq("Roles.type", type)
             .single();
 
+          expect(vrError).toBeNull();
           expect(vr).toBeTruthy();
-          const { data: role } = await client
-            .from("Roles")
-            .select("type")
-            .eq("id", vr!.role_id)
-            .single();
-          expect(role!.type).toBe(type);
+          expect((vr as { Roles: { type: string } }).Roles.type).toBe(type);
         }
       });
     });
