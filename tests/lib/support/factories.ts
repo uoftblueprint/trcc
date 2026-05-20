@@ -40,6 +40,23 @@ export type CohortTerm = (typeof VALID_COHORT_TERMS)[number];
 // Test data markers
 export const TEST_YEAR = 2099; // Use this year for all test cohorts (easy cleanup)
 
+/** Training tag label stored on Roles.name (matches RPC/import: "Term Year"). */
+export function trainingLabel(term: string, year: number = TEST_YEAR): string {
+  return `${term} ${year}`;
+}
+
+export function makeTestTrainingRoleInsert(
+  term: string,
+  year: number = TEST_YEAR,
+  overrides: Partial<RoleInsert> = {}
+): RoleInsert {
+  return makeTestRoleInsert({
+    name: trainingLabel(term, year),
+    type: "training",
+    ...overrides,
+  });
+}
+
 // Utility Functions
 function randomToken(): string {
   return `${Date.now()}_${Math.random().toString(16).slice(2)}`;

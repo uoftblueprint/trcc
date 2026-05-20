@@ -282,6 +282,14 @@ function volunteerToJson(volunteer: VolunteerInput): Record<string, unknown> {
   };
 }
 
+/** Cohorts are stored as Roles with type `training` (label: "Term Year"). */
+function cohortsToTrainingRoles(cohorts: CohortInput[]): RoleInput[] {
+  return cohorts.map((c) => ({
+    name: `${c.term} ${c.year}`,
+    type: "training",
+  }));
+}
+
 /**
  * Creates a volunteer with optional many roles and cohorts in one DB transaction.
  */
@@ -300,13 +308,17 @@ export async function createVolunteer(
 
     const { volunteer, roles, cohorts } = input;
     const client = await createClient();
+    const rolesPayload = [
+      ...roles,
+      ...cohortsToTrainingRoles(cohorts),
+    ] as unknown as Json;
 
     const { data: volunteerId, error } = await client.rpc(
       "create_volunteer_with_roles_and_cohorts",
       {
         p_volunteer: volunteerToJson(volunteer) as Json,
-        p_roles: roles as unknown as Json,
-        p_cohorts: cohorts as unknown as Json,
+        p_roles: rolesPayload,
+        p_cohorts: [] as unknown as Json,
       }
     );
 

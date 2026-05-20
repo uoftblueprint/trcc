@@ -11,7 +11,6 @@ import {
   deleteWhereGte,
 } from "../support/helpers";
 import {
-  makeTestCohortInsert,
   makeTestRoleInsert,
   makeTestVolunteerInsert,
   TEST_YEAR,
@@ -57,21 +56,6 @@ async function seedRole(): Promise<Tables<"Roles">> {
   return data;
 }
 
-async function seedCohort(): Promise<Tables<"Cohorts">> {
-  const insert = makeTestCohortInsert();
-  const { data, error } = await client
-    .from("Cohorts")
-    .insert(insert)
-    .select()
-    .single();
-
-  if (error || !data) {
-    throw error ?? new Error("Failed to seed cohort");
-  }
-
-  return data;
-}
-
 describe.skipIf(!hasServiceRole)(
   "updateVolunteer (Supabase integration)",
   () => {
@@ -104,12 +88,15 @@ describe.skipIf(!hasServiceRole)(
       expect(result.status).toBe(400);
     });
 
-    it("returns 400 for invalid cohort term", async () => {
+    it("returns 400 for unknown cohort field", async () => {
       const result = await updateVolunteer(1, {
         cohort: { year: 2024, term: "Fall" },
       });
 
       expect(result.status).toBe(400);
+      if (result.status === 400) {
+        expect(result.body.error).toMatch(/Unknown field/);
+      }
     });
 
     it("returns 400 for invalid position", async () => {
@@ -140,15 +127,13 @@ describe.skipIf(!hasServiceRole)(
       expect(updated?.updated_at).not.toBe(volunteer.updated_at);
     });
 
-    it("updates role and cohort links when provided", async () => {
+    it("updates role link when provided", async () => {
       const volunteer = await seedVolunteer();
       const role = await seedRole();
-      const cohort = await seedCohort();
 
       const result = await updateVolunteer(volunteer.id, {
         name_org: volunteer.name_org,
         role: { name: role.name, type: role.type },
-        cohort: { year: cohort.year, term: "fall" },
       });
 
       expect(result.status).toBe(200);
@@ -161,15 +146,6 @@ describe.skipIf(!hasServiceRole)(
 
       expect(roleError).toBeNull();
       expect(roleLink?.role_id).toBe(role.id);
-
-      const { data: cohortLink, error: cohortError } = await client
-        .from("VolunteerCohorts")
-        .select("cohort_id")
-        .eq("volunteer_id", volunteer.id)
-        .maybeSingle();
-
-      expect(cohortError).toBeNull();
-      expect(cohortLink?.cohort_id).toBe(cohort.id);
     });
 
     it("returns 400 when role does not exist and does not update volunteer", async () => {
@@ -192,7 +168,7 @@ describe.skipIf(!hasServiceRole)(
       expect(current?.name_org).toBe(volunteer.name_org);
     });
 
-    it("returns 400 when cohort does not exist and does not update volunteer", async () => {
+    it("returns 400 when cohort field is sent and does not update volunteer", async () => {
       const volunteer = await seedVolunteer();
 
       const result = await updateVolunteer(volunteer.id, {
