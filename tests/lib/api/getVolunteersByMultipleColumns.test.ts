@@ -4,9 +4,8 @@ import {
   makeTestVolunteerInsert,
   makeTestRoleInsert,
   makeTestVolunteerRoleInsert,
-  makeTestCohortInsert,
-  makeTestVolunteerCohortInsert,
-  TEST_YEAR,
+  makeTestTrainingRoleInsert,
+  trainingLabel,
 } from "../support/factories";
 import {
   getVolunteersByMultipleColumns,
@@ -19,7 +18,7 @@ describe("validateMultipleColumnFilter (unit)", () => {
   it("accepts a valid filter", async () => {
     const filtersList: FilterTuple[] = [
       { field: "current_roles", miniOp: "OR", values: ["Role 1"] },
-      { field: "cohorts", miniOp: "AND", values: [["Winter", "2025"]] },
+      { field: "cohorts", miniOp: "AND", values: ["Winter 2025"] },
       { field: "name_org", miniOp: "OR", values: ["Volunteer1, Volunteer2"] },
     ];
     const result = await validateMultipleColumnFilter(filtersList, "AND");
@@ -43,7 +42,7 @@ describe("validateMultipleColumnFilter (unit)", () => {
     const filtersList: FilterTuple[] = [
       { field: "current_roles", miniOp: "OR", values: ["Role 1"] },
       // @ts-expect-error Test invalid mini operation type
-      { field: "cohorts", miniOp: "XOR", values: [["Winter", "2025"]] },
+      { field: "cohorts", miniOp: "XOR", values: ["Winter 2025"] },
     ];
     const result = await validateMultipleColumnFilter(filtersList, "OR");
     expect(result.valid).toBe(false);
@@ -96,21 +95,18 @@ describe("validateMultipleColumnFilter (unit)", () => {
     expect(result.valid).toBe(true);
   });
 
-  it("rejects any invalid cohort value", async () => {
+  it("rejects any invalid training filter value", async () => {
     const filtersList: FilterTuple[] = [
       {
         field: "cohorts",
         miniOp: "OR",
-        values: [
-          ["Winter", "2025"],
-          ["Spring", "Year"],
-        ],
+        values: ["2024 Fall", ""],
       },
     ];
     const result = await validateMultipleColumnFilter(filtersList, "OR");
     expect(result.valid).toBe(false);
     if (!result.valid)
-      expect(result.error).toMatch(/Invalid cohort filter values/);
+      expect(result.error).toMatch(/Invalid training filter values/);
   });
 
   it("rejects any invalid general or role value", async () => {
@@ -133,13 +129,13 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
   let volunteer2Id: number; // Role 2, Cohort 1, Cohort 2
   let volunteer3Id: number; // Role 1, Role 2, Cohort 2
   let role1Id: number, role2Id: number, role3Id: number, role4Id: number;
-  let cohort1Id: number, cohort2Id: number;
+  let trainingFallId: number, trainingWinterId: number;
 
   beforeAll(async () => {
     // Clean up any existing test data first to prevent unique constraint violations
     await deleteWhere(client, "Volunteers", "name_org", "TEST_%");
     await deleteWhere(client, "Roles", "name", "TEST_%");
-    await client.from("Cohorts").delete().eq("year", TEST_YEAR);
+    await deleteWhere(client, "Roles", "name", "TEST_%");
 
     const { data: v, error: vError } = await client
       .from("Volunteers")
@@ -169,17 +165,17 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
       ])
       .select();
 
-    const { data: c, error: cError } = await client
-      .from("Cohorts")
+    const { data: trainingRoles, error: trError } = await client
+      .from("Roles")
       .insert([
-        makeTestCohortInsert({ term: "Fall" }),
-        makeTestCohortInsert({ term: "Winter" }),
+        makeTestTrainingRoleInsert("Fall"),
+        makeTestTrainingRoleInsert("Winter"),
       ])
       .select();
 
     expect(vError).toBeNull();
     expect(rError).toBeNull();
-    expect(cError).toBeNull();
+    expect(trError).toBeNull();
 
     const [v1, v2, v3] = v!;
     volunteer1Id = v1!.id;
@@ -192,9 +188,9 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
     role3Id = r3!.id;
     role4Id = r4!.id;
 
-    const [c1, c2] = c!;
-    cohort1Id = c1!.id;
-    cohort2Id = c2!.id;
+    const [tFall, tWinter] = trainingRoles!;
+    trainingFallId = tFall!.id;
+    trainingWinterId = tWinter!.id;
 
     const { error: vrError } = await client
       .from("VolunteerRoles")
@@ -207,25 +203,18 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
         makeTestVolunteerRoleInsert(volunteer3Id, role2Id),
         makeTestVolunteerRoleInsert(volunteer3Id, role3Id),
         makeTestVolunteerRoleInsert(volunteer3Id, role4Id),
-      ]);
-
-    const { error: vcError } = await client
-      .from("VolunteerCohorts")
-      .insert([
-        makeTestVolunteerCohortInsert(volunteer1Id, cohort1Id),
-        makeTestVolunteerCohortInsert(volunteer2Id, cohort1Id),
-        makeTestVolunteerCohortInsert(volunteer2Id, cohort2Id),
-        makeTestVolunteerCohortInsert(volunteer3Id, cohort2Id),
+        makeTestVolunteerRoleInsert(volunteer1Id, trainingFallId),
+        makeTestVolunteerRoleInsert(volunteer2Id, trainingFallId),
+        makeTestVolunteerRoleInsert(volunteer2Id, trainingWinterId),
+        makeTestVolunteerRoleInsert(volunteer3Id, trainingWinterId),
       ]);
 
     expect(vrError).toBeNull();
-    expect(vcError).toBeNull();
   });
 
   afterAll(async () => {
     await deleteWhere(client, "Volunteers", "name_org", "TEST_%");
     await deleteWhere(client, "Roles", "name", "TEST_%");
-    await client.from("Cohorts").delete().eq("year", TEST_YEAR);
   });
 
   it("returns nothing when filters are empty", async () => {
@@ -286,9 +275,13 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
     expect(ids).not.toContain(volunteer1Id);
   });
 
-  it("cohorts by cohort with OR", async () => {
+  it("filters by training tag with OR", async () => {
     const filters: FilterTuple[] = [
-      { field: "cohorts", miniOp: "OR", values: [["Fall", String(TEST_YEAR)]] },
+      {
+        field: "cohorts",
+        miniOp: "OR",
+        values: [trainingLabel("Fall")],
+      },
     ];
     const { data } = await getVolunteersByMultipleColumns(filters, "AND");
     const ids = data;
@@ -298,15 +291,12 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
     expect(ids).not.toContain(volunteer3Id);
   });
 
-  it("filters by cohort with AND", async () => {
+  it("filters by training tag with AND", async () => {
     const filters: FilterTuple[] = [
       {
         field: "cohorts",
         miniOp: "AND",
-        values: [
-          ["Fall", String(TEST_YEAR)],
-          ["Winter", String(TEST_YEAR)],
-        ],
+        values: [trainingLabel("Fall"), trainingLabel("Winter")],
       },
     ];
     const { data } = await getVolunteersByMultipleColumns(filters, "AND");
@@ -347,10 +337,7 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
       {
         field: "cohorts",
         miniOp: "OR",
-        values: [
-          ["Fall", String(TEST_YEAR)],
-          ["Winter", String(TEST_YEAR)],
-        ],
+        values: [trainingLabel("Fall"), trainingLabel("Winter")],
       },
       {
         field: "name_org",
@@ -372,7 +359,7 @@ describe("getVolunteersByMultipleColumns (integration)", () => {
       {
         field: "cohorts",
         miniOp: "OR",
-        values: [["Winter", String(TEST_YEAR)]],
+        values: [trainingLabel("Winter")],
       },
     ];
     const { data } = await getVolunteersByMultipleColumns(filters, "OR");

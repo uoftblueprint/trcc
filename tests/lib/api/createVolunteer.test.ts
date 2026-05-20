@@ -277,8 +277,7 @@ describe("createVolunteer", () => {
       expect(role).toBeTruthy();
     });
 
-    it("creates cohort when it does not exist", async () => {
-      // Use a year within smallint range and distinct from TEST_YEAR (2099)
+    it("creates training tag when cohort does not exist", async () => {
       const input: CreateVolunteerInput = {
         volunteer: {
           name_org: "TEST_Integration_Volunteer",
@@ -293,13 +292,13 @@ describe("createVolunteer", () => {
       if (result.success) {
         expect(typeof result.data.id).toBe("number");
       }
-      const { data: cohort } = await client
-        .from("Cohorts")
-        .select("id")
-        .eq("year", nonexistentYear)
-        .eq("term", "Fall")
+      const { data: trainingRole } = await client
+        .from("Roles")
+        .select("id, name, type")
+        .eq("name", `Fall ${nonexistentYear}`)
+        .eq("type", "training")
         .single();
-      expect(cohort).toBeTruthy();
+      expect(trainingRole).toBeTruthy();
     });
 
     it("successfully creates a volunteer with just name_org", async () => {
@@ -318,7 +317,7 @@ describe("createVolunteer", () => {
     });
 
     describe("RPC: junction tables and get-or-create", () => {
-      it("creates VolunteerRoles and VolunteerCohorts rows linking volunteer to role and cohort", async () => {
+      it("creates VolunteerRoles rows linking volunteer to role and training tag", async () => {
         const input: CreateVolunteerInput = {
           volunteer: {
             name_org: "TEST_RPC_Junction_Volunteer",
@@ -334,27 +333,22 @@ describe("createVolunteer", () => {
 
         const volunteerId = result.data.id;
 
-        const { data: volunteerRole, error: vrError } = await client
+        const { data: volunteerRoles, error: vrError } = await client
           .from("VolunteerRoles")
-          .select("volunteer_id, role_id")
-          .eq("volunteer_id", volunteerId)
-          .single();
+          .select("volunteer_id, role_id, Roles!inner(name, type)")
+          .eq("volunteer_id", volunteerId);
 
         expect(vrError).toBeNull();
-        expect(volunteerRole).toBeTruthy();
-        expect(volunteerRole!.volunteer_id).toBe(volunteerId);
-        expect(typeof volunteerRole!.role_id).toBe("number");
-
-        const { data: volunteerCohort, error: vcError } = await client
-          .from("VolunteerCohorts")
-          .select("volunteer_id, cohort_id")
-          .eq("volunteer_id", volunteerId)
-          .single();
-
-        expect(vcError).toBeNull();
-        expect(volunteerCohort).toBeTruthy();
-        expect(volunteerCohort!.volunteer_id).toBe(volunteerId);
-        expect(typeof volunteerCohort!.cohort_id).toBe("number");
+        expect(volunteerRoles).toHaveLength(2);
+        const roleTypes = volunteerRoles!.map(
+          (row) => (row as { Roles: { name: string; type: string } }).Roles
+        );
+        expect(roleTypes).toEqual(
+          expect.arrayContaining([
+            { name: "TEST_RPC_Junction_Role", type: "prior" },
+            { name: `Spring ${TEST_YEAR}`, type: "training" },
+          ])
+        );
       });
 
       it("reuses existing role when creating second volunteer with same role name", async () => {
@@ -401,8 +395,9 @@ describe("createVolunteer", () => {
         );
       });
 
-      it("reuses existing cohort when creating second volunteer with same year and term", async () => {
+      it("reuses existing training tag when creating second volunteer with same year and term", async () => {
         const cohortTerm = "Winter";
+        const trainingName = `${cohortTerm} ${cohortYear}`;
         const input1: CreateVolunteerInput = {
           volunteer: {
             name_org: "TEST_RPC_Cohort_Vol_One",
@@ -427,21 +422,21 @@ describe("createVolunteer", () => {
         expect(result2.success).toBe(true);
         if (!result2.success) return;
 
-        const { data: cohorts } = await client
-          .from("Cohorts")
+        const { data: trainingRoles } = await client
+          .from("Roles")
           .select("id")
-          .eq("year", cohortYear)
-          .eq("term", cohortTerm);
-        expect(cohorts?.length).toBeGreaterThanOrEqual(1);
-        const cohortId = cohorts?.[0]?.id;
-        expect(cohortId).toBeDefined();
+          .eq("name", trainingName)
+          .eq("type", "training");
+        expect(trainingRoles).toHaveLength(1);
+        const trainingRoleId = trainingRoles?.[0]?.id;
+        expect(trainingRoleId).toBeDefined();
 
-        const { data: vcRows } = await client
-          .from("VolunteerCohorts")
-          .select("volunteer_id, cohort_id")
-          .eq("cohort_id", cohortId!);
-        expect(vcRows!.length).toBeGreaterThanOrEqual(2);
-        const volunteerIds = vcRows!.map((r) => r.volunteer_id);
+        const { data: vrRows } = await client
+          .from("VolunteerRoles")
+          .select("volunteer_id, role_id")
+          .eq("role_id", trainingRoleId!);
+        expect(vrRows!.length).toBeGreaterThanOrEqual(2);
+        const volunteerIds = vrRows!.map((r) => r.volunteer_id);
         expect(volunteerIds).toContain(result1.data.id);
         expect(volunteerIds).toContain(result2.data.id);
       });
@@ -500,19 +495,20 @@ describe("createVolunteer", () => {
           expect(result.success).toBe(true);
           if (!result.success) return;
 
-          const { data: vc } = await client
-            .from("VolunteerCohorts")
-            .select("cohort_id")
-            .eq("volunteer_id", result.data.id)
-            .single();
+          const { data: vr } = await client
+            .from("VolunteerRoles")
+            .select("role_id, Roles!inner(name, type)")
+            .eq("volunteer_id", result.data.id);
 
-          expect(vc).toBeTruthy();
-          const { data: cohort } = await client
-            .from("Cohorts")
-            .select("term")
-            .eq("id", vc!.cohort_id)
-            .single();
-          expect(cohort!.term).toBe(term);
+          expect(vr).toBeTruthy();
+          const training = vr!.find(
+            (row) =>
+              (row as { Roles: { type: string } }).Roles.type === "training"
+          );
+          expect(training).toBeTruthy();
+          expect((training as { Roles: { name: string } }).Roles.name).toBe(
+            `${term} ${TEST_YEAR}`
+          );
         }
       });
 

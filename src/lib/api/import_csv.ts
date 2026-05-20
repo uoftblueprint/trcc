@@ -499,10 +499,7 @@ export async function import_csv(
 
   const client = await createClient();
 
-  let dbInserted = 0;
-  let dbUpdated = 0;
-  let dbUpdatedNoChanges = 0;
-  const changedDetails: Array<{ name: string; fields: string[] }> = [];
+  let dbUpserted = 0;
 
   for (const volunteer of volunteers) {
     const { data: rpcResult, error } = await client.rpc(
@@ -533,66 +530,21 @@ export async function import_csv(
 
     dbSucceeded += 1;
 
-    // Log operation details from the RPC return value
-    const result = rpcResult as unknown as {
-      volunteer_id: number;
-      operation: string;
-      changed_fields: string[];
-      new_roles_added: number;
-      new_cohorts_added: number;
-    } | null;
-
-    if (result) {
-      const changedFields = result.changed_fields ?? [];
-      if (result.operation === "inserted") {
-        dbInserted += 1;
-        console.log(
-          `[import_csv] INSERTED: "${volunteer.name_org}" (id: ${result.volunteer_id}, roles added: ${result.new_roles_added}, cohorts added: ${result.new_cohorts_added})`
-        );
-      } else {
-        dbUpdated += 1;
-        if (
-          changedFields.length === 0 &&
-          result.new_roles_added === 0 &&
-          result.new_cohorts_added === 0
-        ) {
-          dbUpdatedNoChanges += 1;
-          console.log(
-            `[import_csv] DUPLICATE (no changes): "${volunteer.name_org}" (id: ${result.volunteer_id})`
-          );
-        } else {
-          const changes: string[] = [...changedFields];
-          if (result.new_roles_added > 0)
-            changes.push(`${result.new_roles_added} new role(s)`);
-          if (result.new_cohorts_added > 0)
-            changes.push(`${result.new_cohorts_added} new cohort(s)`);
-          changedDetails.push({
-            name: volunteer.name_org,
-            fields: changes,
-          });
-          console.log(
-            `[import_csv] UPDATED: "${volunteer.name_org}" (id: ${result.volunteer_id}, changes: ${changes.join(", ")})`
-          );
-        }
-      }
+    const volunteerId =
+      typeof rpcResult === "number" ? rpcResult : Number(rpcResult);
+    if (Number.isFinite(volunteerId)) {
+      dbUpserted += 1;
+      console.log(
+        `[import_csv] UPSERTED: "${volunteer.name_org}" (id: ${volunteerId})`
+      );
     }
   }
 
   // Log summary
   console.log("[import_csv] === IMPORT SUMMARY ===");
   console.log(`[import_csv] Total rows in CSV: ${parsed_csv.data.length}`);
-  console.log(`[import_csv] New volunteers inserted: ${dbInserted}`);
-  console.log(
-    `[import_csv] Existing volunteers updated: ${dbUpdated - dbUpdatedNoChanges}`
-  );
-  console.log(`[import_csv] Duplicates (no changes): ${dbUpdatedNoChanges}`);
+  console.log(`[import_csv] Volunteers upserted: ${dbUpserted}`);
   console.log(`[import_csv] DB failures: ${dbFailed}`);
-  if (changedDetails.length > 0) {
-    console.log("[import_csv] Changed details:");
-    changedDetails.forEach((d) =>
-      console.log(`[import_csv]   - "${d.name}": ${d.fields.join(", ")}`)
-    );
-  }
 
   // Count unique row indices that failed parsing
   const failedRowIndices = new Set<number>();
@@ -617,9 +569,9 @@ export async function import_csv(
       parseFailed,
       dbSucceeded,
       dbFailed,
-      dbInserted,
-      dbUpdated: dbUpdated - dbUpdatedNoChanges,
-      dbDuplicates: dbUpdatedNoChanges,
+      dbInserted: 0,
+      dbUpdated: dbUpserted,
+      dbDuplicates: 0,
     },
     parseErrors: [...papaParseErrors, ...rowParseErrors],
     parseWarnings: rowParseWarnings,

@@ -197,19 +197,17 @@ describe("db: import_csv (integration)", () => {
     expect(volunteer!.email).toBe("test_import_valid@example.com");
     expect(volunteer!.notes).toBe("Integration note");
 
-    const { data: volunteerCohorts, error: vcError } = await client
-      .from("VolunteerCohorts")
-      .select("volunteer_id, Cohorts!inner(year, term)")
+    const { data: trainingLinks, error: trainingError } = await client
+      .from("VolunteerRoles")
+      .select("volunteer_id, Roles!inner(name, type)")
       .eq("volunteer_id", volunteer!.id)
-      .single();
+      .eq("Roles.type", "training");
 
-    expect(vcError).toBeNull();
-    const cohort = (
-      volunteerCohorts! as { Cohorts: { year: number; term: string } }
-    ).Cohorts;
-
-    expect(cohort.year).toBe(TEST_YEAR);
-    expect(cohort.term).toBe("Fall");
+    expect(trainingError).toBeNull();
+    expect(trainingLinks).toHaveLength(1);
+    expect(
+      (trainingLinks![0] as { Roles: { name: string; type: string } }).Roles
+    ).toEqual({ name: `Fall ${TEST_YEAR}`, type: "training" });
 
     const { data: volunteerRoles, error: vrError } = await client
       .from("VolunteerRoles")
@@ -222,16 +220,17 @@ describe("db: import_csv (integration)", () => {
     const rolePairs = volunteerRoles!.map(
       (row) => (row as { Roles: { name: string; type: string } }).Roles
     );
+    const nonTrainingRoles = rolePairs.filter((r) => r.type !== "training");
 
-    expect(rolePairs.length).toEqual(2);
-    expect(rolePairs).toEqual(
+    expect(nonTrainingRoles).toHaveLength(2);
+    expect(nonTrainingRoles).toEqual(
       expect.arrayContaining([
         { name: "Accompaniment", type: "current" },
         { name: "F2F", type: "prior" },
       ])
     );
     // "4. No" on Chat should not produce a role
-    expect(rolePairs).not.toEqual(
+    expect(nonTrainingRoles).not.toEqual(
       expect.arrayContaining([{ name: "Chat Counsellor", type: "current" }])
     );
 
@@ -617,25 +616,17 @@ describe("db: import_csv (integration)", () => {
       expect(Array.from(types!)).toEqual(expect.arrayContaining(expectedTypes));
     }
 
-    // 3. verify correct cohorts created
-    const { data: cohorts, error: cohortsError } = await client
-      .from("Cohorts")
-      .select("id, year, term")
-      .eq("year", 6769)
-      .in("term", ["Summer", "Fall"]);
+    // 3. verify training tags created for imported cohorts
+    const { data: trainingRoles, error: trainingRolesError } = await client
+      .from("Roles")
+      .select("id, name, type")
+      .eq("type", "training")
+      .in("name", ["Summer 6769", "Fall 6769"]);
 
-    expect(cohortsError).toBeNull();
-    expect(cohorts).toBeTruthy();
-    expect(cohorts).toHaveLength(2);
+    expect(trainingRolesError).toBeNull();
+    expect(trainingRoles).toHaveLength(2);
 
-    expect(cohorts).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ year: 6769, term: "Summer" }),
-        expect.objectContaining({ year: 6769, term: "Fall" }),
-      ])
-    );
-
-    // 4. VERIFY COHORT AND ROLE JUNCTION TABLE ROWS
+    // 4. VERIFY TRAINING AND ROLE JUNCTION TABLE ROWS
 
     const roleId = (name: string, type: string): number =>
       roles!.find((r) => r.name === name && r.type === type)!.id;
@@ -666,28 +657,25 @@ describe("db: import_csv (integration)", () => {
       ])
     );
 
-    // 4.b Verify volunteerCohorts rows
-
-    const { data: volunteerCohorts, error: volunteerCohortsError } =
-      await client
-        .from("VolunteerCohorts")
-        .select("volunteer_id, cohort_id")
-        .in("volunteer_id", [v1!.id, v2!.id]);
-
-    expect(volunteerCohortsError).toBeNull();
-    expect(volunteerCohorts).toBeTruthy();
-
-    const summerCohortId = cohorts!.find(
-      (c) => c.year === 6769 && c.term === "Summer"
+    // 4.b Verify training links on VolunteerRoles
+    const summerTrainingId = trainingRoles!.find(
+      (r) => r.name === "Summer 6769"
     )?.id;
-    const fallCohortId = cohorts!.find(
-      (c) => c.year === 6769 && c.term === "Fall"
+    const fallTrainingId = trainingRoles!.find(
+      (r) => r.name === "Fall 6769"
     )?.id;
 
-    expect(volunteerCohorts).toEqual(
+    const { data: trainingLinks, error: trainingLinksError } = await client
+      .from("VolunteerRoles")
+      .select("volunteer_id, role_id")
+      .in("volunteer_id", [v1!.id, v2!.id])
+      .in("role_id", [summerTrainingId!, fallTrainingId!]);
+
+    expect(trainingLinksError).toBeNull();
+    expect(trainingLinks).toEqual(
       expect.arrayContaining([
-        { volunteer_id: v1!.id, cohort_id: summerCohortId! },
-        { volunteer_id: v2!.id, cohort_id: fallCohortId! },
+        { volunteer_id: v1!.id, role_id: summerTrainingId! },
+        { volunteer_id: v2!.id, role_id: fallTrainingId! },
       ])
     );
   });
